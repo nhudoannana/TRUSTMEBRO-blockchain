@@ -1,10 +1,10 @@
-# TrustProfile — Blockchain-Based Verifiable Profile & Credential System
+# TRUSTMEBRO — Blockchain-Based Verifiable Profile & Credential System
 
 > An educational blockchain simulation that demonstrates how digital credentials can be issued, verified, and protected from tampering using SHA-256 hashing, ECDSA digital signatures, Merkle Trees, Proof of Work, and multi-node consensus.
 
 ## Overview
 
-TrustProfile models a complete credential lifecycle on a simplified blockchain:
+TRUSTMEBRO models a complete credential lifecycle on a simplified blockchain:
 
 1. An **Issuer** creates a digital credential for a **Holder** (e.g., a university degree).
 2. The credential is packaged into a **Transaction** and signed with an **ECDSA (SECP256K1) digital signature**.
@@ -254,3 +254,14 @@ This repository was developed as a group project for an academic blockchain cour
 - PoS blocks require zero difficulty and nonce. The mixed demo awards 1 point per PoS
   block and `16 ** difficulty` per PoW block; this is an educational scoring rule,
   not a production hybrid consensus protocol.
+
+### TRUSTMEBRO app review
+
+See [the project review](docs/REVIEW_2026-09-26.md) for confirmed fixes, validation and remaining scope.
+The network starts with three validator wallets. Reset Stake keeps their existing keys;
+Generate Wallet intentionally creates another identity. Wallets with equal names may still
+have different addresses, so selectors display addresses. After updating from the older
+wallet-reset implementation, restart Streamlit and refresh the browser for a clean demo.
+
+Credentials & Transactions now lets you submit each saved signed transaction to the network.
+Continue in Mining & Consensus Flow, then Verify Credential to verify the included claims.

@@ -1,4 +1,4 @@
-﻿"""Trang so sánh PoW vs PoS và Demo cơ chế phạt Slashing trong TrustProfile Consortium.
+﻿"""Trang so sánh PoW vs PoS và Demo cơ chế phạt Slashing trong TRUSTMEBRO Consortium.
 
 Mục đích:
 - Đối chiếu toàn diện giữa Proof of Work và Proof of Stake trong hệ thống hồ sơ & chứng chỉ số.
@@ -21,18 +21,18 @@ from blockchain.wallet import generate_wallet, Wallet
 from blockchain.transaction import Credential, Transaction
 from blockchain.block import Block
 from blockchain.mining import mine_block
-from blockchain.pos import PoSRegistry, Validator, create_trustprofile_consortium
+from blockchain.pos import PoSRegistry, Validator
 
 init_state()
 
-st.header("⚖️ Cơ chế Đồng thuận: PoW vs PoS & Quản trị Liên minh TrustProfile")
+st.header("⚖️ Cơ chế Đồng thuận: PoW vs PoS & Quản trị Liên minh TRUSTMEBRO")
 
 st.info(
     "🎓 **LƯU Ý GIÁO DỤC QUAN TRỌNG:**\n\n"
     "Hệ thống mô phỏng kiến trúc **Consortium Proof of Stake (PoS / Reputation Stake)** phù hợp cho "
     "mạng lưới quản lý văn bằng, chứng chỉ và hồ sơ năng lực số (tương tự kiến trúc EBSI của Châu Âu hay Velocity Network). "
     "**Hệ thống tuyệt đối KHÔNG mô phỏng tiền mã hoá thật** (không có coin/token tài chính). "
-    "Mọi 'Stake' trong mô phỏng là **Điểm cổ phần bảo chứng mô phỏng** thể hiện cam kết trách nhiệm và uy tín pháp lý."
+    "Mọi 'Stake' trong mô phỏng là **Điểm cổ phần bảo chứng mô phỏng** dùng để minh họa trọng số bầu chọn, không chứng nhận uy tín pháp lý."
 )
 
 network = get_network()
@@ -52,20 +52,20 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1: BẢNG SO SÁNH TOÀN DIỆN
 # ──────────────────────────────────────────────
 with tab1:
-    st.subheader("🔹 Bảng đối chiếu chi tiết Proof of Work và Proof of Stake trong TrustProfile")
+    st.subheader("🔹 Bảng đối chiếu chi tiết Proof of Work và Proof of Stake trong TRUSTMEBRO")
 
     st.markdown(
         """
 | Tiêu chí so sánh | ⛏️ Proof of Work (PoW) | 🪙 Proof of Stake (PoS / Consortium) |
 |---|---|---|
-| **Bản chất trong TrustProfile** | Các máy chủ cạnh tranh giải bài toán băm SHA-256 | Các Trường Đại học & Tổ chức Kiểm định nắm giữ Cổ phần Bảo chứng |
+| **Bản chất trong TRUSTMEBRO** | Các máy chủ cạnh tranh giải bài toán băm SHA-256 | Các Trường Đại học & Tổ chức Kiểm định nắm giữ Cổ phần Bảo chứng |
 | **Cơ chế bầu chọn** | Ai tìm ra số Nonce thoả mãn độ khó trước thì được ghi khối | Bầu chọn ngẫu nhiên có trọng số theo uy tín/cổ phần: $P(v) \\sim Stake(v)$ |
 | **Chi phí tính toán CPU** | **Rất lãng phí:** Hàng triệu phép băm thử vô nghĩa để tìm Nonce | Tính Merkle root, băm header và ký ECDSA; không thử nonce |
 | **Tiêu thụ năng lượng** | Phụ thuộc difficulty và phần cứng; demo chưa đo điện năng | Không đào nonce; mức tiêu thụ thực tế cần đo trên phần cứng |
 | **Phần cứng yêu cầu** | Máy đào chuyên dụng giá đắt (ASIC, GPU công suất cao) | Máy tính thông thường của trường hoặc máy chủ cơ sở dữ liệu |
 | **Rủi ro & Tấn công chính** | **51% Hashrate Attack:** Thâu tóm năng lực băm để ghi đè lịch sử | **Nothing at Stake, Ký kép (Double-Signing), Bắt tay ngầm (Cartel)** |
 | **Cơ chế răn đe / Xử phạt** | Tiền điện và khấu hao phần cứng bị mất nếu đào chuỗi sai | **Slashing:** Tịch thu trực tiếp điểm ký quỹ và tước quyền phát hành |
-| **Độ trễ xác nhận (Finality)** | Chậm (cần đợi 6 block để phòng ngừa phân nhánh reorg) | Nhanh tức thì (Khối được ký số có tính pháp lý ngay sau slot) |
+| **Độ trễ xác nhận (Finality)** | Phụ thuộc độ khó và quy tắc xác nhận; demo có thể reorg | Ký số không cần đào; demo chưa có cơ chế finality hoặc giá trị pháp lý |
         """
     )
 
@@ -84,7 +84,7 @@ with tab1:
             """
         )
     with col_r2:
-        st.markdown("#### ✅ Ưu việt của Consortium PoS trong TrustProfile:")
+        st.markdown("#### ✅ Ưu việt của Consortium PoS trong TRUSTMEBRO:")
         st.markdown(
             """
             - **Tính chính danh minh bạch:** Chỉ các trường được cấp phép (ĐH-A, ĐH-B, TC-C) mới được tham gia hội đồng đề xuất khối.
@@ -99,7 +99,7 @@ with tab1:
 with tab2:
     st.subheader("🏛️ Quản trị Hội đồng Validator & Bầu chọn Tạo Khối")
     
-    with st.expander("💡 **Giải thích Học thuật: 'Stake' là gì trong TrustProfile khi KHÔNG có Tiền ảo (No Coin)?**", expanded=False):
+    with st.expander("💡 **Giải thích Học thuật: 'Stake' là gì trong TRUSTMEBRO khi KHÔNG có Tiền ảo (No Coin)?**", expanded=False):
         st.markdown(
             """
             - **Vì sao không dùng Coin?** Các trường đại học (ĐH-A, ĐH-B) là đơn vị giáo dục công lập, 
@@ -188,12 +188,13 @@ with tab2:
                 description=new_val_desc,
             )
             pos_reg.sync_with_blockchain(first_n.blockchain, mode=active_mode)
-            st.success(f"✅ Đã thêm '{new_val_name}' vào Hội đồng Liên minh TrustProfile!")
+            st.success(f"✅ Đã thêm '{new_val_name}' vào Hội đồng Liên minh TRUSTMEBRO!")
             st.rerun()
 
     st.markdown("---")
-    st.markdown("#### 🎲 Trình diễn Bầu chọn & Đóng gói Khối Thực tế")
+    st.markdown("#### 🎲 Trình diễn Bầu chọn & Ký Khối Minh họa")
 
+    st.caption("Khối ở phần này chỉ để kiểm tra chữ ký; chưa được thêm vào mạng. Dùng trang Mining & Consensus Flow để phát hành lên chuỗi.")
     first_n = list(network.nodes.values())[0]
     default_h = first_n.height + 1
     default_prev = first_n.blockchain.get_latest_block().compute_hash()
@@ -263,7 +264,7 @@ with tab3:
     st.markdown(
         """
         **Bối cảnh nghiệp vụ văn bằng:**
-        - Vì ký số khối PoS không tốn chi phí điện, một cơ sở đào tạo thiếu trung thực có thể cố tình tạo và ký **2 khối mâu thuẫn tại cùng một chiều cao** (ví dụ: Khối A cấp bằng cho người này, Khối B tại cùng height cấp bằng cho người khác).
+        - Vì ký số khối PoS không cần đào nonce, một cơ sở đào tạo thiếu trung thực có thể cố tình tạo và ký **2 khối mâu thuẫn tại cùng một chiều cao** (ví dụ: Khối A cấp bằng cho người này, Khối B tại cùng height cấp bằng cho người khác).
         - **Phản ứng của mạng lưới:** Các node kiểm chứng đối chiếu hai chữ ký cùng chiều cao và thu được bằng chứng gian lận mật mã không thể chối cãi.
         - **Thực thi Slashing:** Giao thức lập tức **tịch thu tỷ lệ điểm bảo chứng** của trường đó và đình chỉ quyền đề xuất khối nếu điểm về 0!
         """
@@ -348,11 +349,8 @@ with tab3:
 
     st.markdown("---")
     if st.button("🔄 Khôi phục Stake Hội đồng về Mặc định", key="btn_reset_pos"):
-        reset_reg = create_trustprofile_consortium()
-        network.pos_registry = reset_reg
-        st.session_state.pos_registry = reset_reg
-        st.session_state.pop("_validators_seeded", None)
-        st.success("✅ Đã khôi phục danh bạ các trường và điểm cổ phần bảo chứng ban đầu.")
+        pos_reg.reset_demo_stakes()
+        st.success("✅ Đã khôi phục điểm stake; giữ nguyên validator, khóa và các block đã tạo.")
         st.rerun()
 
 # ──────────────────────────────────────────────

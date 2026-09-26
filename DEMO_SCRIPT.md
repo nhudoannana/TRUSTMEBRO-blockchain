@@ -1,4 +1,4 @@
-# TrustProfile — Video Demonstration Script
+# TRUSTMEBRO — Video Demonstration Script
 
 **Target duration:** 5–8 minutes
 **Objective:** Demonstrate one complete end-to-end credential flow and at least two tamper/attack cases that the system detects and rejects.
@@ -28,12 +28,12 @@ Complete this checklist before starting the screen recording:
 **Screen:** Dashboard (home page)
 
 **Actions:**
-1. Show the Dashboard title "TrustProfile" and the overview text.
+1. Show the Dashboard title "TRUSTMEBRO" and the overview text.
 2. Scroll to the **End-to-End Flow** diagram.
 3. Briefly point to the sidebar showing all 12 pages.
 
 **Narration:**
-> "TrustProfile is a blockchain simulation that demonstrates how digital credentials — such as university degrees — can be issued, verified, and protected from tampering. The system covers the full blockchain pipeline: from SHA-256 hashing and digital signatures, through transaction validation and mining, to multi-node consensus and credential verification. Let me walk you through a complete flow."
+> "TRUSTMEBRO is a blockchain simulation that demonstrates how digital credentials — such as university degrees — can be issued, verified, and protected from tampering. The system covers the full blockchain pipeline: from SHA-256 hashing and digital signatures, through transaction validation and mining, to multi-node consensus and credential verification. Let me walk you through a complete flow."
 
 **Expected result:** Dashboard displays metrics (all at 0 initially), the flow diagram is visible, and the sidebar lists all 12 pages.
 
@@ -227,7 +227,7 @@ If time permits, also demonstrate Attack 6 to show that recalculating hashes is 
 3. Return to the Dashboard; point to the updated metrics (Blocks, TXs, Active Credentials).
 
 **Narration:**
-> "TrustProfile demonstrates six layers of protection: digital signatures, hash chain linkage, Merkle Trees, issuer registry, replay detection, and Proof of Work. Each layer is independent — an attacker would need to defeat all of them simultaneously. This is an educational simulation: all data is in memory, the network uses in-process queues rather than real sockets, and consensus is simplified. But the core mechanisms are the same ones used by real blockchains like Bitcoin and Ethereum. Thank you for watching."
+> "TRUSTMEBRO demonstrates six layers of protection: digital signatures, hash chain linkage, Merkle Trees, issuer registry, replay detection, and Proof of Work. Each layer is independent — an attacker would need to defeat all of them simultaneously. This is an educational simulation: all data is in memory, the network uses in-process queues rather than real sockets, and consensus is simplified. But the core mechanisms are the same ones used by real blockchains like Bitcoin and Ethereum. Thank you for watching."
 
 **Expected result:** Summary table visible, Dashboard shows non-zero metrics reflecting the demo activity.
 

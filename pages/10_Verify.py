@@ -235,8 +235,9 @@ if not wallets:
 else:
     col_r1, col_r2 = st.columns(2)
     with col_r1:
-        wallet_names = [w["name"] for w in wallets]
-        rev_wallet = st.selectbox("Issuer (wallet):", wallet_names, key="rev_wallet")
+        wallet_addresses = [w["address"] for w in wallets]
+        wallet_labels = {w["address"]: f"{w['name']} — {w['address'][:12]}…" for w in wallets}
+        rev_wallet = st.selectbox("Issuer (wallet):", wallet_addresses, format_func=lambda address: wallet_labels[address], key="rev_wallet")
         rev_cred_id = st.text_input("Credential ID cần thu hồi:", key="rev_cred_id",
                                      placeholder="CRED-xxxx")
     with col_r2:
@@ -247,7 +248,7 @@ else:
         if not rev_cred_id.strip():
             st.warning("Nhập Credential ID.")
         else:
-            w_dict = next(w for w in wallets if w["name"] == rev_wallet)
+            w_dict = next(w for w in wallets if w["address"] == rev_wallet)
             wallet = Wallet(
                 private_key_pem=w_dict["private_key_pem"],
                 public_key_hex=w_dict["public_key_hex"],

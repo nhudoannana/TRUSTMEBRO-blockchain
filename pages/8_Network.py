@@ -5,6 +5,7 @@ bản sao riêng, tự xác minh, giao dịch lan truyền qua toàn mạng.
 """
 
 import time
+import queue
 import streamlit as st
 import sys
 import os
@@ -33,25 +34,7 @@ st.header("8️⃣ Network & Full Nodes")
 network = get_network()
 
 # ── Tự động seed wallet các trường ĐH Consortium vào session_state ──
-def _seed_validator_wallets():
-    wallets_existing = st.session_state.get("wallets", [])
-    existing_addresses = {w["address"] for w in wallets_existing}
-    pos_reg = getattr(network, "pos_registry", None)
-    if pos_reg and pos_reg.validators:
-        added = False
-        for v in pos_reg.validators.values():
-            if v.address not in existing_addresses:
-                wallets_existing.append({
-                    "name": v.name,
-                    "private_key_pem": v.private_key_pem,
-                    "public_key_hex": v.public_key_hex,
-                    "address": v.address,
-                })
-                added = True
-        if added:
-            st.session_state.wallets = wallets_existing
 
-_seed_validator_wallets()
 
 # ══════════════════════════════════════════════
 # PHẦN 1: Bảng Điều Khiển Tổng Quan Đồng Thuận (Consensus Overview)
@@ -80,7 +63,7 @@ with col_ov1:
     if has_full_consensus:
         st.success(
             "### 🟢 TOÀN MẠNG ĐỒNG THUẬN (CONSENSUS REACHED)\n"
-            f"Tất cả **3/3 Nodes** trong Liên minh TrustProfile đang lưu trữ cùng một sổ cái văn bằng tại **Height {master_height}**."
+            f"Tất cả **3/3 Nodes** trong Liên minh TRUSTMEBRO đang lưu trữ cùng một sổ cái văn bằng tại **Height {master_height}**."
         )
     else:
         st.error(
@@ -251,8 +234,9 @@ if not wallets:
 else:
     col_form1, col_form2 = st.columns(2)
     with col_form1:
-        wallet_names = [w["name"] for w in wallets]
-        selected_wallet = st.selectbox("Issuer (wallet):", wallet_names, key="net_wallet")
+        wallet_addresses = [w["address"] for w in wallets]
+        wallet_labels = {w["address"]: f"{w['name']} — {w['address'][:12]}…" for w in wallets}
+        selected_wallet = st.selectbox("Issuer (wallet):", wallet_addresses, format_func=lambda address: wallet_labels[address], key="net_wallet")
         target_node = st.selectbox("Gửi đến node:", list(network.nodes.keys()), key="net_target")
 
     with col_form2:
@@ -261,7 +245,7 @@ else:
         title = st.text_input("Title:", value="BSc Computer Science", key="net_title")
 
     if st.button("📤 Tạo & Gửi Transaction", key="btn_send_tx"):
-        w_dict = next(w for w in wallets if w["name"] == selected_wallet)
+        w_dict = next(w for w in wallets if w["address"] == selected_wallet)
         wallet = Wallet(
             private_key_pem=w_dict["private_key_pem"],
             public_key_hex=w_dict["public_key_hex"],
@@ -456,11 +440,18 @@ with col_f4:
         }
         # Reset các blockchain của các node về Genesis
         for nid, node in network.nodes.items():
-            gen = node.blockchain.chain[0]
-            node.blockchain.chain = [gen]
-            node.blockchain.side_branches = []
-            node.blockchain.block_pool = {gen.compute_hash(): gen}
-            node.mempool.clear()
+            with node._state_lock:
+                gen = node.blockchain.chain[0]
+                node.blockchain.chain = [gen]
+                node.blockchain.side_branches = []
+                node.blockchain.block_pool = {gen.compute_hash(): gen}
+                node.mempool.remove_transactions([tx.tx_id for tx in node.mempool.get_transactions()])
+                node._seen_tx_ids.clear()
+                while True:
+                    try:
+                        node.inbox.get_nowait()
+                    except queue.Empty:
+                        break
         network.log_event("Simulation", "🔄 Fork simulation reset to Genesis.")
         st.rerun()
 

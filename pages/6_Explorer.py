@@ -25,6 +25,7 @@ init_state()
 
 
 st.header("6️⃣ Blockchain Explorer")
+st.caption('Chuỗi mẫu độc lập để thử sửa dữ liệu. Xem chuỗi của các node đang chạy ở trang Network.')
 
 
 # ── Helper: tạo demo blockchain (đã mine) ──

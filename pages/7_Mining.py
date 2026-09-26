@@ -20,6 +20,7 @@ init_state()
 
 
 st.header("7️⃣ Proof of Work — Mining")
+st.caption("Bài tập đào khối độc lập. Dùng Mining & Consensus Flow để ghi khối lên mạng đang chạy.")
 
 # ══════════════════════════════════════════════
 # PHẦN 1: Khối Ứng Viên & Trình Mô Phỏng Đào (Candidate Block Card)
@@ -50,6 +51,7 @@ with col_hw2:
     hw_choice = st.selectbox("Mô phỏng Phần cứng Khai thác (Hardware Profile):", list(HARDWARE_PROFILES.keys()), key="mine_hw")
     hw_info = HARDWARE_PROFILES[hw_choice]
     est_seconds = expected_attempts / hw_info["hashrate"]
+    st.caption("Hashrate của các cấu hình là giả định minh họa; chương trình vẫn chạy trên CPU hiện tại.")
     st.markdown(f"**Năng lực băm lý thuyết:** `{hw_info['hashrate']:,} H/s` — *{hw_info['desc']}*")
     st.markdown(f"⏱️ **Thời gian giải ước tính lý thuyết:** `{est_seconds:.2f}s`")
 

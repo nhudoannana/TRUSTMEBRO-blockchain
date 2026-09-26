@@ -32,26 +32,7 @@ network = get_network()
 # ── Tự động seed wallet các trường Đại học Consortium vào session_state ──
 # Lần đầu tiên (hoặc khi chưa có validator wallets), tự động thêm 3 trường
 # ĐH-A / ĐH-B / TC-C từ PoS Registry vào danh sách Issuer.
-def _seed_validator_wallets():
-    wallets_existing = st.session_state.get("wallets", [])
-    existing_addresses = {w["address"] for w in wallets_existing}
 
-    pos_reg = getattr(network, "pos_registry", None)
-    if pos_reg and pos_reg.validators:
-        added = False
-        for v in pos_reg.validators.values():
-            if v.address not in existing_addresses:
-                wallets_existing.append({
-                    "name": v.name,
-                    "private_key_pem": v.private_key_pem,
-                    "public_key_hex": v.public_key_hex,
-                    "address": v.address,
-                })
-                added = True
-        if added:
-            st.session_state.wallets = wallets_existing
-
-_seed_validator_wallets()
 
 # ── Đảm bảo có wallet ──
 
@@ -132,8 +113,9 @@ st.subheader("① Tạo & Gửi Transaction")
 
 col1, col2 = st.columns(2)
 with col1:
-    wallet_names = [w["name"] for w in wallets]
-    sel_wallet = st.selectbox("Issuer:", wallet_names, key="flow_wallet")
+    wallet_addresses = [w["address"] for w in wallets]
+    wallet_labels = {w["address"]: f"{w['name']} — {w['address'][:12]}…" for w in wallets}
+    sel_wallet = st.selectbox("Issuer:", wallet_addresses, format_func=lambda address: wallet_labels[address], key="flow_wallet")
     target = st.selectbox("Gửi đến:", list(network.nodes.keys()), key="flow_target")
 with col2:
     cred_id = st.text_input("Credential ID:", value=f"CRED-{int(time.time()) % 10000:04d}", key="flow_cred")
@@ -141,7 +123,7 @@ with col2:
     title = st.text_input("Title:", value="BSc Computer Science", key="flow_title")
 
 if st.button("📤 Create → Sign → Submit → Broadcast", key="btn_flow_submit"):
-    w_dict = next(w for w in wallets if w["name"] == sel_wallet)
+    w_dict = next(w for w in wallets if w["address"] == sel_wallet)
     wallet = Wallet(
         private_key_pem=w_dict["private_key_pem"],
         public_key_hex=w_dict["public_key_hex"],
@@ -182,7 +164,7 @@ st.subheader("② Tạo Khối & Đạt Đồng Thuận Toàn Mạng (Consensus)
 flow_mode = st.radio(
     "Lựa chọn Cơ chế Đồng thuận:",
     [
-        "🪙 Proof of Stake (PoS) — Khuyến nghị cho Liên minh TrustProfile (Không tốn điện, tức thì)",
+        "🪙 Proof of Stake (PoS) — Khuyến nghị cho Liên minh TRUSTMEBRO (Không đào nonce, ký số khối)",
         "⛏️ Proof of Work (PoW) — Đào Nonce Cổ điển (Cạnh tranh sức mạnh băm CPU)",
     ],
     index=0,
@@ -195,7 +177,7 @@ st.metric("Giao dịch đang chờ trong Mempool", pending_count)
 
 if "PoS" in flow_mode:
     st.info(
-        "🏛️ **Mô hình Liên minh TrustProfile Consortium:**\n\n"
+        "🏛️ **Mô hình Liên minh TRUSTMEBRO Consortium:**\n\n"
         "Các trường đại học & tổ chức kiểm định nắm giữ **Cổ phần bảo chứng uy tín (Reputation Stake)**. "
         "Thuật toán ngẫu nhiên có trọng số P(v) ~ Stake(v) sẽ chỉ định Validator chính danh đại diện ký số lên khối. "
         "Không hao phí CPU/điện năng, chốt khối ngay lập tức!"

@@ -14,12 +14,13 @@ import json
 import random
 from dataclasses import dataclass
 from blockchain.block import Block
+from blockchain.transaction import verify_transaction
 from blockchain.wallet import sign_message, verify_signature
 
 
 @dataclass
 class Validator:
-    """Đại diện cho một Validator trong mạng PoS (Tổ chức Giáo dục / Kiểm định trong TrustProfile).
+    """Đại diện cho một Validator trong mạng PoS (Tổ chức Giáo dục / Kiểm định trong TRUSTMEBRO).
 
     LƯU Ý: Stake ở đây là 'Điểm cổ phần bảo chứng mô phỏng' (Reputation / Guarantee Stake),
     TUYỆT ĐỐI KHÔNG PHẢI tiền tệ hay cryptocurrency thật.
@@ -51,6 +52,14 @@ class PoSRegistry:
         self.bonus_per_credential = bonus_per_credential
         # Bằng chứng ký kép đã xử lý — chống replay (phạt lặp lại cùng 1 cặp block)
         self.slashed_evidence: set[frozenset[str]] = set()
+
+    def reset_demo_stakes(self):
+        """Khôi phục điểm demo, giữ danh tính và khóa để xác minh block cũ."""
+        self.slashed_evidence.clear()
+        for validator in self.validators.values():
+            validator.slashed_amount = 0
+            validator.is_active = True
+            validator.stake = self.get_effective_stake(validator)
 
     def register_validator(
         self,
@@ -94,7 +103,7 @@ class PoSRegistry:
         elif mode == "CUMULATIVE":
             # Mỗi bằng hợp lệ đóng góp vào hệ sinh thái được cộng điểm thưởng
             calc = 10 + (validator.credentials_issued * self.bonus_per_credential) - validator.slashed_amount
-        else:  # "HYBRID" (Khuyến nghị chuẩn cho TrustProfile)
+        else:  # "HYBRID" (Khuyến nghị chuẩn cho TRUSTMEBRO)
             calc = validator.base_stake + (validator.credentials_issued * self.bonus_per_credential) - validator.slashed_amount
 
         return max(0, calc)
@@ -116,34 +125,11 @@ class PoSRegistry:
                 tx_type = getattr(tx, "tx_type", "")
                 if tx_type == "ISSUE":
                     sender_pk = getattr(tx, "sender_public_key", "")
-                    issuer_name = ""
-                    payload = getattr(tx, "payload", {})
-                    if isinstance(payload, dict):
-                        issuer_name = str(payload.get("issuer_name", "")).lower()
-
-                    for v in self.validators.values():
-                        val_clean_name = v.name.lower()
-                        matched = False
-
-                        # 1. Khớp qua Public Key chính xác (ưu tiên cao nhất)
-                        if sender_pk and sender_pk == v.public_key_hex:
-                            matched = True
-                        # 2. Khớp tên tổ chức (theo tên hư cấu trong hệ thống minh họa)
-                        elif "ĐH-A" in val_clean_name or "đại học a" in val_clean_name:
-                            if "ĐH-A" in issuer_name or "đại học a" in issuer_name:
-                                matched = True
-                        elif "ĐH-B" in val_clean_name or "đại học b" in val_clean_name:
-                            if "ĐH-B" in issuer_name or "đại học b" in issuer_name:
-                                matched = True
-                        elif "TC-C" in val_clean_name or "kiểm định c" in val_clean_name:
-                            if "TC-C" in issuer_name or "kiểm định c" in issuer_name:
-                                matched = True
-                        # 3. Dự phòng: khớp một phần tên tổ chức
-                        elif issuer_name and (issuer_name in val_clean_name or val_clean_name in issuer_name):
-                            matched = True
-
-                        if matched:
-                            v.credentials_issued += 1
+                    if not verify_transaction(tx)[0]:
+                        continue
+                    for validator in self.validators.values():
+                        if sender_pk == validator.public_key_hex:
+                            validator.credentials_issued += 1
                             break
 
         # Cập nhật lại thuộc tính stake của từng validator
@@ -365,7 +351,7 @@ class PoSRegistry:
 
 
 def create_trustprofile_consortium() -> PoSRegistry:
-    """Khởi tạo Liên minh Đồng thuận TrustProfile Consortium (PoS / Reputation Stake).
+    """Khởi tạo Liên minh Đồng thuận TRUSTMEBRO Consortium (PoS / Reputation Stake).
 
     LƯU Ý: Tên các tổ chức dưới đây là hoàn toàn hư cấu, chỉ dùng cho mục đích
     minh họa / học thuật — không đại diện cho bất kỳ tổ chức thật nào.

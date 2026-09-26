@@ -21,6 +21,7 @@ init_state()
 
 
 st.header("4️⃣ Mempool — Hàng chờ giao dịch")
+st.caption('Bài tập mempool độc lập. Xem mempool của mạng đang chạy ở trang Network.')
 
 # ── Khởi tạo Mempool trong session_state ──
 if "mempool" not in st.session_state:
@@ -41,7 +42,7 @@ st.subheader("🔹 Thêm Transaction hợp lệ")
 if not st.session_state.wallets:
     st.warning("⚠️ Chưa có wallet. Vào trang **Wallet** tạo ít nhất 1 ví trước.")
 else:
-    wallet_names = [w["name"] for w in st.session_state.wallets]
+    wallet_names = [f"{w['name']} — {w['address'][:12]}…" for w in st.session_state.wallets]
     col_w, col_c = st.columns(2)
     with col_w:
         idx = st.selectbox(

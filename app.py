@@ -1,4 +1,4 @@
-"""TrustProfile — điểm vào ứng dụng Streamlit.
+"""TRUSTMEBRO — điểm vào ứng dụng Streamlit.
 
 Cấu hình st.navigation + st.Page để quản lý sidebar và thứ tự trang.
 Dashboard hiển thị chỉ số thật từ Network/Blockchain/Mempool.
@@ -9,7 +9,7 @@ from state import init_state, get_network
 
 # ── Cấu hình trang (gọi 1 lần duy nhất, trước st.navigation) ──
 st.set_page_config(
-    page_title="TrustProfile",
+    page_title="TRUSTMEBRO",
     page_icon="🔗",
     layout="wide",
 )
@@ -25,11 +25,11 @@ def dashboard_page():
     network = get_network()
 
     # ── Header ──
-    st.title("🔗 TrustProfile")
-    st.subheader("Hệ thống xác thực chứng nhận số bằng Blockchain")
+    st.title("🔗 TRUSTMEBRO")
+    st.subheader("Mô phỏng phát hành và kiểm tra hồ sơ bằng Blockchain")
     st.caption(
         "Đồ án môn Blockchain — Mô phỏng học tập, "
-        "không dùng blockchain hay tiền mã hoá thật."
+        "dùng dữ liệu giả lập; không xác minh pháp lý cá nhân hoặc tổ chức."
     )
 
     st.divider()

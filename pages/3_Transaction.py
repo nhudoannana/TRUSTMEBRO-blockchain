@@ -20,26 +20,7 @@ from blockchain.claim_merkle import build_claims_merkle_tree
 init_state()
 
 # ── Tự động seed wallet các trường ĐH Consortium vào session_state ──
-def _seed_validator_wallets():
-    network = get_network()
-    wallets_existing = st.session_state.get("wallets", [])
-    existing_addresses = {w["address"] for w in wallets_existing}
-    pos_reg = getattr(network, "pos_registry", None)
-    if pos_reg and pos_reg.validators:
-        added = False
-        for v in pos_reg.validators.values():
-            if v.address not in existing_addresses:
-                wallets_existing.append({
-                    "name": v.name,
-                    "private_key_pem": v.private_key_pem,
-                    "public_key_hex": v.public_key_hex,
-                    "address": v.address,
-                })
-                added = True
-        if added:
-            st.session_state.wallets = wallets_existing
 
-_seed_validator_wallets()
 
 
 
@@ -54,7 +35,7 @@ if not st.session_state.wallets:
     st.warning("⚠️ Chưa có wallet. Vào trang **Wallet** tạo ít nhất 1 ví trước.")
 else:
     # Chọn Issuer wallet
-    wallet_names = [w["name"] for w in st.session_state.wallets]
+    wallet_names = [f"{w['name']} — {w['address'][:12]}…" for w in st.session_state.wallets]
     issuer_idx = st.selectbox(
         "Chọn Issuer (wallet ký):",
         range(len(wallet_names)),
@@ -62,7 +43,7 @@ else:
         key="issuer_select",
     )
 
-    # Danh bạ các miền dữ liệu hồ sơ thực tế trong TrustProfile
+    # Danh bạ các miền dữ liệu hồ sơ thực tế trong TRUSTMEBRO
     PRESETS = {
         "🎓 Bằng Đại học / Học vị (Academic Degree)": {
             "cred_id": "DEG-2026-001",
@@ -76,7 +57,7 @@ else:
                 "credits_earned": "142"
             }
         },
-        "💼 Hồ sơ Kinh nghiệm & Năng lực Nghề nghiệp (TrustProfile)": {
+        "💼 Hồ sơ Kinh nghiệm & Năng lực Nghề nghiệp (TRUSTMEBRO)": {
             "cred_id": "EXP-DEV-882",
             "title": "Senior Blockchain & Backend Engineer Attestation",
             "claims": {
@@ -131,9 +112,9 @@ else:
     # Đồng bộ khi người dùng chuyển đổi preset
     if st.session_state.get("_last_preset") != sel_preset:
         st.session_state._last_preset = sel_preset
-        st.session_state["cred_id_val"] = chosen_preset["cred_id"]
-        st.session_state["title_val"] = chosen_preset["title"]
-        st.session_state["claims_json_val"] = json.dumps(chosen_preset["claims"], indent=2, ensure_ascii=False)
+        st.session_state["cred_id"] = chosen_preset["cred_id"]
+        st.session_state["title"] = chosen_preset["title"]
+        st.session_state["claims_json"] = json.dumps(chosen_preset["claims"], indent=2, ensure_ascii=False)
 
     st.markdown("---")
     st.markdown("**Thông tin Credential / Hồ sơ xác thực:**")
@@ -142,7 +123,6 @@ else:
     with col1:
         cred_id = st.text_input(
             "Credential ID:",
-            value=st.session_state.get("cred_id_val", chosen_preset["cred_id"]),
             key="cred_id",
         )
         holder_name = st.text_input("Holder (chủ sở hữu hồ sơ):", value="Alice Nguyen", key="holder")
@@ -150,13 +130,11 @@ else:
     with col2:
         title = st.text_input(
             "Tiêu đề chứng nhận / Hồ sơ:",
-            value=st.session_state.get("title_val", chosen_preset["title"]),
             key="title",
         )
         st.markdown("**Danh sách Claims nhạy cảm (Tự động băm Salted Merkle Tree):**")
         claims_input_json = st.text_area(
             "Định dạng JSON (Mỗi cặp key-value là 1 claim độc lập):",
-            value=st.session_state.get("claims_json_val", json.dumps(chosen_preset["claims"], indent=2, ensure_ascii=False)),
             height=130,
             key="claims_json",
         )
@@ -182,6 +160,13 @@ else:
             claims_dict = json.loads(claims_input_json)
         except Exception as e:
             st.error(f"Lỗi cú pháp JSON claims: {e}")
+            st.stop()
+
+        if not isinstance(claims_dict, dict) or not claims_dict:
+            st.error('Claims phải là JSON object không rỗng, ví dụ {"grade": "A"}.')
+            st.stop()
+        if not cred_id.strip():
+            st.error("Nhập Credential ID trước khi tạo giao dịch.")
             st.stop()
 
         # Dựng Salted Claims Merkle Tree
@@ -290,6 +275,8 @@ else:
     # ══════════════════════════════════════════════
     if st.session_state.get("transactions"):
         st.subheader("🔹 Danh sách Transaction đã tạo")
+        send_node = st.selectbox("Gửi giao dịch đã ký đến node:", list(get_network().nodes), key="created_tx_node")
+        st.caption("Gửi vào mempool, sau đó sang Mining & Consensus Flow để tạo block và Verify Credential để kiểm chứng.")
         for i, tx_dict in enumerate(st.session_state.transactions):
             cred_info = tx_dict["payload"]
             label = (
@@ -302,6 +289,19 @@ else:
                 st.markdown(f"**tx_type:** `{tx_dict['tx_type']}`")
                 st.markdown(f"**Timestamp:** `{tx_dict['timestamp']}`")
                 st.json(tx_dict["payload"])
+                if st.button("📤 Gửi transaction này lên mạng", key="submit_created_" + tx_dict["tx_id"]):
+                    pending = Transaction(
+                        tx_dict["tx_type"], tx_dict["sender_public_key"], tx_dict["payload"],
+                        nonce=tx_dict["nonce"], timestamp=tx_dict["timestamp"],
+                    )
+                    pending.tx_id = tx_dict["tx_id"]
+                    pending.signature = tx_dict["signature"]
+                    ok, reason = get_network().nodes[send_node].submit_transaction(pending)
+                    if ok:
+                        st.success("Đã gửi giao dịch đã ký vào mạng. Tiếp tục tạo block ở Mining & Consensus Flow.")
+                    else:
+                        st.error(reason)
+
 
     st.divider()
 
