@@ -25,7 +25,7 @@ st.header("2️⃣ Wallet — Chữ ký số ECDSA")
 st.subheader("🔹 Tạo Wallet")
 st.caption("Mạng có sẵn 3 ví validator minh họa. Mỗi lần bấm Generate Wallet sẽ tạo thêm một ví riêng với khóa và địa chỉ mới.")
 
-wallet_name = st.text_input("Tên wallet:", value="Demo University", key="wallet_name")
+wallet_name = st.text_input("Tên wallet:", value="Trường Đại học DEMO-A", key="wallet_name")
 
 if st.button("🔑 Generate Wallet", key="btn_gen_wallet"):
     w = generate_wallet()

@@ -36,14 +36,14 @@ def _build_demo_blockchain():
     bc = Blockchain()
 
     samples = [
-        ("CRED-001", "Alice",  "BSc Computer Science"),
-        ("CRED-002", "Bob",    "MBA Business"),
-        ("CRED-003", "Carol",  "MSc Data Science"),
-        ("CRED-004", "Dave",   "PhD Mathematics"),
+        ("CRED-001", "Người học DEMO-001",  "BSc Computer Science"),
+        ("CRED-002", "Người học DEMO-002",  "MBA Business"),
+        ("CRED-003", "Người học DEMO-003",  "MSc Data Science"),
+        ("CRED-004", "Người học DEMO-004",  "PhD Mathematics"),
     ]
 
     for cred_id, holder, title in samples:
-        cred = Credential(cred_id, "Demo University", holder, title, "2026-06-01", {})
+        cred = Credential(cred_id, "Trường Đại học DEMO-A", holder, title, "2026-06-01", {})
         tx = Transaction("ISSUE", wallet.public_key_hex, asdict(cred))
         tx.sign(wallet)
 

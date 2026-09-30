@@ -51,7 +51,7 @@ else:
         )
     with col_c:
         mp_cred_id = st.text_input("Credential ID:", value="CRED-MP-001", key="mp_cred_id")
-        mp_holder = st.text_input("Holder:", value="Bob", key="mp_holder")
+        mp_holder = st.text_input("Holder:", value="Người học DEMO-002", key="mp_holder")
 
     if st.button("✅ Tạo & Thêm vào Mempool", key="btn_mp_add"):
         wal = st.session_state.wallets[idx]
@@ -97,7 +97,7 @@ else:
     with demo_a:
         st.markdown("**(a) Payload bị sửa**")
         if st.button("🔴 Tấn công giả mạo", key="btn_tamper"):
-            cred = Credential("CRED-TAMPER", wal["name"], "Alice", "BSc", "2026-01-01", {})
+            cred = Credential("CRED-TAMPER", wal["name"], "Người học DEMO-001", "BSc", "2026-01-01", {})
             tx = Transaction("ISSUE", wal["public_key_hex"], asdict(cred))
             tx.sign(wallet_obj)
 
@@ -112,7 +112,7 @@ else:
         st.markdown("**(b) Issuer không phép**")
         if st.button("🔴 Issuer giả mạo", key="btn_rogue"):
             rogue = generate_wallet()
-            cred = Credential("CRED-ROGUE", "Fake Univ", "Alice", "BSc", "2026-01-01", {})
+            cred = Credential("CRED-ROGUE", "Giả mạo DEMO-X", "Người học DEMO-001", "BSc", "2026-01-01", {})
             tx = Transaction("ISSUE", rogue.public_key_hex, asdict(cred))
             tx.sign(rogue)
 
@@ -123,7 +123,7 @@ else:
     with demo_c:
         st.markdown("**(c) Nộp trùng (replay)**")
         if st.button("🔴 Replay attack", key="btn_replay"):
-            cred = Credential("CRED-REPLAY", wal["name"], "Alice", "BSc", "2026-01-01", {})
+            cred = Credential("CRED-REPLAY", wal["name"], "Người học DEMO-001", "BSc", "2026-01-01", {})
             tx = Transaction("ISSUE", wal["public_key_hex"], asdict(cred))
             tx.sign(wallet_obj)
 

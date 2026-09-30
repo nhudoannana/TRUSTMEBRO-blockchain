@@ -111,8 +111,8 @@ st.info(
     "- Mỗi claim được băm: `leaf_hash = SHA256(JSON([claim_name, claim_value, salt]))`.\n"
     "- Blockchain chỉ lưu duy nhất **`claims_root`** trong block header / transaction payload, không chứa thông tin thô.\n"
     "- **Vì sao cần Salt?** Nếu không có salt, một claim có miền giá trị ít khả năng (như `Grade = A`) "
-    "sẽ dễ dàng bị dò băm bằng cách tính thử `sha256('grade:A')`, `sha256('grade:B')`... Salt 128-bit biến không gian thử thành $2^{128}$, chống hoàn toàn tấn công từ điển.\n"
-    "- ⚠️ **LƯU Ý:** Đây là **Proof of Inclusion**, TUYỆT ĐỐI KHÔNG PHẢI Zero-Knowledge Proof (ZKP)."
+    "sẽ dễ dàng bị dò băm bằng cách tính thử `sha256('grade:A')`, `sha256('grade:B')`... Salt 128-bit mở rộng không gian thử thành $2^{128}$, chống tấn công từ điển hiệu quả.\n"
+    "- ⚠️ **LƯU Ý:** Đây là **Proof of Inclusion**, không phải Zero-Knowledge Proof (ZKP). Salt chống dò băm, không đảm bảo ẩn danh tuyệt đối."
 )
 
 # Tải từ session_state nếu có
@@ -156,10 +156,11 @@ if sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and hol
                 st.markdown(f"**Block Height:** {sel_info['block_height']}")
 
             st.info(
-                "🔒 **Bảo vệ quyền riêng tư tuyệt đối:**\n\n"
-                f"Verifier chỉ biết `{sel_claim_name} = {sel_claim_val}`. "
-                "Tất cả các claims khác của Holder (như điểm số khác, xếp loại, thông tin cá nhân) "
-                "hoàn toàn được ẩn giấu vì Verifier chỉ nhận các hash trung gian vô nghĩa của Merkle tree!"
+                "🔒 **Tiết lộ chọn lọc (Selective Disclosure):**\n\n"
+                f"Verifier chỉ nhận được `{sel_claim_name} = {sel_claim_val}` cùng Merkle Proof. "
+                "Các claims khác không nằm trong gói chia sẻ vì Verifier chỉ nhận hash trung gian của Merkle tree. "
+                "**Lưu ý:** metadata như holder, title vẫn có thể hiện trên chuỗi. "
+                "Salt chống tấn công dò băm nhưng không bảo đảm ẩn danh tuyệt đối."
             )
         else:
             st.error(f"### ❌ {reason}")
@@ -219,7 +220,7 @@ with st.expander("🧪 Demo tương tác: Tại sao bắt buộc phải có Salt
         if st.button("🛡️ Băm thử vét cạn (Có Salt)", key="btn_attack_salted"):
             cracked, val, att = simulate_dictionary_attack("grade", salted_target, ["A", "B", "C", "D", "F"], salt="")
             if not cracked:
-                st.success(f"🛡️ AN TOÀN TUYỆT ĐỐI! Thử toàn bộ tập ['A','B','C','D','F'] đều không khớp vì thiếu Salt 128-bit!")
+                st.success(f"🛡️ Chống dò băm thành công! Thử toàn bộ tập ['A','B','C','D','F'] đều không khớp vì thiếu Salt 128-bit. Lưu ý: Salt chống tấn công từ điển, không đảm bảo ẩn danh tuyệt đối.")
 
 st.divider()
 
