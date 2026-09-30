@@ -1,4 +1,4 @@
-﻿"""Trang Mining Flow — chạy trọn luồng end-to-end.
+"""Trang Mining Flow — chạy trọn luồng end-to-end.
 
 Create TX → Sign → Broadcast → Mempool → Mine → Block →
 Validate → Consensus → Chain updated.
@@ -42,7 +42,7 @@ if not wallets:
     if st.button("⚡ Tạo wallet demo", key="flow_quick_wallet"):
         w = generate_wallet()
         st.session_state.wallets = [
-            {"name": "Demo Issuer", "private_key_pem": w.private_key_pem,
+            {"name": "Trường Đại học DEMO-A", "private_key_pem": w.private_key_pem,
              "public_key_hex": w.public_key_hex, "address": w.address}
         ]
         st.rerun()
@@ -119,7 +119,7 @@ with col1:
     target = st.selectbox("Gửi đến:", list(network.nodes.keys()), key="flow_target")
 with col2:
     cred_id = st.text_input("Credential ID:", value=f"CRED-{int(time.time()) % 10000:04d}", key="flow_cred")
-    holder = st.text_input("Holder:", value="Alice", key="flow_holder")
+    holder = st.text_input("Holder:", value="Người học DEMO-001", key="flow_holder")
     title = st.text_input("Title:", value="BSc Computer Science", key="flow_title")
 
 if st.button("📤 Create → Sign → Submit → Broadcast", key="btn_flow_submit"):

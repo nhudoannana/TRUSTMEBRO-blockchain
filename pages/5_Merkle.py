@@ -93,7 +93,7 @@ source = st.radio(
 )
 
 if source == "Nhập tay":
-    default_txs = "tx_alice_bsc\ntx_bob_mba\ntx_carol_phd\ntx_dave_cert"
+    default_txs = "tx_demo001_bsc\ntx_demo002_mba\ntx_demo003_phd\ntx_demo004_cert"
     raw = st.text_area(
         "Nhập dữ liệu giao dịch (mỗi dòng một TX):",
         value=default_txs, height=120, key="mk_raw",

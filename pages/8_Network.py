@@ -1,4 +1,4 @@
-﻿"""Trang Network — quản lý 3 Full Node, broadcast TX, sync chain.
+"""Trang Network — quản lý 3 Full Node, broadcast TX, sync chain.
 
 Mục đích: cho sinh viên thấy tính phi tập trung — mỗi node giữ
 bản sao riêng, tự xác minh, giao dịch lan truyền qua toàn mạng.
@@ -227,7 +227,7 @@ if not wallets:
     if st.button("⚡ Tạo wallet demo nhanh", key="btn_quick_wallet"):
         w = generate_wallet()
         st.session_state.wallets = [
-            {"name": "Demo Issuer", "private_key_pem": w.private_key_pem,
+            {"name": "Trường Đại học DEMO-A", "private_key_pem": w.private_key_pem,
              "public_key_hex": w.public_key_hex, "address": w.address}
         ]
         st.rerun()
@@ -241,7 +241,7 @@ else:
 
     with col_form2:
         cred_id = st.text_input("Credential ID:", value="CRED-NET-001", key="net_cred_id")
-        holder = st.text_input("Holder:", value="Alice", key="net_holder")
+        holder = st.text_input("Holder:", value="Người học DEMO-001", key="net_holder")
         title = st.text_input("Title:", value="BSc Computer Science", key="net_title")
 
     if st.button("📤 Tạo & Gửi Transaction", key="btn_send_tx"):
@@ -362,11 +362,11 @@ with col_f1:
 
         wal_obj = Wallet(w["private_key_pem"], w["public_key_hex"], w["address"])
 
-        # Tạo TX cho Nhánh A (Alice) và Nhánh B (Bob)
-        tx_a = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-ALICE", "holder": "Alice", "title": "BSc A"})
+        # Tạo TX cho Nhánh A (DEMO-001) và Nhánh B (DEMO-002)
+        tx_a = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-FORK-A", "holder": "Người học DEMO-001", "title": "BSc A"})
         tx_a.sign(wal_obj)
 
-        tx_b = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-BOB", "holder": "Bob", "title": "BSc B"})
+        tx_b = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-FORK-B", "holder": "Người học DEMO-002", "title": "BSc B"})
         tx_b.sign(wal_obj)
 
         # Đào 2 block cùng height
@@ -396,7 +396,7 @@ with col_f2:
     if st.button("2️⃣ Đào Block 2B trên Nhánh B", key="btn_fork_step2", disabled=btn_disabled):
         w = wallets[0]
         wal_obj = Wallet(w["private_key_pem"], w["public_key_hex"], w["address"])
-        tx_c = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-CAROL", "holder": "Carol", "title": "BSc C"})
+        tx_c = Transaction("ISSUE", wal_obj.public_key_hex, {"credential_id": "CRED-FORK-C", "holder": "Người học DEMO-003", "title": "BSc C"})
         tx_c.sign(wal_obj)
 
         with st.spinner("⛏️ Miner-2 đang đào Block 2B nối vào Nhánh B..."):
@@ -493,7 +493,7 @@ with col_m_info2:
         st.markdown(
             "- **Trạng thái:** Node-1 và Node-3 đã phát hiện Nhánh B có tổng PoW lớn hơn và tiến hành **Reorg**.\n"
             "- Block 1A bị tách khỏi chuỗi chính thành nhánh phụ.\n"
-            "- Giao dịch `CRED-ALICE` trong Block 1A **đã được tự động hoàn trả lại vào Mempool** của các node để không bị mất mát!"
+            "- Giao dịch `CRED-FORK-A` trong Block 1A **đã được tự động hoàn trả lại vào Mempool** của các node để không bị mất mát!"
         )
     else:
         st.markdown("Bấm nút **1️⃣ Tạo 2 Block cùng Height** để bắt đầu quy trình mô phỏng.")

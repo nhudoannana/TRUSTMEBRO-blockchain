@@ -1,4 +1,4 @@
-﻿"""Trang Credential & Transaction — tạo chứng nhận, ký thành giao dịch.
+"""Trang Credential & Transaction — tạo chứng nhận, ký thành giao dịch.
 
 Mục đích: cho sinh viên trải nghiệm luồng Issuer tạo credential,
 đóng gói thành transaction có chữ ký, và xác minh tính hợp lệ.
@@ -70,14 +70,14 @@ else:
             }
         },
         "📜 Chứng chỉ Quốc tế / Giấy phép Chuyên môn (Certification)": {
-            "cred_id": "CERT-AWS-9041",
-            "title": "AWS Certified Solutions Architect - Professional",
+            "cred_id": "CERT-DEMO-9041",
+            "title": "Chứng chỉ Kỹ năng DEMO-001",
             "claims": {
-                "certificate_name": "AWS Solutions Architect Professional",
+                "certificate_name": "Chứng chỉ Chuyên môn Giả lập",
                 "score": "912/1000",
                 "valid_until": "2029-09-30",
                 "credential_status": "Active & Verified",
-                "verification_authority": "Amazon Web Services Training & Certification"
+                "verification_authority": "Tổ chức Kiểm định DEMO-C"
             }
         },
         "🩺 Hồ sơ Thể trạng / Chứng nhận Y tế Bảo mật (Health Attestation)": {
@@ -125,7 +125,7 @@ else:
             "Credential ID:",
             key="cred_id",
         )
-        holder_name = st.text_input("Holder (chủ sở hữu hồ sơ):", value="Alice Nguyen", key="holder")
+        holder_name = st.text_input("Holder (chủ sở hữu hồ sơ):", value="Người học DEMO-001", key="holder")
         issue_date = st.date_input("Ngày cấp:", key="issue_date")
     with col2:
         title = st.text_input(
@@ -145,7 +145,7 @@ else:
         "Nếu băm trực tiếp `hash(claim_name + claim_value)`, kẻ xấu hoặc người xác minh có thể thực hiện "
         "**tấn công dò băm / từ điển (Dictionary Attack)** đối với các claim có miền giá trị rất hẹp (low-entropy) như "
         "**`Grade`** (chỉ có A, B, C, D, F) hoặc **`GPA`**. Họ chỉ việc băm thử 5 giá trị này và so sánh với hash lá trên cây để phát hiện ngay kết quả của Holder! "
-        "Nhờ có **Salt ngẫu nhiên 128-bit riêng biệt**, không gian băm mở rộng lên $2^{128}$ khả năng, triệt tiêu hoàn toàn nguy cơ bị đoán mò."
+        "Nhờ có **Salt ngẫu nhiên 128-bit riêng biệt**, không gian băm mở rộng lên $2^{128}$ khả năng, chống tấn công dò băm hiệu quả. Salt không đảm bảo ẩn danh tuyệt đối."
     )
     st.warning(
         "⚠️ **LƯU Ý THUẬT NGỮ:** Đây là **Proof of Inclusion** (Bằng chứng bao hàm qua Merkle Tree) với Salted Leaves để chọn lọc tiết lộ thông tin (Selective Disclosure). "
@@ -256,7 +256,7 @@ else:
             c_on, c_off = st.columns(2)
             with c_on:
                 st.markdown("##### ⛓️ On-chain Payload (Lưu trên Blockchain)")
-                st.caption("Chỉ chứa metadata và claims_root — Tuyệt đối không chứa thông tin điểm/claims thô!")
+                st.caption("Chỉ chứa metadata và claims_root — không chứa thông tin điểm/claims thô. Lưu ý: metadata như holder, title vẫn hiện trên chuỗi.")
                 st.json(tx.payload)
             with c_off:
                 st.markdown("##### 💼 Off-chain Data (Holder nắm giữ)")
