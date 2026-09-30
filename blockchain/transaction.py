@@ -26,6 +26,23 @@ class Credential:
     title: str
     issue_date: str
     claims: dict = field(default_factory=dict)
+    claims_root: str = ""
+
+    def to_onchain_payload(self) -> dict:
+        """Chuyển thành payload đưa lên blockchain.
+
+        Theo nguyên lý bảo vệ quyền riêng tư & Selective Disclosure:
+        Chỉ lưu metadata và duy nhất claims_root lên blockchain,
+        KHÔNG lưu dữ liệu claims chi tiết hay salt on-chain.
+        """
+        return {
+            "credential_id": self.credential_id,
+            "issuer_name": self.issuer_name,
+            "holder_name": self.holder_name,
+            "title": self.title,
+            "issue_date": self.issue_date,
+            "claims_root": self.claims_root,
+        }
 
 
 class Transaction:
@@ -108,7 +125,7 @@ def verify_transaction(tx: Transaction) -> tuple[bool, str]:
     if not tx.sender_public_key:
         return False, "Thiếu sender_public_key"
 
-    if not tx.payload:
+    if not isinstance(tx.payload, dict) or not tx.payload:
         return False, "Thiếu payload"
 
     # 3. Kiểm tra chữ ký tồn tại
@@ -128,4 +145,24 @@ def verify_transaction(tx: Transaction) -> tuple[bool, str]:
     if not sig_ok:
         return False, "Chữ ký không khớp — transaction bị giả mạo hoặc sai khoá"
 
+    return True, "Hợp lệ"
+
+
+def verify_ledger_transaction(tx, status, issuer, authorized_issuers=None) -> tuple[bool, str]:
+    """Quy tắc chung cho mempool và giao dịch theo thứ tự trong một nhánh."""
+    ok, reason = verify_transaction(tx)
+    if not ok:
+        return False, f"Transaction không hợp lệ hoặc bị giả mạo: {reason}"
+    cred_id = tx.payload.get("credential_id")
+    if not isinstance(cred_id, str) or not cred_id.strip():
+        return False, "Thiếu credential_id hợp lệ"
+    if authorized_issuers and tx.sender_public_key not in authorized_issuers:
+        return False, "Issuer không nằm trong danh sách được phép (unauthorized)"
+    if tx.tx_type == "ISSUE" and status is not None:
+        return False, f"Credential '{cred_id}' đã tồn tại ({status}); cần mã mới khi cấp lại"
+    if tx.tx_type == "REVOKE":
+        if status != "ACTIVE":
+            return False, f"Credential '{cred_id}' không ở trạng thái ACTIVE, không thể thu hồi"
+        if issuer != tx.sender_public_key:
+            return False, "Chỉ Issuer gốc mới có quyền thu hồi credential"
     return True, "Hợp lệ"

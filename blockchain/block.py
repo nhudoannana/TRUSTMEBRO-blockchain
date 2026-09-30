@@ -16,7 +16,7 @@ from blockchain.merkle import calculate_merkle_root
 class BlockHeader:
     """Header chứa metadata của block, KHÔNG chứa danh sách giao dịch.
 
-    Vì sao tồn tại: tách header ra để tính hash nhanh (chỉ hash 6 trường nhỏ),
+    Vì sao tồn tại: tách header ra để tính hash nhanh (chỉ hash các trường nhỏ),
     thay vì hash toàn bộ body chứa hàng nghìn giao dịch.
     """
     version: int
@@ -25,6 +25,9 @@ class BlockHeader:
     timestamp: str
     difficulty: int
     nonce: int
+    consensus_type: str = "PoW"
+    validator_address: str = ""
+    validator_signature: str = ""
 
 
 class Block:
@@ -43,6 +46,9 @@ class Block:
         nonce: int = 0,
         timestamp: str | None = None,
         version: int = 1,
+        consensus_type: str = "PoW",
+        validator_address: str = "",
+        validator_signature: str = "",
     ):
         self.transactions = list(transactions)
         self.height = height
@@ -59,14 +65,13 @@ class Block:
             timestamp=timestamp or datetime.now(timezone.utc).isoformat(),
             difficulty=difficulty,
             nonce=nonce,
+            consensus_type=consensus_type,
+            validator_address=validator_address,
+            validator_signature=validator_signature,
         )
 
     def compute_hash(self) -> str:
-        """Tính SHA-256 của header đã chuẩn hoá.
-
-        Vì sao tồn tại: hash header là fingerprint duy nhất của block,
-        block tiếp theo sẽ lưu hash này vào previous_hash để tạo liên kết.
-        """
+        """Tính SHA-256 của header đã chuẩn hoá (không bao gồm validator_signature)."""
         header_dict = {
             "version": self.header.version,
             "previous_hash": self.header.previous_hash,
@@ -75,12 +80,17 @@ class Block:
             "difficulty": self.header.difficulty,
             "nonce": self.header.nonce,
         }
+        if self.header.consensus_type == "PoS":
+            header_dict["height"] = self.height
+            header_dict["consensus_type"] = self.header.consensus_type
+            header_dict["validator_address"] = self.header.validator_address
+
         canonical = json.dumps(header_dict, sort_keys=True, separators=(",", ":"))
         return sha256_hex(canonical)
 
     def to_dict(self) -> dict:
         """Chuyển block sang dict để hiển thị."""
-        return {
+        d = {
             "height": self.height,
             "hash": self.compute_hash(),
             "previous_hash": self.header.previous_hash,
@@ -89,5 +99,10 @@ class Block:
             "difficulty": self.header.difficulty,
             "nonce": self.header.nonce,
             "version": self.header.version,
+            "consensus_type": self.header.consensus_type,
             "transaction_count": self.transaction_count,
         }
+        if self.header.consensus_type == "PoS":
+            d["validator_address"] = self.header.validator_address
+            d["validator_signature"] = self.header.validator_signature
+        return d

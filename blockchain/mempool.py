@@ -5,7 +5,7 @@ loại bỏ giao dịch trùng, sai chữ ký, hoặc Issuer không được ph�
 trước khi vào block.
 """
 
-from blockchain.transaction import Transaction, verify_transaction
+from blockchain.transaction import Transaction, verify_ledger_transaction
 
 
 class DummyLedger:
@@ -46,40 +46,15 @@ class Mempool:
         Returns:
             (True, "Đã thêm vào Mempool") hoặc (False, lý do cụ thể).
         """
-        # 1–2. Định dạng + chữ ký hợp lệ (verify_transaction kiểm tra cả hai)
-        ok, reason = verify_transaction(tx)
+        cred_id = tx.payload.get("credential_id") if isinstance(tx.payload, dict) else None
+        ok, reason = verify_ledger_transaction(
+            tx, ledger_view.credential_status(cred_id),
+            ledger_view.credential_issuer(cred_id), self.authorized_issuers,
+        )
         if not ok:
             return False, f"Từ chối — {reason}"
-
-        # 3. Không trùng tx_id trong Mempool (chống replay / nộp lặp)
         if tx.tx_id in self._pool:
-            return False, f"Từ chối — transaction đã tồn tại trong Mempool (trùng tx_id)"
-
-        # 4. Issuer phải nằm trong registry (nếu registry không rỗng)
-        if self.authorized_issuers and tx.sender_public_key not in self.authorized_issuers:
-            return False, "Từ chối — Issuer không nằm trong danh sách được phép (unauthorized)"
-
-        # 5. Kiểm tra trạng thái credential trên ledger
-        cred_id = tx.payload.get("credential_id")
-        if cred_id and tx.tx_type == "ISSUE":
-            status = ledger_view.credential_status(cred_id)
-            if status == "ACTIVE":
-                return False, (
-                    f"Từ chối — credential '{cred_id}' đã tồn tại "
-                    f"và đang ACTIVE trên blockchain"
-                )
-
-        if cred_id and tx.tx_type == "REVOKE":
-            status = ledger_view.credential_status(cred_id)
-            if status != "ACTIVE":
-                return False, (
-                    f"Từ chối — credential '{cred_id}' không ở trạng thái "
-                    f"ACTIVE (hiện tại: {status}), không thể thu hồi"
-                )
-            # Kiểm tra chỉ Issuer gốc mới được thu hồi
-            issuer = ledger_view.credential_issuer(cred_id)
-            if issuer and issuer != tx.sender_public_key:
-                return False, "Từ chối — chỉ Issuer gốc mới có quyền thu hồi credential"
+            return False, "Từ chối — transaction đã tồn tại trong Mempool (trùng tx_id)"
 
         # Tất cả kiểm tra đều qua → thêm vào pool
         self._pool[tx.tx_id] = tx

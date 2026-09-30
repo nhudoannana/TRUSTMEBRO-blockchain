@@ -5,6 +5,7 @@ từ TX đến Block đến Chain, hiển thị từng bước PASS/FAIL.
 Issuer có thể thu hồi credential bằng REVOKE transaction.
 """
 
+import json
 import time
 import streamlit as st
 import sys
@@ -16,6 +17,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from state import init_state, get_network
 from blockchain.wallet import Wallet, generate_wallet
 from blockchain.transaction import Credential, Transaction
+from blockchain.claim_merkle import (
+    compute_claim_leaf_hash,
+    verify_claim_inclusion_proof,
+    simulate_dictionary_attack,
+    generate_salt,
+)
 
 init_state()
 
@@ -39,7 +46,9 @@ cred_id = st.text_input("Nhập Credential ID:", value="", key="verify_cred_id",
 
 if st.button("🔍 Verify", key="btn_verify") and cred_id.strip():
     cred_id = cred_id.strip()
-    steps, final_status, info = bc.verify_credential(cred_id)
+    steps, final_status, info = bc.verify_credential(
+        cred_id, pos_registry=get_network().pos_registry
+    )
 
     # Hiển thị từng bước
     st.markdown("#### Kết quả kiểm tra 12 bước:")
@@ -89,7 +98,134 @@ if st.button("🔍 Verify", key="btn_verify") and cred_id.strip():
 st.divider()
 
 # ══════════════════════════════════════════════
-# PHẦN 2: Thu hồi Credential (REVOKE)
+# PHẦN 2: Xác minh Chọn lọc (Selective Disclosure — Proof of Inclusion)
+# ══════════════════════════════════════════════
+st.subheader("🔹 Xác minh Chọn lọc (Selective Disclosure — Proof of Inclusion)")
+st.caption(
+    "Holder chỉ xuất trình duy nhất 1 claim cùng Salt và Merkle Proof. "
+    "Verifier đối chiếu trực tiếp với claims_root trên Blockchain mà KHÔNG THỂ THẤY các claim khác."
+)
+
+st.info(
+    "💡 **Nguyên lý Proof of Inclusion & Vai trò của Salt:**\n\n"
+    "- Mỗi claim được băm: `leaf_hash = SHA256(JSON([claim_name, claim_value, salt]))`.\n"
+    "- Blockchain chỉ lưu duy nhất **`claims_root`** trong block header / transaction payload, không chứa thông tin thô.\n"
+    "- **Vì sao cần Salt?** Nếu không có salt, một claim có miền giá trị ít khả năng (như `Grade = A`) "
+    "sẽ dễ dàng bị dò băm bằng cách tính thử `sha256('grade:A')`, `sha256('grade:B')`... Salt 128-bit mở rộng không gian thử thành $2^{128}$, chống tấn công từ điển hiệu quả.\n"
+    "- ⚠️ **LƯU Ý:** Đây là **Proof of Inclusion**, không phải Zero-Knowledge Proof (ZKP). Salt chống dò băm, không đảm bảo ẩn danh tuyệt đối."
+)
+
+# Tải từ session_state nếu có
+holder_creds = st.session_state.get("holder_credentials", {})
+sel_mode = st.radio("Chế độ nhập dữ liệu:", ["Chọn từ chứng chỉ đã phát hành (Demo nhanh)", "Nhập thủ công"], horizontal=True, key="sel_mode")
+
+if sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and holder_creds:
+    sel_cred_id = st.selectbox("Chọn Credential:", list(holder_creds.keys()), key="sel_cred_picker")
+    cred_pack = holder_creds[sel_cred_id]
+
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        sel_claim_name = st.selectbox("Chọn Claim cần tiết lộ cho Verifier:", list(cred_pack["claims"].keys()), key="sel_claim_picker")
+        sel_claim_val = cred_pack["claims"][sel_claim_name]
+        st.markdown(f"**Giá trị Claim:** `{sel_claim_val}`")
+    with col_c2:
+        sel_salt = cred_pack["salts"][sel_claim_name]
+        st.markdown(f"**Salt (ngẫu nhiên 128-bit):** `{sel_salt[:16]}…`")
+        sel_proof = cred_pack["proofs"][sel_claim_name]
+        st.caption(f"Merkle Proof gồm {len(sel_proof)} sibling hashes leo lên root.")
+
+    if st.button("🔍 Xác minh Claim độc lập (Proof of Inclusion)", key="btn_verify_selective"):
+        ok, reason, sel_info = bc.verify_selective_claim(
+            credential_id=sel_cred_id,
+            claim_name=sel_claim_name,
+            claim_value=sel_claim_val,
+            salt=sel_salt,
+            proof=sel_proof,
+            pos_registry=network.pos_registry,
+        )
+
+        if ok:
+            st.success(f"### ✅ {reason}")
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                st.markdown(f"**Claim xác thực:** `{sel_claim_name} = {sel_claim_val}`")
+                leaf_h = compute_claim_leaf_hash(sel_claim_name, sel_claim_val, sel_salt)
+                st.markdown(f"**Leaf Hash:** `{leaf_h[:24]}…`")
+            with col_v2:
+                st.markdown(f"**On-chain claims_root:** `{sel_info['claims_root'][:24]}…`")
+                st.markdown(f"**Block Height:** {sel_info['block_height']}")
+
+            st.info(
+                "🔒 **Tiết lộ chọn lọc (Selective Disclosure):**\n\n"
+                f"Verifier chỉ nhận được `{sel_claim_name} = {sel_claim_val}` cùng Merkle Proof. "
+                "Các claims khác không nằm trong gói chia sẻ vì Verifier chỉ nhận hash trung gian của Merkle tree. "
+                "**Lưu ý:** metadata như holder, title vẫn có thể hiện trên chuỗi. "
+                "Salt chống tấn công dò băm nhưng không bảo đảm ẩn danh tuyệt đối."
+            )
+        else:
+            st.error(f"### ❌ {reason}")
+elif sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and not holder_creds:
+    st.warning("Chưa có credential nào được phát hành trong phiên làm việc. Vào trang **Credentials & Transactions** tạo trước, hoặc chuyển sang 'Nhập thủ công'.")
+else:
+    # Nhập thủ công
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+        manual_cred_id = st.text_input("Credential ID:", value="CRED-001", key="m_cred_id")
+        manual_claim_name = st.text_input("Claim Name:", value="grade", key="m_claim_name")
+        manual_claim_val = st.text_input("Claim Value:", value="A", key="m_claim_val")
+    with col_m2:
+        manual_salt = st.text_input("Salt (hex):", value="", key="m_salt")
+        manual_proof_str = st.text_area("Merkle Proof (JSON list [[hash, 'left'/'right'], ...]):", value="[]", height=100, key="m_proof")
+
+    if st.button("🔍 Xác minh Claim thủ công", key="btn_verify_manual"):
+        try:
+            parsed_proof = json.loads(manual_proof_str)
+            proof_tuples = [(p[0], p[1]) for p in parsed_proof]
+        except Exception as e:
+            st.error(f"Lỗi phân tích cú pháp Proof: {e}")
+            st.stop()
+
+        ok, reason, sel_info = bc.verify_selective_claim(
+            credential_id=manual_cred_id.strip(),
+            claim_name=manual_claim_name.strip(),
+            claim_value=manual_claim_val.strip(),
+            salt=manual_salt.strip(),
+            proof=proof_tuples,
+            pos_registry=network.pos_registry,
+        )
+        if ok:
+            st.success(f"### ✅ {reason}")
+        else:
+            st.error(f"### ❌ {reason}")
+
+# Demo tấn công vét cạn / Từ điển
+with st.expander("🧪 Demo tương tác: Tại sao bắt buộc phải có Salt? (Dictionary Attack Simulation)"):
+    st.markdown("Giả sử Holder có claim nhạy cảm `grade = A` (thuộc tập khả dĩ: A, B, C, D, F).")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        st.markdown("#### ❌ Trường hợp KHÔNG dùng Salt")
+        st.caption("Băm thẳng sha256('grade:A')")
+        unsalted_target = compute_claim_leaf_hash("grade", "A", salt="")
+        st.code(f"Hash mục tiêu: {unsalted_target[:32]}…", language="text")
+        if st.button("🔨 Băm thử vét cạn (Không Salt)", key="btn_attack_unsalted"):
+            cracked, val, att = simulate_dictionary_attack("grade", unsalted_target, ["A", "B", "C", "D", "F"], salt="")
+            if cracked:
+                st.error(f"🚨 ĐÃ BỊ ĐOÁN RA! Giá trị bị băm thử trúng là: '{val}' chỉ sau {att} phép thử!")
+    with col_d2:
+        st.markdown("#### ✅ Trường hợp CÓ Salt ngẫu nhiên 128-bit")
+        demo_salt = generate_salt()
+        salted_target = compute_claim_leaf_hash("grade", "A", salt=demo_salt)
+        st.code(f"Hash mục tiêu: {salted_target[:32]}…", language="text")
+        st.caption(f"Salt bí mật của Holder: {demo_salt[:16]}…")
+        if st.button("🛡️ Băm thử vét cạn (Có Salt)", key="btn_attack_salted"):
+            cracked, val, att = simulate_dictionary_attack("grade", salted_target, ["A", "B", "C", "D", "F"], salt="")
+            if not cracked:
+                st.success(f"🛡️ Chống dò băm thành công! Thử toàn bộ tập ['A','B','C','D','F'] đều không khớp vì thiếu Salt 128-bit. Lưu ý: Salt chống tấn công từ điển, không đảm bảo ẩn danh tuyệt đối.")
+
+st.divider()
+
+# ══════════════════════════════════════════════
+# PHẦN 3: Thu hồi Credential (REVOKE)
 # ══════════════════════════════════════════════
 st.subheader("🔹 Thu hồi Credential (REVOKE)")
 st.caption("Issuer gửi REVOKE TX → Mempool → Mine → Credential chuyển sang REVOKED.")
@@ -100,8 +236,9 @@ if not wallets:
 else:
     col_r1, col_r2 = st.columns(2)
     with col_r1:
-        wallet_names = [w["name"] for w in wallets]
-        rev_wallet = st.selectbox("Issuer (wallet):", wallet_names, key="rev_wallet")
+        wallet_addresses = [w["address"] for w in wallets]
+        wallet_labels = {w["address"]: f"{w['name']} — {w['address'][:12]}…" for w in wallets}
+        rev_wallet = st.selectbox("Issuer (wallet):", wallet_addresses, format_func=lambda address: wallet_labels[address], key="rev_wallet")
         rev_cred_id = st.text_input("Credential ID cần thu hồi:", key="rev_cred_id",
                                      placeholder="CRED-xxxx")
     with col_r2:
@@ -112,7 +249,7 @@ else:
         if not rev_cred_id.strip():
             st.warning("Nhập Credential ID.")
         else:
-            w_dict = next(w for w in wallets if w["name"] == rev_wallet)
+            w_dict = next(w for w in wallets if w["address"] == rev_wallet)
             wallet = Wallet(
                 private_key_pem=w_dict["private_key_pem"],
                 public_key_hex=w_dict["public_key_hex"],

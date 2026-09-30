@@ -25,7 +25,7 @@ st.header("1️⃣ Hash Demo — SHA-256")
 st.subheader("🔹 Generate Hash")
 st.caption("Nhập bất kỳ dữ liệu nào để xem hash SHA-256 tương ứng.")
 
-input_data = st.text_input("Nhập dữ liệu:", value="Hello TrustProfile", key="hash_input")
+input_data = st.text_input("Nhập dữ liệu:", value="Hello TRUSTMEBRO", key="hash_input")
 
 if st.button("Generate Hash", key="btn_gen_hash"):
     hash_result = sha256_hex(input_data)

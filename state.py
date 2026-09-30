@@ -19,6 +19,18 @@ def init_state():
     if "event_log" not in st.session_state:
         st.session_state.event_log = []        # log sự kiện: list[str]
 
+    # Một nguồn khởi tạo, chạy idempotent trên mọi trang/rerun.
+    wallets_by_address = {w["address"]: w for w in st.session_state.wallets}
+    for validator in get_network().pos_registry.validators.values():
+        wallets_by_address[validator.address] = {
+            "name": validator.name,
+            "private_key_pem": validator.private_key_pem,
+            "public_key_hex": validator.public_key_hex,
+            "address": validator.address,
+            "source": "validator",
+        }
+    st.session_state.wallets = list(wallets_by_address.values())
+
 
 @st.cache_resource
 def get_network():
@@ -32,3 +44,8 @@ def get_network():
     net.create_node("Node-2", "127.0.0.1", 5002)
     net.create_node("Node-3", "127.0.0.1", 5003)
     return net
+
+
+def get_pos_registry():
+    """Lấy PoSRegistry của liên minh TRUSTMEBRO Consortium dùng chung từ Network."""
+    return get_network().pos_registry
