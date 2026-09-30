@@ -23,6 +23,12 @@ from blockchain.claim_merkle import (
     simulate_dictionary_attack,
     generate_salt,
 )
+from blockchain.proof_package import (
+    build_proof_package,
+    export_proof_json,
+    parse_proof_package,
+    FORMAT_VERSION,
+)
 
 init_state()
 
@@ -117,7 +123,11 @@ st.info(
 
 # Tải từ session_state nếu có
 holder_creds = st.session_state.get("holder_credentials", {})
-sel_mode = st.radio("Chế độ nhập dữ liệu:", ["Chọn từ chứng chỉ đã phát hành (Demo nhanh)", "Nhập thủ công"], horizontal=True, key="sel_mode")
+sel_mode = st.radio(
+    "Chế độ nhập dữ liệu:",
+    ["Chọn từ chứng chỉ đã phát hành (Demo nhanh)", "Nhập file Proof JSON (Verifier)", "Nhập thủ công"],
+    horizontal=True, key="sel_mode",
+)
 
 if sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and holder_creds:
     sel_cred_id = st.selectbox("Chọn Credential:", list(holder_creds.keys()), key="sel_cred_picker")
@@ -162,10 +172,101 @@ if sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and hol
                 "**Lưu ý:** metadata như holder, title vẫn có thể hiện trên chuỗi. "
                 "Salt chống tấn công dò băm nhưng không bảo đảm ẩn danh tuyệt đối."
             )
+
+            # Xuất gói proof JSON để gửi cho Verifier ở phiên khác
+            pkg = build_proof_package(
+                credential_id=sel_cred_id,
+                claim_name=sel_claim_name,
+                claim_value=sel_claim_val,
+                salt=sel_salt,
+                merkle_proof=sel_proof,
+            )
+            proof_json_str = export_proof_json(pkg)
+            st.download_button(
+                label="📥 Xuất gói Proof JSON (gửi cho Verifier)",
+                data=proof_json_str,
+                file_name=f"proof_{sel_cred_id}_{sel_claim_name}.json",
+                mime="application/json",
+                key="btn_export_proof",
+            )
+            st.caption(
+                "File chỉ chứa 1 claim + salt + Merkle proof. "
+                "Không chứa private key, claim khác, salt khác hay toàn bộ hồ sơ."
+            )
         else:
             st.error(f"### ❌ {reason}")
 elif sel_mode == "Chọn từ chứng chỉ đã phát hành (Demo nhanh)" and not holder_creds:
-    st.warning("Chưa có credential nào được phát hành trong phiên làm việc. Vào trang **Credentials & Transactions** tạo trước, hoặc chuyển sang 'Nhập thủ công'.")
+    st.warning("Chưa có credential nào được phát hành trong phiên làm việc. Vào trang **Credentials & Transactions** tạo trước, hoặc chuyển sang chế độ khác.")
+
+elif sel_mode == "Nhập file Proof JSON (Verifier)":
+    # ── Verifier nhập gói proof từ file JSON ──
+    st.markdown(
+        "**Dành cho Verifier:** Nhập file `.json` do Holder gửi. "
+        "Hệ thống kiểm tra cấu trúc, rồi xác minh claim trên chain của node được cấu hình tin cậy."
+    )
+    st.caption(
+        "⚠️ Đây là Proof of Inclusion (Selective Disclosure), không phải ZKP. "
+        "Kết quả dựa trên trạng thái chain của node hiện tại — "
+        "nếu node chưa đồng bộ, kết quả có thể khác mạng toàn cục."
+    )
+
+    verify_node_id = st.selectbox(
+        "Node tin cậy để kiểm tra:",
+        list(network.nodes.keys()),
+        key="verify_json_node",
+        help="Verifier chọn node mà mình tin cậy. Chain của node này sẽ được dùng để tra cứu claims_root.",
+    )
+
+    uploaded_file = st.file_uploader(
+        "Chọn file Proof JSON:",
+        type=["json"],
+        key="proof_json_upload",
+    )
+
+    if uploaded_file is not None:
+        raw_bytes = uploaded_file.read()
+
+        ok, err, parsed = parse_proof_package(raw_bytes)
+        if not ok:
+            st.error(f"❌ Gói proof không hợp lệ: {err}")
+        else:
+            st.success(f"✅ Cấu trúc gói hợp lệ (phiên bản `{FORMAT_VERSION}`)")
+
+            # Hiển thị nội dung gói
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                st.markdown(f"**Credential ID:** `{parsed['credential_id']}`")
+                st.markdown(f"**Claim:** `{parsed['claim_name']} = {parsed['claim_value']}`")
+            with col_p2:
+                st.markdown(f"**Salt:** `{parsed['salt'][:16]}…`")
+                st.markdown(f"**Proof steps:** {len(parsed['merkle_proof'])}")
+
+            if st.button("🔍 Xác minh Proof trên Blockchain", key="btn_verify_json_proof"):
+                verify_bc = network.nodes[verify_node_id].blockchain
+
+                vok, vreason, vinfo = verify_bc.verify_selective_claim(
+                    credential_id=parsed["credential_id"],
+                    claim_name=parsed["claim_name"],
+                    claim_value=parsed["claim_value"],
+                    salt=parsed["salt"],
+                    proof=parsed["merkle_proof"],
+                    pos_registry=network.pos_registry,
+                )
+
+                if vok:
+                    st.success(f"### ✅ {vreason}")
+                    st.markdown(f"**On-chain claims_root:** `{vinfo['claims_root'][:24]}…`")
+                    st.markdown(f"**Block Height:** {vinfo['block_height']}")
+                    st.caption(
+                        f"Kết quả kiểm tra kỹ thuật trên chain của {verify_node_id}. "
+                        "Xác minh tính bao hàm của claim trong Merkle tree, "
+                        "không chứng minh nội dung đúng ngoài thực tế."
+                    )
+                else:
+                    st.error(f"### ❌ {vreason}")
+                    if vinfo:
+                        st.caption(f"claims_root trên chain: `{vinfo.get('claims_root', '—')[:24]}…`")
+
 else:
     # Nhập thủ công
     col_m1, col_m2 = st.columns(2)
