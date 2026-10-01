@@ -920,6 +920,58 @@
     .metric-strip { grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
     .module-grid  { grid-template-columns: 1fr 1fr; }
   }
+  
+    /* ════════════════════════════════
+     JOURNEY PAGE
+  ════════════════════════════════ */
+  .journey-nav {
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-8);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .journey-nav::-webkit-scrollbar { display: none; }
+
+  .j-step {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-xlow);
+    white-space: nowrap;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
+  }
+  .j-step.active {
+    color: var(--text-strong);
+    background: rgba(255,255,255,0.06);
+  }
+  .j-sep {
+    width: 12px; height: 1px;
+    background: var(--border-faint);
+    margin: 0 var(--sp-2);
+    flex-shrink: 0;
+  }
+
+  .j-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-8);
+  }
+  .j-explain {
+    color: var(--text-mid);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  .j-explain p { margin-bottom: var(--sp-3); }
+
+  @media (max-width: 900px) {
+    .j-layout { grid-template-columns: 1fr; gap: var(--sp-6); }
+  }
+
   </style>
 </head>
 <body>
@@ -941,8 +993,11 @@
     </div>
 
     <div class="nav-section-label">Tổng quan</div>
-    <a href="#" class="nav-item active" data-page="dashboard" aria-current="page">
-      <span class="nav-icon">◧</span>Dashboard
+    <a href="#" class="nav-item active" data-page="journey" aria-current="page">
+      <span class="nav-icon">🚀</span>Bắt đầu mô phỏng
+    </a>
+    <a href="#" class="nav-item" data-page="dashboard">
+      <span class="nav-icon">◧</span>Tổng quan mạng
     </a>
 
     <div class="nav-section-label">Khái niệm cốt lõi</div>
@@ -1008,6 +1063,160 @@
         <span class="proto-tag" title="Giao diện thử nghiệm — dữ liệu mẫu xác định">Prototype UI</span>
       </div>
     </header>
+
+    
+
+        <!-- ═══ JOURNEY PAGE ═══ -->
+    <main class="page-content" id="page-journey" aria-label="Bắt đầu mô phỏng">
+      
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Từng bước đưa một hồ sơ lên blockchain</h1>
+          <p class="page-subtitle">Mô phỏng giáo dục: Quá trình phát hành và xác minh chứng chỉ số trên mạng ngang hàng.</p>
+        </div>
+        <div class="demo-notice" role="note" aria-label="Ghi chú dữ liệu mẫu">
+          Dữ liệu mẫu xác định — không kết nối backend
+        </div>
+      </div>
+
+      <!-- 6-step progress navigation -->
+      <div class="journey-nav">
+        <div class="j-step active">1. Ví & Khóa</div>
+        <div class="j-sep"></div>
+        <div class="j-step">2. Hồ sơ & Chữ ký</div>
+        <div class="j-sep"></div>
+        <div class="j-step">3. Kiểm tra & Mempool</div>
+        <div class="j-sep"></div>
+        <div class="j-step">4. Tạo block</div>
+        <div class="j-sep"></div>
+        <div class="j-step">5. Đồng bộ mạng</div>
+        <div class="j-sep"></div>
+        <div class="j-step">6. Xác minh hồ sơ</div>
+      </div>
+
+      <!-- STEP 1 CONTENT -->
+      <div class="j-layout">
+        <!-- Left: explanation -->
+        <div class="j-explain">
+          <h2 style="font-family:var(--font-display); font-size:1.6rem; color:var(--text-strong); margin-bottom:var(--sp-4);">Bước 1: Ví & Khóa</h2>
+          <p>Để phát hành một hồ sơ học thuật, tổ chức phát hành (Issuer) cần một <strong>Ví (Wallet)</strong> đại diện trên hệ thống blockchain.</p>
+          <ul style="margin-left:var(--sp-4); margin-top:var(--sp-3); margin-bottom:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-2); color:var(--text-low);">
+            <li><strong>Private Key (Khóa riêng tư):</strong> Dùng để ký xác nhận hồ sơ. Tuyệt đối bảo mật, không bao giờ chia sẻ.</li>
+            <li><strong>Public Key (Khóa công khai):</strong> Trở thành địa chỉ định danh. Dùng để mọi người xác minh tính hợp lệ của chữ ký.</li>
+          </ul>
+          <p style="font-size:12px; color:var(--text-xlow); padding:var(--sp-4); background:var(--bg-raised); border-radius:var(--r-md); border:1px solid var(--border-faint);">
+            Lưu ý: Ví blockchain tự nó không chứng minh danh tính thực tế của tổ chức. Trong thực tế, cần có cơ chế định danh cấp cao hơn (VD: PKI, DID) liên kết Public Key với danh tính thật.
+          </p>
+        </div>
+
+        <!-- Right: controls -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Thiết lập ví Issuer</span>
+          </div>
+          <div class="panel-body">
+            
+            <div style="display:flex; gap:var(--sp-5); margin-bottom:var(--sp-5); border-bottom:1px solid var(--border-faint); padding-bottom:var(--sp-4);">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="radio" name="wallet_mode" value="demo" checked onchange="toggleWalletMode()" style="accent-color:var(--accent-blue);">
+                <span style="font-size:13px; font-weight:500;">Chọn ví mẫu</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="radio" name="wallet_mode" value="new" onchange="toggleWalletMode()" style="accent-color:var(--accent-blue);">
+                <span style="font-size:13px; font-weight:500;">Tạo ví mới</span>
+              </label>
+            </div>
+
+            <!-- Mode: Demo -->
+            <div id="w-mode-demo">
+              <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:var(--sp-2);">Ví có sẵn:</label>
+              <select id="w-demo-select" style="width:100%; padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); color:var(--text-strong); border-radius:var(--r-sm); font-size:13px; margin-bottom:var(--sp-5); outline:none;">
+                <option value="Trường Đại học DEMO-A">Trường Đại học DEMO-A</option>
+                <option value="Trường Đại học DEMO-B">Trường Đại học DEMO-B</option>
+                <option value="Tổ chức Kiểm định DEMO-C">Tổ chức Kiểm định DEMO-C</option>
+              </select>
+            </div>
+
+            <!-- Mode: New -->
+            <div id="w-mode-new" style="display:none;">
+              <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:var(--sp-2);">Tên định danh:</label>
+              <input type="text" id="w-new-name" placeholder="Ví dụ: Đại học Quốc gia..." style="width:100%; padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); color:var(--text-strong); border-radius:var(--r-sm); font-size:13px; margin-bottom:var(--sp-5); outline:none;">
+            </div>
+
+            <button onclick="createWallet()" class="action-btn primary" style="width:100%; justify-content:center; padding:12px; margin-bottom:var(--sp-4);">Xác nhận Ví</button>
+
+            <!-- Result -->
+            <div id="w-result" style="display:none; border-top:1px solid var(--border-faint); padding-top:var(--sp-4); animation: fadeIn 0.3s ease;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-3);">
+                <span style="font-size:12px; font-weight:600; color:var(--ok);">✔ Ví đã sẵn sàng</span>
+                <span class="badge badge-neutral no-dot" id="w-res-name">Trường Đại học DEMO-A</span>
+              </div>
+              <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:var(--r-sm); padding:var(--sp-3); position:relative;">
+                <div style="font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:4px;">Public Key (địa chỉ ví):</div>
+                <div class="hash-val" id="w-res-pub" style="font-size:11.5px; color:var(--accent-blue); padding-right:32px; word-break:break-all;">04a1b2c3d4e5f6...</div>
+                <button onclick="copyPub()" title="Copy Public Key" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.05); border:1px solid var(--border-faint); border-radius:4px; padding:4px 6px; color:var(--text-low); cursor:pointer; transition:all 0.2s;">
+                  📋
+                </button>
+              </div>
+              <p style="font-size:11px; color:var(--text-xlow); margin-top:var(--sp-3); line-height:1.5;">Private key được tạo ngẫu nhiên và lưu ẩn trong frontend. Không chia sẻ private key ra ngoài.</p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+      <!-- STEP 2 PREVIEW (Chưa triển khai) -->
+      <div style="margin-top:var(--sp-8); border:1px solid var(--border-subtle); border-radius:var(--r-md); background:rgba(255,255,255,0.01); display:flex; align-items:center; justify-content:space-between; padding:var(--sp-4) var(--sp-5); opacity:0.8; filter:grayscale(0.5);">
+        <div style="display:flex; align-items:center; gap:var(--sp-4);">
+          <div style="width:32px; height:32px; border-radius:50%; background:var(--bg-raised); border:1px solid var(--border-faint); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-xlow); font-weight:700;">2</div>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:var(--text-strong);">Bước 2: Hồ sơ & Chữ ký</div>
+            <div style="font-size:11.5px; color:var(--text-low); margin-top:2px;">Ký xác nhận JSON hồ sơ bằng Private Key.</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:var(--sp-4);">
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+          <button onclick="nextStep()" class="action-btn secondary" style="padding:8px 16px;">
+            Tiếp tục <span style="margin-left:4px;">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3-6 PREVIEWS -->
+      <div style="margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2);">
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">3</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 3: Kiểm tra & Mempool</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">4</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 4: Tạo Block</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">5</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 5: Đồng bộ mạng</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">6</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 6: Xác minh hồ sơ</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+      </div>
+
+    </main>
+
+
 
     <!-- ═══ DASHBOARD PAGE ═══ -->
     <main class="page-content" id="page-dashboard" aria-label="Dashboard">
@@ -1521,7 +1730,8 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 
 // ── Page map: data-page → display info ──
 const PAGES = {
-  dashboard:   { label: 'Dashboard',                  icon: '◧', file: null },
+  journey:     { label: 'Bắt đầu mô phỏng',           icon: '🚀', file: null },
+  dashboard:   { label: 'Tổng quan mạng',             icon: '◧',  file: null },
   sha256:      { label: 'SHA-256',                     icon: '#',  file: '1_Hash_Demo.py' },
   wallet:      { label: 'Wallet & Chữ ký ECDSA',      icon: '◈',  file: '2_Wallet.py' },
   transaction: { label: 'Credentials & Transactions',  icon: '◻',  file: '3_Transaction.py' },
@@ -1537,6 +1747,7 @@ const PAGES = {
 };
 
 const dashboardEl   = document.getElementById('page-dashboard');
+const journeyEl     = document.getElementById('page-journey');
 const placeholderEl = document.getElementById('page-placeholder');
 const breadcrumb    = document.getElementById('breadcrumb-current');
 const phIcon        = document.getElementById('ph-icon');
@@ -1544,7 +1755,7 @@ const phTitle       = document.getElementById('ph-title');
 const docTitle      = document.getElementById('page-title');
 
 function showPage(pageKey) {
-  const info = PAGES[pageKey] || PAGES.dashboard;
+  const info = PAGES[pageKey] || PAGES.journey;
 
   // Update document title
   docTitle.textContent = 'TRUSTMEBRO — ' + info.label;
@@ -1563,11 +1774,16 @@ function showPage(pageKey) {
     }
   });
 
+  // Hide all main views initially
+  if(dashboardEl) dashboardEl.style.display = 'none';
+  if(journeyEl) journeyEl.style.display = 'none';
+  placeholderEl.classList.remove('visible');
+
   if (pageKey === 'dashboard') {
-    dashboardEl.style.display = '';
-    placeholderEl.classList.remove('visible');
+    if(dashboardEl) dashboardEl.style.display = '';
+  } else if (pageKey === 'journey') {
+    if(journeyEl) journeyEl.style.display = '';
   } else {
-    dashboardEl.style.display = 'none';
     phIcon.textContent  = info.icon;
     phTitle.textContent = info.label;
     placeholderEl.classList.add('visible');
@@ -1585,8 +1801,8 @@ document.querySelectorAll('.nav-item[data-page]').forEach(a => {
 });
 
 // On load: read hash
-const initPage = (location.hash.slice(1) || 'dashboard');
-showPage(PAGES[initPage] ? initPage : 'dashboard');
+const initPage = (location.hash.slice(1) || 'journey');
+showPage(PAGES[initPage] ? initPage : 'journey');
 
 // ── Count-up animation ──
 function countUp(el, target, duration) {
@@ -1630,7 +1846,45 @@ document.querySelectorAll('.module-card, .blk').forEach(el => {
     }
   });
 });
+
+function toggleWalletMode() {
+  const mode = document.querySelector('input[name="wallet_mode"]:checked').value;
+  document.getElementById('w-mode-demo').style.display = mode === 'demo' ? 'block' : 'none';
+  document.getElementById('w-mode-new').style.display = mode === 'new' ? 'block' : 'none';
+  document.getElementById('w-result').style.display = 'none';
+}
+
+function createWallet() {
+  const mode = document.querySelector('input[name="wallet_mode"]:checked').value;
+  const name = mode === 'demo' ? document.getElementById('w-demo-select').value : document.getElementById('w-new-name').value;
+  
+  if(mode === 'new' && !name.trim()) {
+    alert('Vui lòng nhập tên định danh');
+    return;
+  }
+
+  // Generate fake pub key based on name length for demo
+  const mockPub = '04' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('').padEnd(64, '0').substring(0, 128);
+  
+  document.getElementById('w-res-name').textContent = name;
+  document.getElementById('w-res-pub').textContent = mockPub.substring(0,64) + '...';
+  document.getElementById('w-result').style.display = 'block';
+}
+
+function copyPub() {
+  const text = document.getElementById('w-res-pub').textContent;
+  navigator.clipboard.writeText(text);
+  alert('Đã copy Public Key');
+}
+
+function nextStep() {
+  showPage('transaction');
+  history.replaceState(null, '', '#transaction');
+}
+
 </script>
 
 </body>
 </html>
+
+
