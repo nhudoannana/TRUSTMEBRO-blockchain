@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustMeBro — Mô phỏng Blockchain Giáo dục</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        display: ['"DM Serif Display"', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* ===== HERO FULL SCREEN ===== */
+        .hero-section {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Background gradient landscape */
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: 
+                radial-gradient(ellipse 120% 60% at 50% 40%, rgba(30, 60, 120, 0.4) 0%, transparent 70%),
+                radial-gradient(ellipse 80% 50% at 30% 60%, rgba(180, 120, 60, 0.3) 0%, transparent 60%),
+                radial-gradient(ellipse 80% 50% at 70% 65%, rgba(160, 100, 50, 0.25) 0%, transparent 60%),
+                linear-gradient(180deg, 
+                    #1a2a4a 0%, 
+                    #2a3a5a 15%,
+                    #4a5a7a 25%,
+                    #7a8aaa 35%,
+                    #a0956a 50%, 
+                    #c8a060 58%,
+                    #d4a855 62%,
+                    #b08040 70%, 
+                    #906030 80%, 
+                    #1a1a1a 100%
+                );
+        }
+
+        /* Dune wave shapes */
+        .hero-bg::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60%;
+            background:
+                radial-gradient(ellipse 60% 25% at 25% 70%, rgba(180, 130, 60, 0.6) 0%, transparent 100%),
+                radial-gradient(ellipse 50% 20% at 75% 65%, rgba(160, 110, 50, 0.5) 0%, transparent 100%),
+                radial-gradient(ellipse 70% 30% at 50% 80%, rgba(140, 90, 40, 0.4) 0%, transparent 100%);
+            z-index: 1;
+        }
+
+        /* Dark gradient at bottom */
+        .hero-bottom-gradient {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 45%;
+            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 40%, transparent 100%);
+            z-index: 3;
+        }
+
+        /* ===== NUMBER GRID OVERLAY ===== */
+        .number-grid {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+            grid-template-rows: repeat(auto-fill, minmax(36px, 1fr));
+            gap: 0;
+            opacity: 0.18;
+            pointer-events: none;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            padding: 60px 10px 10px 10px;
+        }
+
+        .number-grid span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* ===== 3D BLOCKCHAIN CUBES (CSS) ===== */
+        .cube-scene {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            z-index: 2;
+            perspective: 800px;
+        }
+
+        .cube-group {
+            transform-style: preserve-3d;
+            animation: floatRotate 12s ease-in-out infinite;
+        }
+
+        @keyframes floatRotate {
+            0%, 100% { transform: rotateY(-15deg) rotateX(5deg) translateY(0px); }
+            50% { transform: rotateY(15deg) rotateX(-5deg) translateY(-20px); }
+        }
+
+        .voxel {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            transform-style: preserve-3d;
+        }
+
+        .voxel .face {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .voxel .front  { transform: translateZ(14px); }
+        .voxel .back   { transform: translateZ(-14px) rotateY(180deg); }
+        .voxel .left   { transform: translateX(-14px) rotateY(-90deg); }
+        .voxel .right  { transform: translateX(14px) rotateY(90deg); }
+        .voxel .top    { transform: translateY(-14px) rotateX(90deg); }
+        .voxel .bottom { transform: translateY(14px) rotateX(-90deg); }
+
+        /* ===== HEADLINE FONT ===== */
+        .headline-text {
+            font-family: 'DM Serif Display', 'Georgia', serif;
+            font-weight: 400;
+            font-size: clamp(3.2rem, 8vw, 7rem);
+            line-height: 0.92;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            text-shadow: 0 2px 40px rgba(0,0,0,0.5);
+        }
+
+        /* ===== GLASS NAV ===== */
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+        }
+
+        .glass-nav a {
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 16px;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+
+        .glass-nav a:hover {
+            color: #ffffff;
+        }
+
+        /* ===== CTA BUTTONS ===== */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #ffffff;
+            color: #111;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #f0f0f0;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(255,255,255,0.15);
+        }
+
+        .btn-primary .arrow {
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid #888;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover .arrow {
+            border-color: #333;
+            transform: rotate(45deg);
+        }
+
+        /* ===== DESCRIPTION TEXT ===== */
+        .desc-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 13.5px;
+            line-height: 1.65;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 320px;
+            font-weight: 400;
+        }
+
+        /* ===== SCROLL SECTIONS ===== */
+        .section-below {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .section-below.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Stagger children */
+        .stagger-child {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stagger-child.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== FEATURE CARDS ===== */
+        .feature-card {
+            background: #111;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 20px;
+            padding: 36px 30px;
+            transition: all 0.4s ease;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(255,255,255,0.12);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+
+        /* Step connector */
+        .step-line {
+            position: absolute;
+            left: 19px;
+            top: 44px;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%);
+        }
+
+        /* Code editor */
+        .code-editor {
+            background: #1E1E2E;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 60px rgba(100, 100, 200, 0.05);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .code-editor-bar {
+            background: #181825;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background: #f38ba8; }
+        .dot-yellow { background: #f9e2af; }
+        .dot-green { background: #a6e3a1; }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        /* Particle */
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .headline-text {
+                font-size: clamp(2.4rem, 10vw, 4rem);
+                line-height: 0.95;
+            }
+            .number-grid {
+                font-size: 10px;
+                opacity: 0.1;
+                grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+            }
+            .glass-nav { display: none; }
+            .desc-text { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== HERO SECTION (Full Viewport) ===== -->
+    <section class="hero-section">
+        <!-- Background landscape -->
+        <div class="hero-bg"></div>
+
+        <!-- Number Grid Overlay -->
+        <div class="number-grid" id="numberGrid"></div>
+
+        <!-- 3D Blockchain Cube Sculpture -->
+        <div class="cube-scene">
+            <div class="cube-group" id="cubeGroup"></div>
+        </div>
+
+        <!-- Dark gradient bottom -->
+        <div class="hero-bottom-gradient"></div>
+
+        <!-- ===== NAVIGATION ===== -->
+        <header style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; padding: 20px 30px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <!-- Logo -->
+                <a href="#" style="font-family: 'DM Serif Display', serif; font-size: 22px; color: #fff; text-decoration: none; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
+                    TrustMe<span style="font-style: italic;">Bro</span>
+                </a>
+
+                <!-- Glass Nav Links -->
+                <nav class="glass-nav" style="display: inline-flex; align-items: center; padding: 4px 6px;">
+                    <a href="#features">/Tổng quan</a>
+                    <a href="#howtworks">/Quy trình</a>
+                    <a href="#blockchain">/Blockchain</a>
+                    <a href="#lab">/Lab</a>
+                    <a href="#stats">/Thống kê</a>
+                </nav>
+
+                <!-- CTA Button -->
+                <a href="index.html" class="btn-primary" style="font-size: 13px; padding: 10px 20px;">
+                    <span class="arrow">↗</span>
+                    Vào Ứng dụng
+                </a>
+            </div>
+        </header>
+
+        <!-- ===== HERO CONTENT (Bottom of screen) ===== -->
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; z-index: 10; padding: 40px 40px 50px 40px;">
+            <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 30px;">
+                
+                <!-- Left: Big Headline -->
+                <div style="max-width: 700px;">
+                    <h1 class="headline-text">
+                        Khám phá<br>
+                        Blockchain<br>
+                        <span style="font-style: italic;">Cùng TrustMeBro</span>
+                    </h1>
+                </div>
+
+                <!-- Right: Description + CTA -->
+                <div style="max-width: 340px; padding-bottom: 8px;">
+                    <p class="desc-text">
+                        Mô phỏng quy trình phát hành, băm SHA-256, ký số ECDSA, đào khối Proof of Work và đồng bộ Node P2P. Trải nghiệm blockchain từ bên trong, từ bản ghi đến block.
+                    </p>
+                    <div style="margin-top: 20px;">
+                        <a href="index.html" class="btn-primary">
+                            <span class="arrow">↗</span>
+                            Khám phá ngay
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ===== SECTION: FEATURES ===== -->
+    <section id="features" style="background: #0a0a0a; padding: 100px 40px;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div class="section-below">
+                <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px;">// Tính năng</p>
+                <h2 style="font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; color: #fff; margin-bottom: 60px;">
+                    Trải nghiệm blockchain<br>
+                    <span style="font-style: italic; color: rgba(255,255,255,0.5);">từ bên trong</span>
+                </h2>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                <!-- Card 1: SHA-256 -->
+                <div class="feature-card stagger-child" style="grid-column: span 2;">
+                    <div class="feature-icon" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">#</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Băm SHA-256</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Chỉ cần thay đổi 1 ký tự, toàn bộ giá trị băm 256-bit thay đổi hoàn toàn. Hiệu ứng tuyết lở (Avalanche Effect) — nền tảng bảo mật của blockchain.</p>
+                    <!-- Mini hash demo -->
+                    <div style="margin-top: 20px; background: #1E1E2E; border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                        <div style="color: rgba(255,255,255,0.3); margin-bottom: 6px;">INPUT:</div>
+                        <div style="color: #a6e3a1; margin-bottom: 12px;">"Nguyễn Văn An — Cử nhân KHMT"</div>
+                        <div style="color: rgba(255,255,255,0.3); margin-bottom: 6px;">SHA-256 OUTPUT:</div>
+                        <div style="color: #f9e2af; word-break: break-all;" id="hashDemo">e3b0c44298fc1c14...loading</div>
+                    </div>
+                </div>
+
+                <!-- Card 2: ECDSA -->
+                <div class="feature-card stagger-child">
+                    <div class="feature-icon" style="background: rgba(244, 114, 182, 0.12); color: #f472b6;">🔏</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Chữ ký số ECDSA</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Ký bằng Private Key, xác minh bằng Public Key. Đảm bảo ai phát hành, ai chịu trách nhiệm.</p>
+                </div>
+
+                <!-- Card 3: Merkle -->
+                <div class="feature-card stagger-child">
+                    <div class="feature-icon" style="background: rgba(52, 211, 153, 0.12); color: #34d399;">🌳</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Cây Merkle</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Gom nhiều giao dịch thành một Merkle Root duy nhất trên tiêu đề khối.</p>
+                </div>
+
+                <!-- Card 4: PoW -->
+                <div class="feature-card stagger-child" style="grid-column: span 2;">
+                    <div class="feature-icon" style="background: rgba(251, 191, 36, 0.12); color: #fbbf24;">⛏️</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Đào khối Proof of Work</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Thử hàng ngàn nonce để tìm hash bắt đầu bằng "000..." — trải nghiệm trực tiếp cơ chế đồng thuận Nakamoto.</p>
+                    <!-- Mini mining animation -->
+                    <div style="margin-top: 20px; background: #1E1E2E; border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                        <div style="color: rgba(255,255,255,0.3);">MINING BLOCK #4...</div>
+                        <div style="margin-top: 8px;">
+                            <span style="color: rgba(255,255,255,0.4);">Nonce: </span>
+                            <span style="color: #fbbf24;" id="miningNonce">0</span>
+                            <span style="color: rgba(255,255,255,0.2); margin-left: 16px;">Hash: </span>
+                            <span style="color: rgba(255,255,255,0.3);" id="miningHash">calculating...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 5: Explorer -->
+                <div class="feature-card stagger-child">
+                    <div class="feature-icon" style="background: rgba(96, 165, 250, 0.12); color: #60a5fa;">🔗</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Blockchain Explorer</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Xem chi tiết từng block, hash linkage, và thử nghiệm sửa đổi dữ liệu.</p>
+                </div>
+
+                <!-- Card 6: P2P -->
+                <div class="feature-card stagger-child">
+                    <div class="feature-icon" style="background: rgba(167, 139, 250, 0.12); color: #a78bfa;">🌐</div>
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Mạng P2P</h3>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">3 Nodes đồng bộ theo quy tắc chuỗi dài nhất (Longest Chain Rule).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ===== SECTION: HOW IT WORKS ===== -->
+    <section id="howtworks" style="background: #0a0a0a; padding: 100px 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <div class="section-below">
+                <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px;">// Cách hoạt động</p>
+                <h2 style="font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; color: #fff; margin-bottom: 60px;">
+                    Từ bản ghi<br>
+                    <span style="font-style: italic; color: rgba(255,255,255,0.5);">đến block</span>
+                </h2>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 60px; align-items: center;">
+                <!-- Left: Steps -->
+                <div class="section-below">
+                    <div style="position: relative;">
+                        <!-- Step 1 -->
+                        <div style="display: flex; gap: 20px; margin-bottom: 36px; position: relative;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">01</div>
+                            <div>
+                                <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Nhập thông tin hồ sơ</h4>
+                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Họ tên, đơn vị cấp, văn bằng — dữ liệu mẫu mô phỏng.</p>
+                            </div>
+                        </div>
+                        <!-- Step 2 -->
+                        <div style="display: flex; gap: 20px; margin-bottom: 36px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">02</div>
+                            <div>
+                                <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Băm SHA-256 & Ký số ECDSA</h4>
+                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Chuẩn hóa JSON, băm 256-bit, ký bằng Private Key SECP256K1.</p>
+                            </div>
+                        </div>
+                        <!-- Step 3 -->
+                        <div style="display: flex; gap: 20px; margin-bottom: 36px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">03</div>
+                            <div>
+                                <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Đào khối Proof of Work</h4>
+                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Tìm Nonce thỏa điều kiện độ khó, tính Merkle Root, đóng block.</p>
+                            </div>
+                        </div>
+                        <!-- Step 4 -->
+                        <div style="display: flex; gap: 20px;">
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">04</div>
+                            <div>
+                                <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Đồng bộ Node P2P</h4>
+                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">3 Nodes đạt đồng thuận bằng chuỗi dài nhất, phát tán Gossip.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Code Editor -->
+                <div class="section-below code-editor">
+                    <div class="code-editor-bar">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                        <span style="font-family: 'JetBrains Mono'; font-size: 12px; color: rgba(255,255,255,0.35); margin-left: 12px;">blockchain.ts</span>
+                    </div>
+                    <div style="padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.9; min-height: 340px;">
+                        <pre id="codeTyping" style="margin: 0; white-space: pre-wrap; color: rgba(255,255,255,0.5);"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ===== SECTION: STATS ===== -->
+    <section id="stats" style="background: #0a0a0a; padding: 80px 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+        <div style="max-width: 1000px; margin: 0 auto;">
+            <div class="section-below" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center;">
+                <div>
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="6">0</div>
+                    <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bước mô phỏng</div>
+                </div>
+                <div style="border-left: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="256">0</div>
+                    <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bit SHA-256</div>
+                </div>
+                <div style="border-left: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="3">0</div>
+                    <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Nodes P2P</div>
+                </div>
+                <div style="border-left: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="12">0</div>
+                    <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bước kiểm tra</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ===== CTA SECTION ===== -->
+    <section id="cta" style="position: relative; background: #0a0a0a; padding: 120px 40px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; overflow: hidden;">
+        <!-- Floating particles -->
+        <div id="ctaParticles" style="position: absolute; inset: 0; pointer-events: none;"></div>
+
+        <div class="section-below" style="position: relative; z-index: 2;">
+            <h2 style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); line-height: 1.1; color: #fff; margin-bottom: 16px;">
+                Sẵn sàng khám phá<br>
+                <span style="font-style: italic; color: rgba(255,255,255,0.5);">blockchain?</span>
+            </h2>
+            <p style="font-size: 15px; color: rgba(255,255,255,0.4); max-width: 440px; margin: 0 auto 36px; line-height: 1.7;">
+                Trải nghiệm mô phỏng blockchain hoàn chỉnh — miễn phí, không cần đăng ký. Đồ án môn học mã nguồn mở.
+            </p>
+            <a href="index.html" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
+                <span class="arrow" style="width: 22px; height: 22px;">↗</span>
+                Vào TrustMeBro
+            </a>
+            <!-- Terminal line -->
+            <div style="margin-top: 36px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(255,255,255,0.2);">
+                <span style="color: rgba(255,255,255,0.35);">$</span> trustmebro --simulate --start<span class="blinking-cursor" style="color: rgba(255,255,255,0.4);"></span>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- ===== FOOTER ===== -->
+    <footer style="background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.05); padding: 40px;">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-family: 'DM Serif Display', serif; font-size: 18px; color: #fff;">TrustMe<span style="font-style: italic;">Bro</span></span>
+                <span style="font-size: 12px; color: rgba(255,255,255,0.25);">— Mô phỏng hồ sơ bằng Blockchain</span>
+            </div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,0.2); display: flex; gap: 16px; flex-wrap: wrap;">
+                <span>SHA-256</span>
+                <span>•</span>
+                <span>ECDSA</span>
+                <span>•</span>
+                <span>MERKLE</span>
+                <span>•</span>
+                <span>PoW</span>
+                <span>•</span>
+                <span>P2P</span>
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.2);">
+                © 2026 TrustMeBro · Đồ án môn học
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- ===== SCRIPTS ===== -->
+    <script>
+        // ========== 1. NUMBER GRID ==========
+        (function generateNumberGrid() {
+            const grid = document.getElementById('numberGrid');
+            const count = 600;
+            for (let i = 0; i < count; i++) {
+                const span = document.createElement('span');
+                span.textContent = Math.floor(Math.random() * 100);
+                grid.appendChild(span);
+            }
+        })();
+
+
+        // ========== 2. 3D VOXEL CUBES ==========
+        (function createCubes() {
+            const group = document.getElementById('cubeGroup');
+            // Define a "human-like" structure of blocks (col, row offset from center)
+            const layout = [
+                // Head
+                { x: 0, y: -120, z: 0, c: '#4a6fa5' },
+                { x: 28, y: -120, z: 0, c: '#5a7fb5' },
+                { x: 0, y: -92, z: 0, c: '#3a5f95' },
+                { x: 28, y: -92, z: 0, c: '#6a8fc5' },
+                // Torso
+                { x: -28, y: -60, z: 0, c: '#7aa0d0' },
+                { x: 0, y: -60, z: 0, c: '#2a4f85' },
+                { x: 28, y: -60, z: 0, c: '#8ab0e0' },
+                { x: 56, y: -60, z: 0, c: '#3a5f95' },
+                { x: -28, y: -32, z: 0, c: '#4a6fa5' },
+                { x: 0, y: -32, z: 0, c: '#5a7fb5' },
+                { x: 28, y: -32, z: 0, c: '#9ac0f0' },
+                { x: 56, y: -32, z: 0, c: '#7aa0d0' },
+                { x: 0, y: -4, z: 0, c: '#6a8fc5' },
+                { x: 28, y: -4, z: 0, c: '#bcc8d8' },
+                // Arms
+                { x: -56, y: -60, z: 0, c: '#c0b0a0' },
+                { x: -56, y: -32, z: 0, c: '#d0c0b0' },
+                { x: 84, y: -60, z: 0, c: '#a0c0e0' },
+                { x: 84, y: -32, z: 0, c: '#b0d0f0' },
+                // Legs
+                { x: 0, y: 24, z: 0, c: '#4a6fa5' },
+                { x: 28, y: 24, z: 0, c: '#3a5f95' },
+                { x: 0, y: 52, z: 0, c: '#2a4f85' },
+                { x: 28, y: 52, z: 0, c: '#5a7fb5' },
+                { x: 0, y: 80, z: 0, c: '#1a3f75' },
+                { x: 28, y: 80, z: 0, c: '#4a6fa5' },
+                // Back layer for depth
+                { x: 0, y: -60, z: -28, c: '#2a4070' },
+                { x: 28, y: -60, z: -28, c: '#3a5080' },
+                { x: 0, y: -32, z: -28, c: '#1a3060' },
+                { x: 28, y: -32, z: -28, c: '#2a4070' },
+            ];
+
+            layout.forEach(b => {
+                const voxel = document.createElement('div');
+                voxel.className = 'voxel';
+                voxel.style.transform = `translate3d(${b.x}px, ${b.y}px, ${b.z}px)`;
+
+                const darken = (hex, amt) => {
+                    let c = hex.replace('#', '');
+                    let r = Math.max(0, parseInt(c.substr(0, 2), 16) - amt);
+                    let g = Math.max(0, parseInt(c.substr(2, 2), 16) - amt);
+                    let bl = Math.max(0, parseInt(c.substr(4, 2), 16) - amt);
+                    return `rgb(${r},${g},${bl})`;
+                };
+
+                const faces = ['front', 'back', 'left', 'right', 'top', 'bottom'];
+                const adjustments = [0, 40, 20, 20, -10, 50];
+                faces.forEach((f, i) => {
+                    const face = document.createElement('div');
+                    face.className = `face ${f}`;
+                    face.style.background = darken(b.c, adjustments[i]);
+                    voxel.appendChild(face);
+                });
+
+                group.appendChild(voxel);
+            });
+        })();
+
+
+        // ========== 3. SCROLL ANIMATIONS ==========
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, i) => {
+                if (entry.isIntersecting) {
+                    const delay = entry.target.dataset.delay || 0;
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, delay);
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.section-below').forEach(el => observer.observe(el));
+
+        // Stagger children
+        const staggerObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const siblings = entry.target.parentElement.querySelectorAll('.stagger-child');
+                    siblings.forEach((child, i) => {
+                        setTimeout(() => child.classList.add('visible'), i * 120);
+                    });
+                    staggerObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.stagger-child').forEach(el => staggerObserver.observe(el));
+
+
+        // ========== 4. TYPEWRITER CODE EFFECT ==========
+        const codeLines = [
+            { text: 'const ', color: '#c792ea' },
+            { text: 'record', color: '#82aaff' },
+            { text: ' = {\n', color: '#fff' },
+            { text: '  id: ', color: '#fff' },
+            { text: '"REC-2026-001"', color: '#c3e88d' },
+            { text: ',\n', color: '#fff' },
+            { text: '  holder: ', color: '#fff' },
+            { text: '"Nguyễn Văn An"', color: '#c3e88d' },
+            { text: ',\n', color: '#fff' },
+            { text: '  issuer: ', color: '#fff' },
+            { text: '"ĐH Bách Khoa"', color: '#c3e88d' },
+            { text: '\n};\n\n', color: '#fff' },
+            { text: 'const ', color: '#c792ea' },
+            { text: 'hash', color: '#82aaff' },
+            { text: ' = ', color: '#fff' },
+            { text: 'SHA256', color: '#ffcb6b' },
+            { text: '(JSON.stringify(record));\n', color: '#fff' },
+            { text: 'const ', color: '#c792ea' },
+            { text: 'sig', color: '#82aaff' },
+            { text: ' = ', color: '#fff' },
+            { text: 'ECDSA.sign', color: '#ffcb6b' },
+            { text: '(hash, privateKey);\n', color: '#fff' },
+            { text: 'const ', color: '#c792ea' },
+            { text: 'block', color: '#82aaff' },
+            { text: ' = ', color: '#fff' },
+            { text: 'mine', color: '#ffcb6b' },
+            { text: '(hash, ', color: '#fff' },
+            { text: '3', color: '#f78c6c' },
+            { text: ');\n\n', color: '#fff' },
+            { text: 'console.', color: '#82aaff' },
+            { text: 'log', color: '#ffcb6b' },
+            { text: '(', color: '#fff' },
+            { text: '"✅ Block mined:"', color: '#c3e88d' },
+            { text: ', block.hash);', color: '#fff' },
+        ];
+
+        let codeStarted = false;
+        const codeObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !codeStarted) {
+                codeStarted = true;
+                typeCode();
+            }
+        }, { threshold: 0.3 });
+
+        const codeEl = document.getElementById('codeTyping');
+        if (codeEl) codeObserver.observe(codeEl);
+
+        function typeCode() {
+            const el = document.getElementById('codeTyping');
+            el.innerHTML = '';
+            let segIdx = 0, charIdx = 0;
+
+            function typeNext() {
+                if (segIdx >= codeLines.length) return;
+                const seg = codeLines[segIdx];
+                if (charIdx === 0) {
+                    const span = document.createElement('span');
+                    span.style.color = seg.color;
+                    span.dataset.segIdx = segIdx;
+                    el.appendChild(span);
+                }
+                const span = el.querySelector(`[data-seg-idx="${segIdx}"]`);
+                span.textContent += seg.text[charIdx];
+                charIdx++;
+                if (charIdx >= seg.text.length) {
+                    segIdx++;
+                    charIdx = 0;
+                }
+                setTimeout(typeNext, 25 + Math.random() * 15);
+            }
+            typeNext();
+        }
+
+
+        // ========== 5. COUNT-UP ANIMATION ==========
+        const countObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const targets = entry.target.querySelectorAll('[data-count]');
+                    targets.forEach(el => {
+                        const target = parseInt(el.dataset.count);
+                        const duration = 1500;
+                        const start = performance.now();
+                        function update(now) {
+                            const elapsed = now - start;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            el.textContent = Math.round(target * eased);
+                            if (progress < 1) requestAnimationFrame(update);
+                        }
+                        requestAnimationFrame(update);
+                    });
+                    countObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('#stats .section-below').forEach(el => countObserver.observe(el));
+
+
+        // ========== 6. HASH DEMO ==========
+        async function sha256(str) {
+            const buf = new TextEncoder().encode(str);
+            const hash = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        (async () => {
+            const h = await sha256('Nguyễn Văn An — Cử nhân KHMT');
+            document.getElementById('hashDemo').textContent = h;
+        })();
+
+
+        // ========== 7. MINING ANIMATION ==========
+        let miningInterval;
+        (function animateMining() {
+            let nonce = 0;
+            const nonceEl = document.getElementById('miningNonce');
+            const hashEl = document.getElementById('miningHash');
+            
+            async function tick() {
+                nonce++;
+                nonceEl.textContent = nonce;
+                const h = await sha256('BLOCK_4_' + nonce);
+                hashEl.textContent = h.slice(0, 32) + '...';
+                if (h.startsWith('000')) {
+                    hashEl.style.color = '#a6e3a1';
+                    hashEl.textContent = '✅ ' + h.slice(0, 32) + '...';
+                    setTimeout(() => {
+                        nonce = Math.floor(Math.random() * 1000);
+                        hashEl.style.color = 'rgba(255,255,255,0.3)';
+                        animateMining();
+                    }, 3000);
+                    return;
+                }
+                setTimeout(tick, 80);
+            }
+            tick();
+        })();
+
+
+        // ========== 8. CTA PARTICLES ==========
+        (function createParticles() {
+            const container = document.getElementById('ctaParticles');
+            for (let i = 0; i < 20; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.top = Math.random() * 100 + '%';
+                p.style.opacity = 0.1 + Math.random() * 0.25;
+                p.style.width = (2 + Math.random() * 3) + 'px';
+                p.style.height = p.style.width;
+                p.style.animation = `floatParticle ${6 + Math.random() * 8}s ease-in-out infinite ${Math.random() * 5}s`;
+                container.appendChild(p);
+            }
+
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes floatParticle {
+                    0%, 100% { transform: translateY(0) translateX(0); opacity: 0.15; }
+                    25% { transform: translateY(-30px) translateX(10px); opacity: 0.3; }
+                    50% { transform: translateY(-50px) translateX(-5px); opacity: 0.15; }
+                    75% { transform: translateY(-20px) translateX(15px); opacity: 0.25; }
+                }
+            `;
+            document.head.appendChild(style);
+        })();
+
+
+        // ========== 9. MOUSE FOLLOW GRADIENT (HERO) ==========
+        const heroSection = document.querySelector('.hero-section');
+        let mouseGlow = document.createElement('div');
+        mouseGlow.style.cssText = 'position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(100,130,200,0.06) 0%,transparent 70%);pointer-events:none;z-index:1;transition:transform 0.3s ease;';
+        heroSection.appendChild(mouseGlow);
+
+        heroSection.addEventListener('mousemove', (e) => {
+            const rect = heroSection.getBoundingClientRect();
+            mouseGlow.style.transform = `translate(${e.clientX - rect.left - 300}px, ${e.clientY - rect.top - 300}px)`;
+        });
+    </script>
+</body>
+</html>
