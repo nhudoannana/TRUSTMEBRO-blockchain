@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRUSTMEBRO — Dashboard</title>
+
+  <!-- Fonts (same as landing.html) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+  <!-- Design tokens -->
+  <link rel="stylesheet" href="tokens.css">
+
+  <!--
+    VISUAL PROTOTYPE — Standalone HTML, không phải ứng dụng Streamlit.
+    Streamlit app chạy riêng tại localhost:8501.
+    File này dùng dữ liệu mẫu xác định, được đánh nhãn rõ ràng.
+  -->
+
+  <style>
+    /* ═══════════════════════════════════════════════════
+       APP SHELL
+    ═══════════════════════════════════════════════════ */
+
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border-faint);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 50;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .sidebar-logo {
+      padding: var(--sp-5) var(--sp-5) var(--sp-4);
+      border-bottom: 1px solid var(--border-faint);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .sidebar-logo-mark {
+      width: 32px; height: 32px;
+      border-radius: var(--r-sm);
+      background: var(--accent-blue-dim);
+      border: 1px solid var(--accent-blue-line);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo-mark svg { width: 16px; height: 16px; }
+
+    .sidebar-wordmark {
+      font-family: var(--font-display);
+      font-size: 17px;
+      color: var(--text-strong);
+      letter-spacing: -0.02em;
+    }
+    .sidebar-wordmark em { font-style: italic; color: var(--accent-blue); }
+
+    /* Section label */
+    .nav-section-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-xlow);
+      padding: var(--sp-5) var(--sp-5) var(--sp-2);
+    }
+
+    /* Nav item */
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      padding: 9px var(--sp-5);
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      color: var(--text-low);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+      position: relative;
+    }
+
+    .nav-item:hover {
+      color: var(--text-mid);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .nav-item.active {
+      color: var(--text-strong);
+      border-left-color: var(--accent-blue);
+      background: rgba(129,140,248,0.06);
+    }
+
+    .nav-icon {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    /* Placeholder badge on nav items */
+    .nav-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-xlow);
+      background: rgba(255,255,255,0.05);
+      padding: 2px 6px;
+      border-radius: 99px;
+      border: 1px solid var(--border-faint);
+    }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      margin-top: auto;
+      padding: var(--sp-5);
+      border-top: 1px solid var(--border-faint);
+    }
+
+    .sidebar-footer .disclaimer {
+      font-size: 11px;
+      color: var(--text-xlow);
+      line-height: 1.5;
+    }
+
+    /* ── Main area ── */
+    .main-area {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(10,10,10,0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-faint);
+      padding: 0 var(--sp-8);
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-4);
+    }
+
+    .topbar-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 13px;
+    }
+    .topbar-breadcrumb .crumb { color: var(--text-xlow); }
+    .topbar-breadcrumb .crumb-sep { color: var(--text-xlow); font-size: 11px; }
+    .topbar-breadcrumb .crumb-current { color: var(--text-mid); font-weight: 500; }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+
+    .demo-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-amber);
+      background: var(--accent-amber-dim);
+      border: 1px solid rgba(200,160,96,0.25);
+      padding: 3px 10px;
+      border-radius: 99px;
+    }
+
+    /* ── Page content ── */
+    .page-content {
+      padding: var(--sp-8);
+      max-width: 1280px;
+      width: 100%;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       DASHBOARD
+    ═══════════════════════════════════════════════════ */
+
+    .page-header {
+      margin-bottom: var(--sp-8);
+    }
+
+    .page-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      color: var(--text-strong);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: var(--sp-2);
+    }
+
+    .page-subtitle {
+      font-size: 13.5px;
+      color: var(--text-low);
+      max-width: 520px;
+      line-height: 1.6;
+    }
+
+    /* ── Metrics grid ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-8);
+    }
+
+    .metric-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      padding: var(--sp-5) var(--sp-6);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      transition: border-color var(--t-mid), box-shadow var(--t-mid);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-mid);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    /* Thin accent line on top */
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent-blue-line), transparent);
+      opacity: 0;
+      transition: opacity var(--t-mid);
+    }
+    .metric-card:hover::before { opacity: 1; }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-xlow);
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      color: var(--text-strong);
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .metric-value.accent  { color: var(--accent-blue); }
+    .metric-value.ok      { color: var(--ok); }
+    .metric-value.warn    { color: var(--accent-amber); }
+    .metric-value.err     { color: var(--err); }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-xlow);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+
+    /* ── Dashboard body: two columns ── */
+    .dashboard-body {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: var(--sp-6);
+      align-items: start;
+    }
+
+    /* ── Panel (generic card) ── */
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-5) var(--sp-6);
+      border-bottom: 1px solid var(--border-faint);
+      gap: var(--sp-4);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-strong);
+    }
+
+    .panel-body {
+      padding: var(--sp-6);
+    }
+
+    /* ── Chain visualisation ── */
+    .chain-viewport {
+      overflow-x: auto;
+      padding: var(--sp-5) var(--sp-6);
+      scrollbar-width: thin;
+    }
+
+    .chain-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: max-content;
+    }
+
+    /* Individual block box */
+    .blk {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 130px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: 12px 10px 10px;
+      position: relative;
+      flex-shrink: 0;
+      transition: border-color var(--t-mid), box-shadow var(--t-mid);
+      cursor: default;
+    }
+
+    .blk:hover {
+      border-color: var(--border-mid);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 2;
+    }
+
+    .blk.genesis {
+      border-color: var(--accent-blue-line);
+      background: rgba(129,140,248,0.04);
+    }
+
+    .blk.tip {
+      border-color: rgba(166,227,161,0.3);
+      background: rgba(166,227,161,0.04);
+    }
+
+    /* Animated chain-link between blocks */
+    .chain-link {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-shrink: 0;
+    }
+
+    .chain-link-line {
+      width: 24px;
+      height: 2px;
+      background: var(--border-subtle);
+      position: relative;
+    }
+
+    /* Moving dot animation along chain */
+    .chain-link-dot {
+      position: absolute;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      opacity: 0;
+      animation: chain-pulse 3s ease-in-out infinite;
+    }
+
+    .chain-link:nth-child(2) .chain-link-dot { animation-delay: 0.5s; }
+    .chain-link:nth-child(4) .chain-link-dot { animation-delay: 1.0s; }
+    .chain-link:nth-child(6) .chain-link-dot { animation-delay: 1.5s; }
+    .chain-link:nth-child(8) .chain-link-dot { animation-delay: 2.0s; }
+
+    @keyframes chain-pulse {
+      0%   { left: 0;    opacity: 0; }
+      10%  { opacity: 0.9; }
+      90%  { opacity: 0.9; }
+      100% { left: 100%; opacity: 0; }
+    }
+
+    .blk-height {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-xlow);
+      letter-spacing: 0.05em;
+    }
+
+    .blk-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-mid);
+    }
+
+    .blk-hash {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-xlow);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .blk-txcount {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent-blue);
+      margin-top: 2px;
+    }
+
+    /* Chain legend */
+    .chain-legend {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+      padding: var(--sp-3) var(--sp-6);
+      border-top: 1px solid var(--border-faint);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 11px;
+      color: var(--text-xlow);
+    }
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Node table panel ── */
+    .node-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .node-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-xlow);
+      padding: var(--sp-2) var(--sp-4);
+      text-align: left;
+      border-bottom: 1px solid var(--border-faint);
+    }
+
+    .node-table td {
+      padding: var(--sp-3) var(--sp-4);
+      font-size: 12px;
+      color: var(--text-mid);
+      border-bottom: 1px solid var(--border-faint);
+      vertical-align: middle;
+    }
+
+    .node-table tr:last-child td { border-bottom: none; }
+
+    .node-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .node-status-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .node-status-dot.online  { background: var(--ok);  box-shadow: 0 0 6px rgba(166,227,161,0.5); }
+    .node-status-dot.offline { background: var(--err); }
+
+    /* ── Process flow ── */
+    .flow-section { margin-bottom: var(--sp-8); }
+
+    .flow-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-strong);
+      margin-bottom: var(--sp-5);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .flow-track {
+      display: flex;
+      align-items: stretch;
+      flex-wrap: wrap;
+      gap: 0;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: var(--sp-5) var(--sp-4);
+      flex: 1;
+      min-width: 80px;
+      border-right: 1px solid var(--border-faint);
+      position: relative;
+      text-align: center;
+    }
+
+    .flow-step:last-child { border-right: none; }
+
+    /* Arrow between steps */
+    .flow-step:not(:first-child)::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+      border-left: 8px solid var(--bg-canvas);
+      z-index: 2;
+    }
+
+    .flow-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .flow-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-low);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .flow-step.highlight .flow-label { color: var(--accent-blue); }
+    .flow-step.highlight { background: rgba(129,140,248,0.04); }
+
+    /* ── Quick start table ── */
+    .quickstart-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .quickstart-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-xlow);
+      padding: var(--sp-2) var(--sp-4);
+      text-align: left;
+      border-bottom: 1px solid var(--border-faint);
+    }
+
+    .quickstart-table td {
+      padding: 11px var(--sp-4);
+      font-size: 12.5px;
+      color: var(--text-mid);
+      border-bottom: 1px solid var(--border-faint);
+      vertical-align: top;
+    }
+
+    .quickstart-table tr:last-child td { border-bottom: none; }
+
+    .quickstart-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-xlow);
+    }
+
+    .step-page {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      background: var(--accent-blue-dim);
+      padding: 2px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* ── Right column panels ── */
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+
+    /* Credential status donut (pure CSS) */
+    .cred-donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-6);
+      padding: var(--sp-5) var(--sp-6);
+    }
+
+    .cred-donut {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    /* Static CSS conic-gradient donut — values set by inline style from JS */
+    .cred-donut-inner {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--ok)   0deg 300deg,
+        var(--err)  300deg 360deg
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cred-donut-hole {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-strong);
+    }
+
+    .cred-legend {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+
+    .cred-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .cred-legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cred-legend-val {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-strong);
+      margin-left: auto;
+      padding-left: var(--sp-4);
+    }
+
+    /* ── Mempool / activity ── */
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-5);
+      border-bottom: 1px solid var(--border-faint);
+    }
+
+    .activity-item:last-child { border-bottom: none; }
+
+    .activity-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .activity-body { flex: 1; min-width: 0; }
+
+    .activity-title {
+      font-size: 12px;
+      color: var(--text-mid);
+      margin-bottom: 2px;
+    }
+
+    .activity-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-xlow);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-4);
+      padding: var(--sp-12) var(--sp-8);
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 48px; height: 48px;
+      border-radius: var(--r-lg);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-faint);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .empty-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-mid);
+    }
+
+    .empty-sub {
+      font-size: 12px;
+      color: var(--text-xlow);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    /* ── Loading state ── */
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: var(--r-sm);
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Module placeholder cards ── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--sp-3);
+    }
+
+    .module-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--r-md);
+      padding: var(--sp-5);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+      text-decoration: none;
+      transition: border-color var(--t-mid), background var(--t-mid);
+      cursor: pointer;
+    }
+
+    .module-card:hover {
+      border-color: var(--border-mid);
+      background: var(--bg-raised);
+    }
+
+    .module-card-icon { font-size: 18px; margin-bottom: 2px; }
+    .module-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-strong);
+    }
+    .module-card-desc {
+      font-size: 11.5px;
+      color: var(--text-xlow);
+      line-height: 1.5;
+    }
+    .module-card-label {
+      margin-top: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-xlow);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESPONSIVE — mobile (sidebar collapses)
+    ═══════════════════════════════════════════════════ */
+
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+
+      .sidebar { display: none; }
+
+      .main-area { margin-left: 0; }
+
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .dashboard-body { grid-template-columns: 1fr; }
+
+      .right-col { flex-direction: row; flex-wrap: wrap; }
+      .right-col .panel { flex: 1 1 280px; }
+
+      .module-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .flow-track { flex-direction: column; }
+      .flow-step { border-right: none; border-bottom: 1px solid var(--border-faint); }
+      .flow-step::before { display: none; }
+
+      .topbar { padding: 0 var(--sp-4); }
+      .page-content { padding: var(--sp-5); }
+    }
+
+    @media (max-width: 480px) {
+      .metrics-grid { grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+      .module-grid { grid-template-columns: 1fr 1fr; }
+      .chain-link-dot { display: none; } /* reduce animation on low-end */
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <aside class="sidebar" role="navigation" aria-label="Điều hướng chính">
+
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark" aria-hidden="true">
+        <!-- Chain link SVG (single icon, no random blobs) -->
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--accent-blue)" stroke-width="1.5" stroke-linecap="round">
+          <path d="M6 10l4-4"/>
+          <path d="M3.5 11.5a2.5 2.5 0 0 0 3.536 0L9 9.5"/>
+          <path d="M12.5 4.5a2.5 2.5 0 0 0-3.536 0L7 6.5"/>
+        </svg>
+      </div>
+      <span class="sidebar-wordmark">TrustMe<em>Bro</em></span>
+    </div>
+
+    <!-- Overview -->
+    <div class="nav-section-label">Tổng quan</div>
+    <a href="#dashboard" class="nav-item active" aria-current="page">
+      <span class="nav-icon">◧</span>
+      Dashboard
+    </a>
+
+    <!-- Core concepts -->
+    <div class="nav-section-label">Khái niệm cốt lõi</div>
+    <a href="#sha256" class="nav-item">
+      <span class="nav-icon">#</span>
+      SHA-256
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#wallet" class="nav-item">
+      <span class="nav-icon">◈</span>
+      Wallet &amp; Chữ ký ECDSA
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#transaction" class="nav-item">
+      <span class="nav-icon">◻</span>
+      Credentials &amp; TXs
+      <span class="nav-badge">READY</span>
+    </a>
+
+    <!-- Blockchain layer -->
+    <div class="nav-section-label">Lớp Blockchain</div>
+    <a href="#mempool" class="nav-item">
+      <span class="nav-icon">≡</span>
+      Mempool
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#merkle" class="nav-item">
+      <span class="nav-icon">⋎</span>
+      Merkle Tree
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#explorer" class="nav-item">
+      <span class="nav-icon">⊕</span>
+      Blockchain Explorer
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#mining" class="nav-item">
+      <span class="nav-icon">⛏</span>
+      Proof of Work / Mining
+      <span class="nav-badge">READY</span>
+    </a>
+
+    <!-- Network & consensus -->
+    <div class="nav-section-label">Mạng &amp; Đồng thuận</div>
+    <a href="#network" class="nav-item">
+      <span class="nav-icon">◎</span>
+      Network
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#consensus" class="nav-item">
+      <span class="nav-icon">⇄</span>
+      Mining &amp; Consensus Flow
+      <span class="nav-badge">READY</span>
+    </a>
+
+    <!-- Verify & security -->
+    <div class="nav-section-label">Xác minh &amp; Bảo mật</div>
+    <a href="#verify" class="nav-item">
+      <span class="nav-icon">✔</span>
+      Verify Credential
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#attacks" class="nav-item">
+      <span class="nav-icon">◈</span>
+      Attack Simulator
+      <span class="nav-badge">READY</span>
+    </a>
+    <a href="#powpos" class="nav-item">
+      <span class="nav-icon">⊖</span>
+      PoW vs PoS &amp; Slashing
+      <span class="nav-badge">READY</span>
+    </a>
+
+    <div class="sidebar-footer">
+      <p class="disclaimer">
+        Đồ án mô phỏng blockchain, sử dụng dữ liệu giả lập; không xác minh pháp lý cá nhân hoặc tổ chức.
+      </p>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <div class="main-area">
+
+    <!-- Top bar -->
+    <header class="topbar" role="banner">
+      <nav class="topbar-breadcrumb" aria-label="Breadcrumb">
+        <span class="crumb">TRUSTMEBRO</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-current">Dashboard</span>
+      </nav>
+      <div class="topbar-right">
+        <span class="demo-tag" title="Giao diện thử nghiệm — dữ liệu mẫu xác định">Prototype UI</span>
+        <!-- Streamlit link -->
+        <a href="http://localhost:8501" target="_blank" rel="noopener"
+           style="font-family:var(--font-mono);font-size:11px;color:var(--accent-blue);text-decoration:none;
+                  background:var(--accent-blue-dim);border:1px solid var(--accent-blue-line);
+                  padding:4px 12px;border-radius:99px;white-space:nowrap;"
+           title="Mở ứng dụng Streamlit đang chạy tại cổng 8501">
+          → Streamlit app ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- ═══════ DASHBOARD PAGE ═══════ -->
+    <main class="page-content" id="dashboard">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">
+          Trạng thái mạng, chuỗi block và credential — dữ liệu mẫu xác định.
+          Kết nối backend thật qua Streamlit tại cổng 8501.
+        </p>
+      </div>
+
+      <!-- ── METRICS ── -->
+      <!--
+        Mapping to backend (app.py dashboard_page):
+        - Total Nodes      → len(network.nodes)                         = 3
+        - Online Nodes     → count(n.status=="ONLINE")                  = 3
+        - Total Blocks     → len(bc.chain)  [includes genesis]          = 5
+        - Confirmed TXs    → sum(len(b.transactions) for b in bc.chain) = 4
+        - Pending TXs      → len(mempool.get_transactions())            = 2
+        - Active Creds     → credentials where last tx_type=="ISSUE"    = 3
+        - Revoked Creds    → credentials where last tx_type=="REVOKE"   = 1
+        - Chain Height     → representative.height                      = 4
+        All values below are SAMPLE DATA. Label confirms this.
+      -->
+
+      <section aria-label="Chỉ số mạng">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4);">
+          <span class="label-tag">Chỉ số mạng</span>
+          <span class="badge badge-amber" title="Dữ liệu mẫu — không kết nối backend">Dữ liệu mẫu</span>
+        </div>
+
+        <div class="metrics-grid">
+
+          <div class="metric-card">
+            <span class="metric-label">Total Nodes</span>
+            <span class="metric-value" id="m-total-nodes">3</span>
+            <span class="metric-sub">
+              <span class="node-status-dot online" aria-hidden="true"></span>
+              Node-1, Node-2, Node-3
+            </span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Online Nodes</span>
+            <span class="metric-value ok" id="m-online-nodes">3</span>
+            <span class="metric-sub">100% — đầy đủ đồng bộ</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Total Blocks</span>
+            <span class="metric-value accent" id="m-total-blocks">5</span>
+            <span class="metric-sub">Genesis + 4 blocks đã mine</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Confirmed TXs</span>
+            <span class="metric-value" id="m-confirmed-txs">4</span>
+            <span class="metric-sub">Đã gộp vào chain</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Pending TXs</span>
+            <span class="metric-value warn" id="m-pending-txs">2</span>
+            <span class="metric-sub">Trong Mempool, chờ mine</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Active Credentials</span>
+            <span class="metric-value ok" id="m-active-creds">3</span>
+            <span class="metric-sub">ISSUE chưa bị REVOKE</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Revoked Credentials</span>
+            <span class="metric-value err" id="m-revoked-creds">1</span>
+            <span class="metric-sub">TX REVOKE đã on-chain</span>
+          </div>
+
+          <div class="metric-card">
+            <span class="metric-label">Chain Height</span>
+            <span class="metric-value" id="m-chain-height">4</span>
+            <span class="metric-sub font-mono" style="color:var(--text-xlow);font-size:10px;">
+              tip: 003f…a8c2
+            </span>
+          </div>
+
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <!-- ── BODY: chain viz + node table ── -->
+      <div class="dashboard-body">
+
+        <!-- LEFT COLUMN -->
+        <div style="display:flex;flex-direction:column;gap:var(--sp-6);">
+
+          <!-- CHAIN VISUALISATION -->
+          <div class="panel" aria-label="Blockchain linkage">
+            <div class="panel-header">
+              <span class="panel-title">Block Linkage</span>
+              <span class="badge badge-neutral">5 blocks — dữ liệu mẫu</span>
+            </div>
+
+            <div class="chain-viewport">
+              <div class="chain-row" role="list" aria-label="Chuỗi block">
+
+                <!-- GENESIS -->
+                <div class="blk genesis" role="listitem" tabindex="0"
+                     aria-label="Block Genesis, height 0, 0 transactions">
+                  <span class="blk-height">HEIGHT 0</span>
+                  <span class="blk-label">Genesis</span>
+                  <span class="blk-hash">fd6dbd…df496</span>
+                  <span class="blk-txcount">0 TX</span>
+                </div>
+
+                <div class="chain-link" aria-hidden="true">
+                  <div class="chain-link-line">
+                    <div class="chain-link-dot"></div>
+                  </div>
+                </div>
+
+                <!-- BLOCK 1 -->
+                <div class="blk" role="listitem" tabindex="0"
+                     aria-label="Block 1, height 1, 1 transaction">
+                  <span class="blk-height">HEIGHT 1</span>
+                  <span class="blk-label">Block #1</span>
+                  <span class="blk-hash">009f94…9bdd</span>
+                  <span class="blk-txcount">1 TX</span>
+                </div>
+
+                <div class="chain-link" aria-hidden="true">
+                  <div class="chain-link-line">
+                    <div class="chain-link-dot"></div>
+                  </div>
+                </div>
+
+                <!-- BLOCK 2 -->
+                <div class="blk" role="listitem" tabindex="0"
+                     aria-label="Block 2, height 2, 1 transaction">
+                  <span class="blk-height">HEIGHT 2</span>
+                  <span class="blk-label">Block #2</span>
+                  <span class="blk-hash">003682…6335</span>
+                  <span class="blk-txcount">1 TX</span>
+                </div>
+
+                <div class="chain-link" aria-hidden="true">
+                  <div class="chain-link-line">
+                    <div class="chain-link-dot"></div>
+                  </div>
+                </div>
+
+                <!-- BLOCK 3 -->
+                <div class="blk" role="listitem" tabindex="0"
+                     aria-label="Block 3, height 3, 1 transaction">
+                  <span class="blk-height">HEIGHT 3</span>
+                  <span class="blk-label">Block #3</span>
+                  <span class="blk-hash">00a1f2…cc89</span>
+                  <span class="blk-txcount">1 TX</span>
+                </div>
+
+                <div class="chain-link" aria-hidden="true">
+                  <div class="chain-link-line">
+                    <div class="chain-link-dot"></div>
+                  </div>
+                </div>
+
+                <!-- BLOCK 4 (TIP) -->
+                <div class="blk tip" role="listitem" tabindex="0"
+                     aria-label="Block 4 — tip hiện tại, height 4, 1 transaction">
+                  <span class="blk-height">HEIGHT 4 · TIP</span>
+                  <span class="blk-label">Block #4</span>
+                  <span class="blk-hash">003f…a8c2</span>
+                  <span class="blk-txcount">1 TX</span>
+                </div>
+
+              </div><!-- /chain-row -->
+            </div><!-- /chain-viewport -->
+
+            <div class="chain-legend" aria-hidden="true">
+              <div class="legend-item">
+                <span class="legend-dot" style="background:var(--accent-blue-line);border:1px solid var(--accent-blue);"></span>
+                Genesis block
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="background:rgba(166,227,161,0.3);border:1px solid var(--ok);"></span>
+                Tip (mới nhất)
+              </div>
+              <div class="legend-item">
+                <span class="legend-dot" style="width:8px;height:8px;border-radius:50%;background:var(--accent-blue);"></span>
+                Luồng hash truyền
+              </div>
+              <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--text-xlow);">
+                previous_hash liên kết theo chiều mũi tên
+              </span>
+            </div>
+          </div>
+
+          <!-- PROCESS FLOW -->
+          <div>
+            <div class="flow-section-title">
+              <span>Luồng Credential → Blockchain</span>
+              <span class="badge badge-blue">End-to-End</span>
+            </div>
+
+            <!-- Row 1 -->
+            <div class="flow-track" role="list" aria-label="Bước 1 đến 6 trong luồng end-to-end" style="margin-bottom:var(--sp-3);">
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">📄</span>
+                <span class="flow-label">Credential</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">📝</span>
+                <span class="flow-label">Transaction</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">🔏</span>
+                <span class="flow-label">ECDSA Ký</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">🖥</span>
+                <span class="flow-label">Node xác minh</span>
+              </div>
+              <div class="flow-step highlight" role="listitem">
+                <span class="flow-icon" aria-hidden="true">📋</span>
+                <span class="flow-label">Mempool</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">🌳</span>
+                <span class="flow-label">Merkle Root</span>
+              </div>
+            </div>
+
+            <!-- Row 2 -->
+            <div class="flow-track" role="list" aria-label="Bước 7 đến 12">
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">⛏</span>
+                <span class="flow-label">PoW Mine</span>
+              </div>
+              <div class="flow-step highlight" role="listitem">
+                <span class="flow-icon" aria-hidden="true">📦</span>
+                <span class="flow-label">Block đóng</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">📡</span>
+                <span class="flow-label">Broadcast</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">🤝</span>
+                <span class="flow-label">Consensus</span>
+              </div>
+              <div class="flow-step highlight" role="listitem">
+                <span class="flow-icon" aria-hidden="true">🔗</span>
+                <span class="flow-label">On-Chain</span>
+              </div>
+              <div class="flow-step" role="listitem">
+                <span class="flow-icon" aria-hidden="true">✔</span>
+                <span class="flow-label">Verify</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- QUICK START TABLE -->
+          <div class="panel" aria-label="Hướng dẫn demo nhanh">
+            <div class="panel-header">
+              <span class="panel-title">Quick Start — Demo theo thứ tự</span>
+              <span class="badge badge-neutral">8 bước</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="quickstart-table">
+                <thead>
+                  <tr>
+                    <th style="width:36px;">#</th>
+                    <th>Bước</th>
+                    <th>Module</th>
+                    <th>Mô tả</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="step-num">01</span></td>
+                    <td>Tạo Wallet cho Issuer</td>
+                    <td><span class="step-page">Wallet &amp; Chữ ký</span></td>
+                    <td style="color:var(--text-xlow);">Tạo cặp khoá ECDSA, đặt tên "Trường Đại học DEMO-A"</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">02</span></td>
+                    <td>Tạo và ký Credential TX</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td style="color:var(--text-xlow);">Chọn Issuer, nhập credential, ký và submit</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">03</span></td>
+                    <td>Broadcast tới các Node</td>
+                    <td><span class="step-page">Network</span></td>
+                    <td style="color:var(--text-xlow);">TX tự lan truyền qua gossip broadcast</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">04</span></td>
+                    <td>Kiểm tra Mempool</td>
+                    <td><span class="step-page">Mempool</span></td>
+                    <td style="color:var(--text-xlow);">Xem TX đang chờ tại từng node</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">05</span></td>
+                    <td>Mine Block</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td style="color:var(--text-xlow);">Chọn miner, difficulty → PoW → Block broadcast</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">06</span></td>
+                    <td>Đạt Consensus</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td style="color:var(--text-xlow);">3 node cùng Height, cùng tip hash</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">07</span></td>
+                    <td>Verify Credential</td>
+                    <td><span class="step-page">Verify</span></td>
+                    <td style="color:var(--text-xlow);">Nhập Credential ID → 12 bước kiểm tra → VERIFIED</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">08</span></td>
+                    <td>Attack Simulator</td>
+                    <td><span class="step-page">Attacks</span></td>
+                    <td style="color:var(--text-xlow);">6 kịch bản tấn công, thấy từng lớp bảo vệ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- MODULE GRID (placeholders) -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-4);">
+              <span class="label-tag">Tất cả module</span>
+              <span class="badge badge-blue">13 module</span>
+            </div>
+
+            <div class="module-grid" role="list">
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">#</span>
+                <span class="module-card-title">SHA-256</span>
+                <span class="module-card-desc">Băm, avalanche effect, brute-force demo</span>
+                <span class="module-card-label">1_Hash_Demo.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">◈</span>
+                <span class="module-card-title">Wallet &amp; ECDSA</span>
+                <span class="module-card-desc">Cặp khoá, ký số, xác minh</span>
+                <span class="module-card-label">2_Wallet.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">◻</span>
+                <span class="module-card-title">Credentials &amp; TXs</span>
+                <span class="module-card-desc">Tạo Credential, ký và phát hành TX</span>
+                <span class="module-card-label">3_Transaction.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">≡</span>
+                <span class="module-card-title">Mempool</span>
+                <span class="module-card-desc">Hàng chờ TX, replay, chữ ký giả</span>
+                <span class="module-card-label">4_Mempool.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">⋎</span>
+                <span class="module-card-title">Merkle Tree</span>
+                <span class="module-card-desc">Xây cây, sinh proof, xác minh inclusion</span>
+                <span class="module-card-label">5_Merkle.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">⊕</span>
+                <span class="module-card-title">Explorer</span>
+                <span class="module-card-desc">Chi tiết block, TX, hash linkage</span>
+                <span class="module-card-label">6_Explorer.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">⛏</span>
+                <span class="module-card-title">PoW / Mining</span>
+                <span class="module-card-desc">Tìm nonce, difficulty, hash target</span>
+                <span class="module-card-label">7_Mining.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">◎</span>
+                <span class="module-card-title">Network</span>
+                <span class="module-card-desc">3 Node P2P, gossip, longest chain rule</span>
+                <span class="module-card-label">8_Network.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">⇄</span>
+                <span class="module-card-title">Mining &amp; Consensus</span>
+                <span class="module-card-desc">Luồng end-to-end, broadcast, đồng thuận</span>
+                <span class="module-card-label">9_Mining_Flow.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">✔</span>
+                <span class="module-card-title">Verify Credential</span>
+                <span class="module-card-desc">12 bước kiểm tra, REVOKE, Proof JSON</span>
+                <span class="module-card-label">10_Verify.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">◈</span>
+                <span class="module-card-title">Attack Simulator</span>
+                <span class="module-card-desc">6 kịch bản tấn công, deepcopy chain</span>
+                <span class="module-card-label">11_Attacks.py</span>
+              </div>
+              <div class="module-card" role="listitem" tabindex="0">
+                <span class="module-card-icon" aria-hidden="true">⊖</span>
+                <span class="module-card-title">PoW vs PoS</span>
+                <span class="module-card-desc">So sánh cơ chế, slashing simulation</span>
+                <span class="module-card-label">12_PoW_vs_PoS.py</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /left col -->
+
+        <!-- RIGHT COLUMN -->
+        <div class="right-col">
+
+          <!-- NODE STATUS -->
+          <div class="panel" aria-label="Trạng thái node">
+            <div class="panel-header">
+              <span class="panel-title">Node Status</span>
+              <span class="badge badge-ok">3 ONLINE</span>
+            </div>
+            <table class="node-table" aria-label="Bảng trạng thái từng node">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Height</th>
+                  <th>Mempool</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <span class="node-status-dot online" aria-label="Online"></span>
+                    <span style="font-weight:600;color:var(--text-strong);">Node-1</span>
+                    <div class="hash-value" style="margin-top:2px;">:5001</div>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-strong);">4</td>
+                  <td>
+                    <span class="badge badge-amber">2 TX</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span class="node-status-dot online" aria-label="Online"></span>
+                    <span style="font-weight:600;color:var(--text-strong);">Node-2</span>
+                    <div class="hash-value" style="margin-top:2px;">:5002</div>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-strong);">4</td>
+                  <td>
+                    <span class="badge badge-ok">0 TX</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span class="node-status-dot online" aria-label="Online"></span>
+                    <span style="font-weight:600;color:var(--text-strong);">Node-3</span>
+                    <div class="hash-value" style="margin-top:2px;">:5003</div>
+                  </td>
+                  <td style="font-family:var(--font-mono);font-size:12px;color:var(--text-strong);">4</td>
+                  <td>
+                    <span class="badge badge-ok">0 TX</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--border-faint);">
+              <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-xlow);">Tip chung:</span>
+                <span class="hash-value">003f…a8c2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CREDENTIAL STATUS DONUT -->
+          <div class="panel" aria-label="Tỉ lệ credential">
+            <div class="panel-header">
+              <span class="panel-title">Credentials</span>
+              <span class="badge badge-neutral">4 tổng cộng</span>
+            </div>
+            <div class="cred-donut-wrap">
+              <!-- Donut: 3 active (270°), 1 revoked (90°) out of 4 total = 75%/25% -->
+              <div class="cred-donut" aria-label="Biểu đồ credential: 3 active, 1 revoked">
+                <div class="cred-donut-inner"
+                     style="background: conic-gradient(
+                       var(--ok)   0deg 270deg,
+                       var(--err) 270deg 360deg
+                     );">
+                  <div class="cred-donut-hole" title="4 tổng số credential">4</div>
+                </div>
+              </div>
+              <div class="cred-legend">
+                <div class="cred-legend-item">
+                  <span class="cred-legend-dot" style="background:var(--ok);" aria-hidden="true"></span>
+                  <span>Active</span>
+                  <span class="cred-legend-val">3</span>
+                </div>
+                <div class="cred-legend-item">
+                  <span class="cred-legend-dot" style="background:var(--err);" aria-hidden="true"></span>
+                  <span>Revoked</span>
+                  <span class="cred-legend-val">1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RECENT ACTIVITY (Mempool / Events) -->
+          <div class="panel" aria-label="Hoạt động gần đây">
+            <div class="panel-header">
+              <span class="panel-title">Hoạt động gần đây</span>
+              <span class="badge badge-amber">Dữ liệu mẫu</span>
+            </div>
+            <div class="activity-list" role="log" aria-live="polite">
+              <div class="activity-item">
+                <span class="activity-dot" style="background:var(--accent-blue);" aria-hidden="true"></span>
+                <div class="activity-body">
+                  <div class="activity-title">TX vào Mempool — ISSUE</div>
+                  <div class="activity-meta">CRED-DEMO-9041 · Node-1 · 2 TX chờ</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot" style="background:var(--ok);" aria-hidden="true"></span>
+                <div class="activity-body">
+                  <div class="activity-title">Block #4 đã mine · Height 4</div>
+                  <div class="activity-meta">nonce: 151 · difficulty: 2 · 1 TX</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot" style="background:var(--ok);" aria-hidden="true"></span>
+                <div class="activity-body">
+                  <div class="activity-title">Consensus đạt — 3/3 node</div>
+                  <div class="activity-meta">tip: 003682…6335 · height 4</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot" style="background:var(--err);" aria-hidden="true"></span>
+                <div class="activity-body">
+                  <div class="activity-title">REVOKE on-chain</div>
+                  <div class="activity-meta">CRED-ATK-001 · Block #3</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="activity-dot" style="background:var(--accent-amber);" aria-hidden="true"></span>
+                <div class="activity-body">
+                  <div class="activity-title">TX giả mạo bị từ chối</div>
+                  <div class="activity-meta">chữ ký ECDSA không hợp lệ · Mempool reject</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BACKEND CONNECTION NOTE -->
+          <div class="panel">
+            <div class="panel-body">
+              <div style="display:flex;flex-direction:column;gap:var(--sp-3);">
+                <div style="display:flex;align-items:center;gap:var(--sp-2);">
+                  <span class="badge badge-blue">Streamlit app</span>
+                  <span style="font-size:12px;color:var(--text-low);">Backend thật</span>
+                </div>
+                <p style="font-size:12px;color:var(--text-xlow);line-height:1.6;">
+                  Ứng dụng Streamlit chạy tại
+                  <a href="http://localhost:8501" target="_blank"
+                     style="color:var(--accent-blue);font-family:var(--font-mono);font-size:11px;">
+                    localhost:8501
+                  </a>
+                  sử dụng dữ liệu thật từ
+                  <code style="font-family:var(--font-mono);font-size:10px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;">Network / Blockchain / Mempool</code>.
+                  Trang này là giao diện thử nghiệm độc lập.
+                </p>
+                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-xlow);background:var(--bg-overlay);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-sm);border:1px solid var(--border-faint);">
+                  <span style="color:var(--accent-blue);">$</span> streamlit run app.py<br>
+                  <span style="opacity:0.5;"># → http://localhost:8501</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /right col -->
+      </div><!-- /dashboard-body -->
+
+    </main><!-- /page-content -->
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<script>
+  /*
+   * Minimal JS — no framework, no heavy dependencies.
+   * 1. Mark active nav item on hash change.
+   * 2. Count-up animation for metric values (respects reduced-motion).
+   * 3. Static fallback: chain animation is pure CSS — no JS needed.
+   */
+
+  // ── Reduced motion preference ──
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── Count-up for metric numbers ──
+  function countUp(el, target, duration = 800) {
+    if (prefersReducedMotion) { el.textContent = target; return; }
+    const start = 0;
+    const startTime = performance.now();
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = Math.round(start + (target - start) * eased);
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Map metric IDs → target values (matching sample data above)
+  const metrics = {
+    'm-total-nodes':   3,
+    'm-online-nodes':  3,
+    'm-total-blocks':  5,
+    'm-confirmed-txs': 4,
+    'm-pending-txs':   2,
+    'm-active-creds':  3,
+    'm-revoked-creds': 1,
+    'm-chain-height':  4,
+  };
+
+  // Trigger on intersection
+  const metricSection = document.querySelector('[aria-label="Chỉ số mạng"]');
+  if (metricSection) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        Object.entries(metrics).forEach(([id, val]) => {
+          const el = document.getElementById(id);
+          if (el) countUp(el, val);
+        });
+        io.disconnect();
+      }
+    }, { threshold: 0.3 });
+    io.observe(metricSection);
+  }
+
+  // ── Active nav on scroll / hash ──
+  function setActiveNav() {
+    const hash = window.location.hash || '#dashboard';
+    document.querySelectorAll('.nav-item').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === hash);
+      a.removeAttribute('aria-current');
+    });
+    const active = document.querySelector(`.nav-item[href="${hash}"]`);
+    if (active) active.setAttribute('aria-current', 'page');
+  }
+  window.addEventListener('hashchange', setActiveNav);
+  setActiveNav();
+
+  // ── Keyboard nav for module cards ──
+  document.querySelectorAll('.module-card').forEach(card => {
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+  });
+
+  // ── Block focus state (chain) ──
+  document.querySelectorAll('.blk').forEach(blk => {
+    blk.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        blk.style.borderColor = 'var(--accent-blue)';
+        setTimeout(() => blk.style.borderColor = '', 600);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

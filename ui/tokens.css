@@ -1,0 +1,207 @@
+/*
+ * TRUSTMEBRO — Design Tokens
+ * Visual prototype (standalone HTML). Not connected to Streamlit backend.
+ * Extends the visual identity of landing.html.
+ *
+ * Color palette sourced from landing.html:
+ *   Base canvas: #0a0a0a (body bg)
+ *   Mid surface: #111 (feature-card bg)
+ *   Border:      rgba(255,255,255,0.06)
+ *   Accent blue: #4a6fa5 / #818cf8
+ *   Amber/sand:  #d4a855 (landing hero gradient)
+ *   Text hi:     #ffffff
+ *   Text mid:    rgba(255,255,255,0.7)
+ *   Text low:    rgba(255,255,255,0.35)
+ *   Mono font:   JetBrains Mono
+ *   Display:     DM Serif Display
+ *   Body:        Inter
+ *
+ * Taste Skill principles applied (product UI variant):
+ *   - One dominant accent system, never rainbow
+ *   - Sparse type hierarchy; monospace for technical data
+ *   - Large negative space; thin structural lines
+ *   - No generic purple gradients, no excessive glassmorphism
+ *   - Reduced-motion fallback on every animated element
+ */
+
+:root {
+  /* === Surfaces === */
+  --bg-canvas:   #0a0a0a;
+  --bg-surface:  #111111;
+  --bg-raised:   #181818;
+  --bg-overlay:  #1e1e2e;
+
+  /* === Borders === */
+  --border-faint:  rgba(255,255,255,0.05);
+  --border-subtle: rgba(255,255,255,0.09);
+  --border-mid:    rgba(255,255,255,0.14);
+
+  /* === Type === */
+  --text-strong: #ffffff;
+  --text-mid:    rgba(255,255,255,0.70);
+  --text-low:    rgba(255,255,255,0.38);
+  --text-xlow:   rgba(255,255,255,0.20);
+
+  /* === Accent — blue (primary) === */
+  --accent-blue:       #818cf8;
+  --accent-blue-dim:   rgba(129,140,248,0.15);
+  --accent-blue-line:  rgba(129,140,248,0.35);
+
+  /* === Accent — amber (secondary, from landing hero) === */
+  --accent-amber:      #c8a060;
+  --accent-amber-dim:  rgba(200,160,96,0.12);
+
+  /* === Status === */
+  --ok:    #a6e3a1;
+  --warn:  #f9e2af;
+  --err:   #f38ba8;
+  --ok-dim:   rgba(166,227,161,0.12);
+  --err-dim:  rgba(243,139,168,0.12);
+
+  /* === Fonts === */
+  --font-sans:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'DM Serif Display', Georgia, serif;
+
+  /* === Spacing scale (8-pt base) === */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* === Radius === */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  /* === Sidebar width === */
+  --sidebar-w: 240px;
+
+  /* === Transition === */
+  --t-fast: 0.15s ease;
+  --t-mid:  0.3s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ===== RESET ===== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-canvas);
+  color: var(--text-mid);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .chain-animate { animation: none !important; }
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-canvas); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* ===== FOCUS (keyboard) ===== */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ===== TYPOGRAPHY HELPERS ===== */
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); font-size: 12px; }
+.text-strong  { color: var(--text-strong); }
+.text-mid     { color: var(--text-mid); }
+.text-low     { color: var(--text-low); }
+.text-xlow    { color: var(--text-xlow); }
+.text-ok      { color: var(--ok); }
+.text-warn    { color: var(--warn); }
+.text-err     { color: var(--err); }
+.text-accent  { color: var(--accent-blue); }
+
+/* ===== LAYOUT HELPERS ===== */
+.flex         { display: flex; }
+.flex-col     { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: var(--sp-1); }
+.gap-2 { gap: var(--sp-2); }
+.gap-3 { gap: var(--sp-3); }
+.gap-4 { gap: var(--sp-4); }
+.gap-6 { gap: var(--sp-6); }
+
+/* ===== DIVIDER ===== */
+.divider {
+  height: 1px;
+  background: var(--border-faint);
+  border: none;
+  margin: var(--sp-8) 0;
+}
+
+/* ===== BADGE / CHIP ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 99px;
+  line-height: 1;
+}
+.badge-blue  { background: var(--accent-blue-dim);  color: var(--accent-blue); }
+.badge-ok    { background: var(--ok-dim);            color: var(--ok); }
+.badge-err   { background: var(--err-dim);           color: var(--err); }
+.badge-amber { background: var(--accent-amber-dim);  color: var(--accent-amber); }
+.badge-neutral { background: rgba(255,255,255,0.06); color: var(--text-low); }
+
+/* dot inside badge */
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ===== TAG LINE ===== */
+.label-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-xlow);
+}
+
+/* ===== MONOSPACE VALUE ===== */
+.hash-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-low);
+  word-break: break-all;
+  letter-spacing: 0.02em;
+}
