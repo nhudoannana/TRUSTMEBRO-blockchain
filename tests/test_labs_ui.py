@@ -6,22 +6,25 @@ import pytest
 
 
 @pytest.mark.parametrize('case', ['hash_vectors', 'hash_reset', 'signature', 'key_reset',
-                                  'signature_reset', 'merkle', 'merkle_reset', 'errors'])
+                                  'signature_reset', 'merkle', 'merkle_reset', 'errors',
+                                  'comparison', 'comparison_reset'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
-const elements=new Map(),events={},calls=[],testCase=process.argv[1];
+const elements=new Map(),events={},calls=[],requests=[],testCase=process.argv[1];
+const comparisonControls=['comparison-pow','comparison-pos','comparison-holder','comparison-title','comparison-date','comparison-online','comparison-sample','comparison-submit'];
 class Element {
- constructor(){this.value='';this.textContent='';this.hidden=false;this.disabled=false;this.children=[];this.dataset={};}
+ constructor(id){this.id=id;this.value='';this.textContent='';this.hidden=false;this.disabled=false;this.children=[];this.dataset={};this.checked=false;}
  append(...children){this.children.push(...children);}
  replaceChildren(...children){this.children=children;}
  add(child){this.children.push(child);}
- querySelectorAll(){return [];}
+ querySelectorAll(){return this.id==='comparison-form'?comparisonControls.map(id=>document.getElementById(id)):[];}
+ set innerHTML(value){throw Error('Unsafe HTML rendering');}
  setAttribute(k,v){this[k]=v;}
  removeAttribute(k){delete this[k];}
  focus(){}
 }
-const document={title:'',documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element());return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();}};
+const document={title:'',documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();}};
 const storage=new Map(),nativeCrypto=crypto.webcrypto;
 let deferred,held=false;
 const key={key_handle:'handle',public_key_hex:'key',address:'a'.repeat(40),curve:'secp256k1'};
@@ -33,6 +36,17 @@ fetch:async(url,options)=>{
  if(testCase==='key_reset'&&url.endsWith('/keys')&&!held){held=true;await new Promise(r=>deferred=r);}
  if(testCase==='signature_reset'&&url.endsWith('/verify')&&!held){held=true;await new Promise(r=>deferred=r);}
  if(testCase==='merkle_reset'&&url.endsWith('/merkle')){await new Promise(r=>deferred=r);}
+ if(url.endsWith('/consensus/run')){
+  const body=JSON.parse(options.body);requests.push(body);
+  if(testCase==='comparison_reset'&&!held){held=true;await new Promise(r=>deferred=r);}
+  const created=body.node_online&&body.include_sample;
+  return {ok:true,json:async()=>({mode:body.mode,node_id:'actual-backend-node',node_status:body.node_online?'ONLINE':'OFFLINE',
+   created,stage:created?'complete':body.node_online?'creation':'submission',reason:created?null:'Verbatim backend rejection <sample>',
+   transaction_ids:created?['signed-tx']:[],pending_count:0,seconds:0.123456,block:created?{height:1,difficulty:3,nonce:83}:null,attempts:body.mode==='pow'?84:null,
+   issuer:{name:'Same organization <issuer>',address:'a'.repeat(40),public_key_hex:'issuer-key'},
+   signer:body.mode==='pos'&&created?{name:'Same organization <validator>',address:'b'.repeat(40),public_key_hex:'validator-key',stake:300,selection_weight:.3}:null,
+   chain_valid:true,validity_reason:'real validator reason',seed:42,stake_mode:'HYBRID'})};
+ }
  let data;
  if(url.endsWith('/keys'))data=key;
  else if(url.endsWith('/reset'))data={cleared:true};
@@ -54,6 +68,11 @@ if(testCase==='hash_vectors'){
  assert.equal(run('changedHashBits("0".repeat(64),"0".repeat(63)+"1")'),1);
  $('hash-a').value='abc';$('hash-b').value='';await run('compareHashes(event)');
  assert.equal($('hash-original').textContent.length,64);assert.equal($('hash-edited').textContent.length,64);
+ const different=$('hash-difference').textContent;
+ $('hash-b').value='abc';await run('compareHashes(event)');
+ assert.equal(run('changedHashBits($("hash-original").textContent,$("hash-edited").textContent)'),0);
+ assert.ok($('hash-difference').textContent.startsWith('0/256'));
+ assert.notEqual($('hash-difference').textContent,different);
  assert.equal(calls.length,0);
  run('resetHash()');assert.equal($('hash-result').hidden,true);
 }else if(testCase==='hash_reset'){
@@ -92,6 +111,44 @@ if(testCase==='hash_vectors'){
 }else if(testCase==='errors'){
  await run('signatureAction("create")');assert.equal($('sig-error').textContent,'Actual validation error');
  await run('computeMerkle(event)');assert.equal($('merkle-error').textContent,'Actual validation error');
+ await run('runComparison(event)');assert.equal($('comparison-error').textContent,'Actual validation error');
+ assert.equal(run('comparison.busy'),false);assert.equal($('comparison-submit').disabled,false);
+ assert.equal($('comparison-result-pow').hidden,true);
+}else if(['comparison','comparison_reset'].includes(testCase)){
+ context.location.hash='#consensus';events.hashchange();assert.equal($('lab-consensus').hidden,false);assert.equal($('lab-sha').hidden,true);
+ assert.equal(run('comparison.mode'),'pow');assert.equal($('comparison-pow').checked,true);
+ $('comparison-holder').value='Same holder';$('comparison-title').value='<img src=x onerror=alert(1)>';$('comparison-date').value='2026-10-01';
+ $('comparison-online').checked=$('comparison-sample').checked=true;
+ if(testCase==='comparison_reset'){
+  const pending=run('runComparison(event)');await Promise.resolve();assert.equal($('comparison-submit').disabled,true);
+  await run('runComparison(event)');assert.equal(requests.length,1);
+  run('resetComparison()');assert.equal($('comparison-submit').disabled,false);
+  $('comparison-pos').onchange();await run('runComparison(event)');
+  assert.equal(run('comparison.results.pos.created'),true);
+  deferred();await pending;
+  assert.equal(run('comparison.results.pow'),null);assert.equal(run('comparison.results.pos.mode'),'pos');
+  assert.equal($('comparison-result-pow').hidden,true);assert.equal(run('comparison.busy'),false);
+ }else{
+  await run('runComparison(event)');assert.equal(run('comparison.results.pow.created'),true);
+  $('comparison-pos').onchange();assert.equal(run('comparison.mode'),'pos');assert.equal($('comparison-pos').checked,true);
+  await run('runComparison(event)');assert.equal(run('comparison.results.pos.signer.public_key_hex'),'validator-key');
+  assert.equal(run('comparison.results.pos.issuer.public_key_hex'),'issuer-key');
+  assert.equal($('comparison-result-pow').hidden,false);assert.equal($('comparison-result-pos').hidden,false);
+  for(const field of ['holder_name','title','issue_date'])assert.equal(requests[0][field],requests[1][field]);
+  const text=e=>e.textContent+e.children.map(text).join(' ');
+  assert.ok(text($('comparison-result-pos')).includes('actual-backend-node'));
+  assert.ok(text($('comparison-result-pos')).includes('0.1235'));
+  const technical=$('comparison-result-pos').children.find(e=>e.children.length===2).children[1];
+  assert.equal(JSON.parse(technical.textContent).seconds,.123456);
+  assert.notEqual(JSON.parse(technical.textContent).issuer.public_key_hex,JSON.parse(technical.textContent).signer.public_key_hex);
+  $('comparison-sample').checked=false;$('comparison-sample').oninput();
+  assert.equal(run('comparison.results.pow'),null);assert.equal(run('comparison.results.pos'),null);
+  await run('runComparison(event)');assert.equal(run('comparison.results.pos.created'),false);
+  assert.ok(text($('comparison-result-pos')).includes('Verbatim backend rejection <sample>'));
+  $('comparison-online').checked=false;$('comparison-online').oninput();await run('runComparison(event)');
+  assert.ok(text($('comparison-result-pos')).includes('OFFLINE'));
+  run('resetComparison()');assert.equal($('comparison-result-pos').hidden,true);assert.equal($('comparison-result-pow').hidden,true);
+ }
 }
 assert.ok(calls.every(url=>url.startsWith('/api/labs/')));
 })();

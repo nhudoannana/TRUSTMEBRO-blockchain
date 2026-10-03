@@ -20,7 +20,7 @@ import logging
 import uuid
 import time
 import threading
-from contextlib import ExitStack
+from contextlib import ExitStack, asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
@@ -39,6 +39,7 @@ from blockchain.wallet import generate_wallet, sign_message, verify_signature
 from blockchain.hash import sha256_hex
 from blockchain.merkle import build_merkle_tree, generate_merkle_proof, verify_merkle_proof
 from blockchain.transaction import Credential, Transaction
+from blockchain.node import Network
 
 from api.wallet_store import (
     list_wallets,
@@ -52,12 +53,21 @@ _BASE_DIR = Path(__file__).parent.parent          # repo root
 _UI_DIR   = _BASE_DIR / "ui"
 
 # ── App ───────────────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lab_lifespan(_app):
+    try:
+        yield
+    finally:
+        close_lab_networks()
+
+
 app = FastAPI(
     title="TRUSTMEBRO API — Phase 1",
     description="Wallet management for the blockchain education simulation.",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url=None,
+    lifespan=lab_lifespan,
 )
 
 # Allow localhost origins during development only.
@@ -588,7 +598,7 @@ def api_mine_pow(body: PowMiningRequest):
 
 
 def public_pos_validators(registry):
-    """Explicit public projection; caller holds session and node locks.
+    """Explicit public projection; caller excludes registry mutation with node locks.
 
     Weight is a stake ratio among eligible validators, not a frequency promise.
     Never serialize the Validator dataclass: it contains signing keys.
@@ -741,6 +751,326 @@ class LabMerkleResponse(BaseModel):
     levels: list[list[str]]
     root: str
     proof: LabMerkleProof | None
+
+
+class LabConsensusRequest(BaseModel):
+    model_config = {"extra": "forbid", "validate_default": True}
+    mode: Literal["pow", "pos"]
+    holder_name: str = "Người học DEMO-001"
+    title: str = "Chứng chỉ Phân tích dữ liệu"
+    issue_date: str = "2026-01-01"
+    node_online: StrictBool = True
+    include_sample: StrictBool = True
+
+    @field_validator("holder_name", "title")
+    @classmethod
+    def required_text(cls, value, info):
+        value.encode("utf-8")
+        return CredentialCreateRequest.required_text(value, info)
+
+    @field_validator("issue_date")
+    @classmethod
+    def valid_date(cls, value):
+        return CredentialCreateRequest.valid_date(value)
+
+
+class LabIssuer(BaseModel):
+    name: str
+    public_key_hex: str
+    address: str
+
+
+class LabConsensusResponse(BaseModel):
+    mode: Literal["pow", "pos"]
+    node_id: str
+    node_status: str
+    created: bool
+    stage: str
+    reason: str | None
+    submission: dict | None
+    transaction: SignedTransactionResponse | None
+    issuer: LabIssuer
+    block: dict | None
+    transaction_ids: list[str]
+    seconds: float | None
+    elapsed_scope: str
+    backend_timing: dict | None
+    attempts: int | None
+    signer: PublicValidator | None
+    validators: list[PublicValidator]
+    stake_mode: str
+    seed: int
+    pending_count: int
+    chain_valid: bool
+    validity_reason: str
+
+
+@app.post("/api/labs/consensus/run", response_model=LabConsensusResponse)
+def lab_run_consensus(body: LabConsensusRequest):
+    """One disposable Network per run; no shared stores/keys/session locks.
+
+    Fresh single-node networks keep the exercise about consensus, not sync.
+    The node lock excludes its worker while capturing registry/block metadata.
+    Both modes measure the full Node call, excluding setup and worker teardown.
+    Failures report the actual pending count before disposal, never clear it
+    to hide rejection. No network or signing handle survives this request.
+    """
+    network = Network()
+    try:
+        node = network.create_node(f"Lab-{body.mode.upper()}", "127.0.0.1", 5001)
+        with node._state_lock:
+            wallet = generate_wallet()
+            issuer = {"name": "Trường Đại học A", "public_key_hex": wallet.public_key_hex,
+                      "address": wallet.address}
+            if not body.node_online:
+                node.go_offline()
+            tx = None
+            submission = None
+            if body.include_sample:
+                credential = Credential(str(uuid.uuid4()), issuer["name"], body.holder_name,
+                                        body.title, body.issue_date)
+                tx = Transaction("ISSUE", wallet.public_key_hex, credential.to_onchain_payload())
+                tx.sign(wallet)
+                accepted, reason = node.submit_transaction(tx)
+                submission = {"accepted": accepted, "reason": reason}
+            block, result, seconds = None, None, None
+            stage = "submission" if submission and not submission["accepted"] else "creation"
+            if stage == "submission":
+                reason = submission["reason"]
+            else:
+                started = time.perf_counter()
+                block, result = node.mine_pending() if body.mode == "pow" else node.forge_pos_pending()
+                seconds = time.perf_counter() - started
+                reason = result if block is None else None
+            validators = public_pos_validators(network.pos_registry)
+            valid, _, validity_reason = node.blockchain.is_chain_valid(pos_registry=network.pos_registry)
+            return {"mode": body.mode, "node_id": node.node_id, "node_status": node.status,
+                    "created": block is not None, "stage": "complete" if block else stage,
+                    "reason": reason, "submission": submission,
+                    "transaction": tx.to_dict() if tx else None, "issuer": issuer,
+                    "block": block.to_dict() if block else None,
+                    "transaction_ids": [t.tx_id for t in block.transactions] if block else [],
+                    "seconds": seconds,
+                    "elapsed_scope": "mine_pending call" if body.mode == "pow" else "forge_pos_pending call",
+                    "backend_timing": result if block else None,
+                    "attempts": result.get("attempts") if block and body.mode == "pow" else None,
+                    "signer": next((v for v in validators if block and v["address"] == block.header.validator_address), None),
+                    "validators": validators, "stake_mode": network.pos_registry.stake_mode,
+                    "seed": network.consensus_seed,
+                    "pending_count": len(node.mempool.get_transactions()),
+                    "chain_valid": valid, "validity_reason": validity_reason}
+    except Exception as exc:
+        logging.getLogger(__name__).exception("Disposable consensus lab failed")
+        raise HTTPException(500, detail="Backend tạo block lab thất bại. Mạng lab đã được dọn; thử một lượt mới.") from exc
+    finally:
+        # Release the node lock before join so its worker can finish.
+        for node in network.nodes.values():
+            node.stop()
+
+
+# Unlike the single-call comparison, this lab needs state across actions.
+# Opaque handles, bounded lifetime/capacity and independent locks match lab keys.
+_LAB_NETWORK_TTL = 900
+_LAB_NETWORK_LIMIT = 8
+_lab_networks = {}
+_lab_network_lock = threading.RLock()
+
+
+def _close_lab_network(handle):
+    """Caller holds lab lock, no node lock; workers can finish before join."""
+    entry = _lab_networks.pop(handle, None)
+    if entry is None:
+        return False
+    entry['timer'].cancel()
+    for node in entry['network'].nodes.values():
+        node.stop()
+    return True
+
+
+def _expire_lab_network(handle):
+    with _lab_network_lock:
+        entry = _lab_networks.get(handle)
+        if entry and entry['expires'] <= time.monotonic():
+            _close_lab_network(handle)
+
+
+def close_lab_networks():
+    """App shutdown closes only network labs, never journey or signature keys."""
+    with _lab_network_lock:
+        for handle in list(_lab_networks):
+            _close_lab_network(handle)
+
+
+def _get_lab_network(handle):
+    _expire_lab_network(handle)
+    entry = _lab_networks.get(handle)
+    if entry is None:
+        raise HTTPException(404, detail="Mạng lab đã reset hoặc hết hạn. Khởi tạo lab mới.")
+    return entry
+
+
+class LabNetworkNodeSnapshot(NetworkNodeSnapshot):
+    verification: dict | None
+    local_chain_warning: str | None
+
+
+class LabNetworkSnapshot(BaseModel):
+    lab_handle: str
+    expires_in_seconds: int
+    credential_id: str | None
+    transaction: SignedTransactionResponse | None
+    issuer: LabIssuer | None
+    mining: dict | None
+    nodes: list[LabNetworkNodeSnapshot]
+    online_nodes_agree: bool
+    online_nodes_valid: bool
+    online_nodes_synchronized: bool
+    all_nodes_synchronized: bool
+    events: list[str]
+
+
+def _lab_network_snapshot(handle, entry):
+    """Lab lock coordinates reset/API; node locks coordinate queue workers.
+
+    These are consistent per-node reads, not one globally atomic snapshot.
+    Verification is ID-only on each actual chain; the stored TX is no proof.
+    """
+    network, tx = entry['network'], entry['tx']
+    rows = []
+    for node in network.nodes.values():
+        with node._state_lock:
+            valid, invalid_height, reason = node.blockchain.is_chain_valid(
+                pos_registry=network.pos_registry, authorized_issuers=node.mempool.authorized_issuers)
+            verification = None
+            if tx:
+                checks, status, info = node.blockchain.verify_credential(
+                    tx.payload['credential_id'], pos_registry=network.pos_registry,
+                    authorized_issuers=node.mempool.authorized_issuers)
+                verification = {'status': status, 'checks': checks, 'info': info,
+                                'reason': info.get('reason') or next((c[2] for c in checks if not c[1]), status)}
+            rows.append({'node_id': node.node_id, 'status': node.status,
+                         'height': node.height, 'block_count': len(node.blockchain.chain),
+                         'tip_hash': node.blockchain.get_latest_block().compute_hash(),
+                         'pending_count': len(node.mempool.get_transactions()),
+                         'chain_valid': valid, 'invalid_height': invalid_height, 'validity_reason': reason,
+                         'verification': verification,
+                         'local_chain_warning': 'Node OFFLINE đọc chuỗi cục bộ có thể cũ. NOT_FOUND không chứng minh hồ sơ vô hiệu.'
+                         if node.status != 'ONLINE' else None})
+    online = [row for row in rows if row['status'] == 'ONLINE']
+    agree = bool(online) and len({(row['height'], row['tip_hash']) for row in online}) == 1
+    valid = bool(online) and all(row['chain_valid'] for row in online)
+    return {'lab_handle': handle, 'expires_in_seconds': max(0, int(entry['expires'] - time.monotonic())),
+            'credential_id': tx.payload['credential_id'] if tx else None,
+            'transaction': tx.to_dict() if tx else None, 'issuer': entry['issuer'], 'mining': entry['mining'],
+            'nodes': rows, 'online_nodes_agree': agree, 'online_nodes_valid': valid,
+            'online_nodes_synchronized': agree and valid,
+            'all_nodes_synchronized': len(online) == 3 and agree and valid,
+            'events': network.get_event_log()}
+
+
+@app.post('/api/labs/network', status_code=201, response_model=LabNetworkSnapshot)
+def lab_initialize_network():
+    # ponytail: serialize at most eight lab sessions; per-handle locks if throughput matters.
+    with _lab_network_lock:
+        for handle in list(_lab_networks):
+            _expire_lab_network(handle)
+        if len(_lab_networks) >= _LAB_NETWORK_LIMIT:
+            raise HTTPException(429, detail="Đã đủ mạng lab tạm. Reset lab không dùng hoặc chờ hết hạn.")
+        network = Network()
+        handle = str(uuid.uuid4())
+        timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle,))
+        timer.daemon = True
+        entry = {'network': network, 'tx': None, 'issuer': None, 'submitted': False,
+                 'mining': None, 'expires': time.monotonic() + _LAB_NETWORK_TTL, 'timer': timer}
+        try:
+            for i in range(1, 4):
+                network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
+            _lab_networks[handle] = entry
+            timer.start()
+            return _lab_network_snapshot(handle, entry)
+        except Exception as exc:
+            timer.cancel()
+            _lab_networks.pop(handle, None)
+            for node in network.nodes.values():
+                node.stop()
+            raise HTTPException(500, detail="Không khởi tạo được mạng lab; worker tạm đã được dọn.") from exc
+
+
+@app.get('/api/labs/network/{handle}', response_model=LabNetworkSnapshot)
+def lab_read_network(handle: str):
+    with _lab_network_lock:
+        return _lab_network_snapshot(handle, _get_lab_network(handle))
+
+
+@app.post('/api/labs/network/{handle}/reset')
+def lab_reset_network(handle: str):
+    with _lab_network_lock:
+        return {'cleared': _close_lab_network(handle)}
+
+
+@app.post('/api/labs/network/{handle}/nodes/{node_id}/status')
+def lab_node_status(handle: str, node_id: str, body: NodeStatusRequest):
+    with _lab_network_lock:
+        entry = _get_lab_network(handle)
+        if node_id != 'Node-3':
+            raise HTTPException(404, detail="Lab này chỉ điều khiển trạng thái Node-3.")
+        node = entry['network'].nodes[node_id]
+        with node._state_lock:
+            changed = (node.status == 'ONLINE') != body.online
+            if changed:
+                node.go_online() if body.online else node.go_offline()
+        return {'changed': changed, 'catch_up_requested': changed and body.online,
+                'snapshot': _lab_network_snapshot(handle, entry)}
+
+
+@app.post('/api/labs/network/{handle}/mine')
+def lab_network_mine(handle: str):
+    with _lab_network_lock:
+        entry = _get_lab_network(handle)
+        if entry['mining'] is not None:
+            raise HTTPException(409, detail="Lab đã tạo block mẫu. Reset riêng lab để thử lại từ đầu.")
+        node = entry['network'].nodes['Node-1']
+        with node._state_lock:
+            if entry['tx'] is None:
+                wallet = generate_wallet()
+                entry['issuer'] = {'name': 'Trường Đại học A', 'public_key_hex': wallet.public_key_hex,
+                                   'address': wallet.address}
+                credential = Credential(str(uuid.uuid4()), entry['issuer']['name'], 'Người học DEMO-001',
+                                        'Chứng chỉ Phân tích dữ liệu', '2026-01-01')
+                tx = Transaction('ISSUE', wallet.public_key_hex, credential.to_onchain_payload())
+                tx.sign(wallet)
+                entry['tx'] = tx
+            if not entry['submitted']:
+                accepted, reason = node.submit_transaction(entry['tx'])
+                if not accepted:
+                    return {'mined': False, 'reason': reason, 'snapshot': _lab_network_snapshot(handle, entry)}
+                entry['submitted'] = True
+            try:
+                block, result = node.mine_pending()
+            except Exception as exc:
+                logging.getLogger(__name__).exception('Network lab mining failed')
+                raise HTTPException(500, detail="Backend mining lab thất bại; giao dịch vẫn chờ. Làm mới hoặc reset riêng lab.") from exc
+            if block:
+                entry['mining'] = {'block': block.to_dict(), **result}
+        # Release Node-1 before reading other worker locks.
+        return {'mined': block is not None, 'reason': result if block is None else None,
+                'block': block.to_dict() if block else None, 'snapshot': _lab_network_snapshot(handle, entry)}
+
+
+@app.post('/api/labs/network/{handle}/sync')
+def lab_sync_network(handle: str):
+    with _lab_network_lock:
+        entry = _get_lab_network(handle)
+        try:
+            entry['network'].sync_all_nodes(online_only=True)
+        except Exception as exc:
+            logging.getLogger(__name__).exception('Network lab synchronization failed')
+            raise HTTPException(500, detail="Backend sync lab thất bại. Làm mới trạng thái trước khi thử lại.") from exc
+        snapshot = _lab_network_snapshot(handle, entry)
+        invalid = next((n for n in snapshot['nodes'] if n['status'] == 'ONLINE' and not n['chain_valid']), None)
+        reason = None if snapshot['all_nodes_synchronized'] else (
+            invalid['validity_reason'] if invalid else 'Adapter: chưa quan sát đủ ba node ONLINE cùng height/tip; node OFFLINE không được sync.')
+        return {'completed': snapshot['all_nodes_synchronized'], 'reason': reason, 'snapshot': snapshot}
 
 
 @app.post("/api/labs/signatures/keys", status_code=201, response_model=LabKeyResponse)
