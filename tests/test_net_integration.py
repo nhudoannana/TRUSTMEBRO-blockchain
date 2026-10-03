@@ -99,7 +99,7 @@ def three_nodes():
     time.sleep(0.3)
 
 
-def _create_signed_tx(wallet, cred_id="CRED-NET-001", holder="DEMO-001"):
+def _create_signed_tx(wallet, cred_id="CRED-NET-001", holder="Người học DEMO-001"):
     """Tạo TX đã ký."""
     cred = Credential(cred_id, wallet.address, holder, "BSc Demo", "2026-01-01", {})
     tx = Transaction("ISSUE", wallet.public_key_hex, asdict(cred))

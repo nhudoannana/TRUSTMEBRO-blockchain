@@ -9,6 +9,7 @@ import copy
 import queue
 import threading
 import time
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -59,6 +60,11 @@ class Node:
             target=self._process_loop, daemon=True, name=f"worker-{node_id}",
         )
         self._worker.start()
+
+    def stop(self) -> None:
+        """Stop the inbox worker; safe to call more than once."""
+        self._running = False
+        self._worker.join(timeout=1.0)
 
     @property
     def height(self) -> int:
@@ -275,9 +281,10 @@ class Node:
 
     def go_online(self) -> None:
         """Bật node lên trạng thái ONLINE và tự động kích hoạt đồng bộ chuỗi."""
-        self.status = "ONLINE"
-        self.network.log_event(self.node_id, "Status → ONLINE (Tự động kích hoạt SYNC_REQUEST)")
-        self.request_sync()
+        with self._state_lock:
+            self.status = "ONLINE"
+            self.network.log_event(self.node_id, "Status → ONLINE (Tự động kích hoạt SYNC_REQUEST)")
+            self.request_sync()
 
     def go_offline(self) -> None:
         """Tắt node — message đến sẽ bị Network bỏ qua."""
@@ -585,31 +592,40 @@ class Network:
         with self._log_lock:
             self._event_log.clear()
 
-    def sync_all_nodes(self) -> None:
-        """Bật tất cả node lên ONLINE và đồng bộ chuỗi theo node có chuỗi dài nhất / nhiều PoW nhất."""
-        best_node = None
-        best_work = -1
-        for node in self.nodes.values():
-            node.status = "ONLINE"
-            ok, _, _ = node.blockchain.is_chain_valid(
-                pos_registry=self.pos_registry,
-                authorized_issuers=node.mempool.authorized_issuers,
-            )
-            if not ok:
-                continue
-            w = node.blockchain.total_work()
-            if w > best_work or (w == best_work and (best_node is None or node.height > best_node.height)):
-                best_work = w
-                best_node = node
+    def sync_all_nodes(self, *, online_only: bool = False) -> None:
+        """Reuse chain selection; online_only leaves offline nodes untouched.
 
-        if best_node:
-            with best_node._state_lock:
-                best_chain = copy.deepcopy(best_node.blockchain)
-            for nid, node in self.nodes.items():
-                if nid != best_node.node_id:
-                    node._handle_sync_response(
-                        Message("SYNC_RESPONSE", best_node.node_id, copy.deepcopy(best_chain)),
-                        prefer_equal=True,
-                    )
-            self.log_event("Network", f"🔄 SYNC ALL: Đã đồng bộ tất cả node theo {best_node.node_id} (Height {best_node.height})")
+        Default keeps the existing UI behavior of bringing all nodes online.
+        Workers acquire only their own lock; hold all locks in ID order here.
+        """
+        with ExitStack() as locks:
+            for node in sorted(self.nodes.values(), key=lambda n: n.node_id):
+                locks.enter_context(node._state_lock)
+            nodes = [n for n in self.nodes.values() if not online_only or n.status == "ONLINE"]
+            best_node = None
+            best_work = -1
+            for node in nodes:
+                if not online_only:
+                    node.status = "ONLINE"
+                ok, _, _ = node.blockchain.is_chain_valid(
+                    pos_registry=self.pos_registry,
+                    authorized_issuers=node.mempool.authorized_issuers,
+                )
+                if not ok:
+                    continue
+                w = node.blockchain.total_work()
+                if w > best_work or (w == best_work and (best_node is None or node.height > best_node.height)):
+                    best_work = w
+                    best_node = node
+
+            if best_node:
+                with best_node._state_lock:
+                    best_chain = copy.deepcopy(best_node.blockchain)
+                for node in nodes:
+                    if node.node_id != best_node.node_id:
+                        node._handle_sync_response(
+                            Message("SYNC_RESPONSE", best_node.node_id, copy.deepcopy(best_chain)),
+                            prefer_equal=True,
+                        )
+                self.log_event("Network", f"🔄 SYNC ALL: Đã đồng bộ các node được chọn theo {best_node.node_id} (Height {best_node.height})")
 

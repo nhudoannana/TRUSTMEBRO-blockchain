@@ -43,7 +43,7 @@ def _build_demo_blockchain():
     ]
 
     for cred_id, holder, title in samples:
-        cred = Credential(cred_id, "Trường Đại học DEMO-A", holder, title, "2026-06-01", {})
+        cred = Credential(cred_id, "Trường Đại học A", holder, title, "2026-06-01", {})
         tx = Transaction("ISSUE", wallet.public_key_hex, asdict(cred))
         tx.sign(wallet)
 

@@ -164,7 +164,7 @@ def dashboard_page():
         """
 | # | Bước | Trang | Mô tả |
 |---|---|---|---|
-| 1 | Tạo Wallet cho Issuer | **Wallet & Digital Signature** | Tạo cặp khoá ECDSA, đặt tên (ví dụ "Trường Đại học DEMO-A") |
+| 1 | Tạo Wallet cho Issuer | **Wallet & Digital Signature** | Tạo cặp khoá ECDSA, đặt tên (ví dụ "Trường Đại học A") |
 | 2 | Tạo và ký Credential Transaction | **Mining & Consensus Flow** | Chọn Issuer, nhập thông tin credential, ký và submit |
 | 3 | Broadcast Transaction tới các Node | *(tự động khi submit)* | TX được gửi đến Node → broadcast cho peer |
 | 4 | Kiểm tra Transaction trong Mempool | **Network** | Xem bảng trạng thái, mở chi tiết → Mempool mỗi node |

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" class="scroll-smooth">
-<head>
+<head><script>try{document.documentElement.dataset.theme=localStorage.getItem('trustmebro-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TrustMeBro — Mô phỏng Blockchain Giáo dục</title>
@@ -10,23 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'monospace'],
-                        display: ['"DM Serif Display"', 'serif'],
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -35,162 +18,6 @@
             background: #0a0a0a;
             color: #fff;
             overflow-x: hidden;
-        }
-
-        /* ===== HERO FULL SCREEN ===== */
-        .hero-section {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Background gradient landscape */
-        .hero-bg {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            background: 
-                radial-gradient(ellipse 120% 60% at 50% 40%, rgba(30, 60, 120, 0.4) 0%, transparent 70%),
-                radial-gradient(ellipse 80% 50% at 30% 60%, rgba(180, 120, 60, 0.3) 0%, transparent 60%),
-                radial-gradient(ellipse 80% 50% at 70% 65%, rgba(160, 100, 50, 0.25) 0%, transparent 60%),
-                linear-gradient(180deg, 
-                    #1a2a4a 0%, 
-                    #2a3a5a 15%,
-                    #4a5a7a 25%,
-                    #7a8aaa 35%,
-                    #a0956a 50%, 
-                    #c8a060 58%,
-                    #d4a855 62%,
-                    #b08040 70%, 
-                    #906030 80%, 
-                    #1a1a1a 100%
-                );
-        }
-
-        /* Dune wave shapes */
-        .hero-bg::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 60%;
-            background:
-                radial-gradient(ellipse 60% 25% at 25% 70%, rgba(180, 130, 60, 0.6) 0%, transparent 100%),
-                radial-gradient(ellipse 50% 20% at 75% 65%, rgba(160, 110, 50, 0.5) 0%, transparent 100%),
-                radial-gradient(ellipse 70% 30% at 50% 80%, rgba(140, 90, 40, 0.4) 0%, transparent 100%);
-            z-index: 1;
-        }
-
-        /* Dark gradient at bottom */
-        .hero-bottom-gradient {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 45%;
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 40%, transparent 100%);
-            z-index: 3;
-        }
-
-        /* ===== NUMBER GRID OVERLAY ===== */
-        .number-grid {
-            position: absolute;
-            inset: 0;
-            z-index: 2;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-            grid-template-rows: repeat(auto-fill, minmax(36px, 1fr));
-            gap: 0;
-            opacity: 0.18;
-            pointer-events: none;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.7);
-            padding: 60px 10px 10px 10px;
-        }
-
-        .number-grid span {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-        }
-
-        /* ===== 3D BLOCKCHAIN CUBES (CSS) ===== */
-        .cube-scene {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -55%);
-            z-index: 2;
-            perspective: 800px;
-        }
-
-        .cube-group {
-            transform-style: preserve-3d;
-            animation: floatRotate 12s ease-in-out infinite;
-        }
-
-        @keyframes floatRotate {
-            0%, 100% { transform: rotateY(-15deg) rotateX(5deg) translateY(0px); }
-            50% { transform: rotateY(15deg) rotateX(-5deg) translateY(-20px); }
-        }
-
-        .voxel {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            transform-style: preserve-3d;
-        }
-
-        .voxel .face {
-            position: absolute;
-            width: 28px;
-            height: 28px;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-
-        .voxel .front  { transform: translateZ(14px); }
-        .voxel .back   { transform: translateZ(-14px) rotateY(180deg); }
-        .voxel .left   { transform: translateX(-14px) rotateY(-90deg); }
-        .voxel .right  { transform: translateX(14px) rotateY(90deg); }
-        .voxel .top    { transform: translateY(-14px) rotateX(90deg); }
-        .voxel .bottom { transform: translateY(14px) rotateX(-90deg); }
-
-        /* ===== HEADLINE FONT ===== */
-        .headline-text {
-            font-family: 'DM Serif Display', 'Georgia', serif;
-            font-weight: 400;
-            font-size: clamp(3.2rem, 8vw, 7rem);
-            line-height: 0.92;
-            letter-spacing: -0.02em;
-            color: #ffffff;
-            text-shadow: 0 2px 40px rgba(0,0,0,0.5);
-        }
-
-        /* ===== GLASS NAV ===== */
-        .glass-nav {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 999px;
-        }
-
-        .glass-nav a {
-            color: rgba(255, 255, 255, 0.75);
-            font-size: 13px;
-            font-weight: 500;
-            padding: 8px 16px;
-            transition: color 0.2s;
-            white-space: nowrap;
-        }
-
-        .glass-nav a:hover {
-            color: #ffffff;
         }
 
         /* ===== CTA BUTTONS ===== */
@@ -205,15 +32,19 @@
             padding: 12px 24px;
             border-radius: 999px;
             text-decoration: none;
-            transition: all 0.3s ease;
+            transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, box-shadow 160ms ease;
             border: none;
             cursor: pointer;
         }
 
         .btn-primary:hover {
-            background: #f0f0f0;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 30px rgba(255,255,255,0.15);
+            background: #faf7f8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 168, 85, 0.28);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.97);
         }
 
         .btn-primary .arrow {
@@ -269,17 +100,17 @@
 
         /* ===== FEATURE CARDS ===== */
         .feature-card {
-            background: #111;
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #101726;
+            border: 1px solid rgba(255,255,255,0.07);
             border-radius: 20px;
             padding: 36px 30px;
-            transition: all 0.4s ease;
+            transition: border-color 200ms ease, transform 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms ease;
         }
 
         .feature-card:hover {
-            border-color: rgba(255,255,255,0.12);
+            border-color: rgba(212, 168, 85, 0.45);
             transform: translateY(-4px);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 35px rgba(212, 168, 85, 0.16);
         }
 
         .feature-icon {
@@ -305,20 +136,17 @@
 
         /* Code editor */
         .code-editor {
-            background: #1E1E2E;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 60px rgba(100, 100, 200, 0.05);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: #101726; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 50px rgba(96, 121, 149, 0.15);
+            border: 1px solid rgba(255,255,255,0.08);
         }
 
         .code-editor-bar {
-            background: #181825;
+            background: #0b111c;
             padding: 12px 16px;
             display: flex;
             align-items: center;
             gap: 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
         .dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -341,96 +169,156 @@
             pointer-events: none;
         }
 
-        @media (max-width: 768px) {
-            .headline-text {
-                font-size: clamp(2.4rem, 10vw, 4rem);
-                line-height: 0.95;
-            }
-            .number-grid {
-                font-size: 10px;
-                opacity: 0.1;
-                grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
-            }
-            .glass-nav { display: none; }
-            .desc-text { max-width: 100%; }
+        /* Hero redesign: centered hierarchy, restrained red atmosphere. */
+        html { scroll-behavior: smooth; scroll-padding-top: 30px; }
+        .landing-hero { position:relative; isolation:isolate; margin:20px; padding:30px 44px 24px; border:1px solid #ffffff0d; border-radius:28px; background:#16253c; overflow:hidden; }
+        .landing-hero::before { content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 120% 60% at 50% 40%, rgba(30, 60, 120, 0.4) 0%, transparent 70%),radial-gradient(ellipse 80% 50% at 30% 60%, rgba(180, 120, 60, 0.3) 0%, transparent 60%),radial-gradient(ellipse 80% 50% at 70% 65%, rgba(160, 100, 50, 0.25) 0%, transparent 60%),linear-gradient(180deg,#1a2a4a 0%,#2a3a5a 15%,#4a5a7a 25%,#7a8aaa 35%,#a0956a 50%,#c8a060 58%,#d4a855 62%,#b08040 70%,#906030 80%,#1a1a1a 100%); }
+        .new-nav { max-width:1160px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;background:#101827d9;border:1px solid #ccd9ee33;border-radius:24px;padding:18px 26px;backdrop-filter:blur(12px); }
+        .wordmark { display:flex;align-items:center;gap:0;color:#fff;text-decoration:none;font-size:20px;font-weight:600;letter-spacing:-.7px;white-space:nowrap; }
+        .wordmark>span:last-child { color:#dcc8a6; }
+        .brand-symbol { display:grid;place-items:center;width:30px;height:30px;margin-right:12px;background:#607995;border-radius:9px;color:#fff;font-size:23px; }
+        .new-nav nav { display:flex;gap:32px; }
+        .new-nav nav a,.nav-source { color:#d3deee;font-size:14px;text-decoration:none;transition:color 160ms ease; }
+        .new-nav a:hover { color:white; }
+        .external-label { margin-left:7px;color:#a3b3c9; }
+        .hero-copy { text-align:center;max-width:1000px;margin:78px auto 0; }
+        .eyebrow { color:#d2ddf0;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.16em;margin-bottom:26px; }
+        .hero-copy h1 { font-family:'Inter',sans-serif;font-size:clamp(3rem,6.6vw,6.2rem);font-weight:500;line-height:1.11;letter-spacing:-.065em;text-wrap:balance; }
+        .hero-copy h1 span { color:#ead9b5; }
+        .hero-description { margin:28px auto 0;font-size:16px;line-height:1.8;color:#e0e4ed;max-width:610px;text-wrap:pretty; }
+        .hero-actions { display:flex;justify-content:center;align-items:center;gap:30px;margin-top:32px; }
+        .start-button { display:inline-flex;align-items:center;gap:24px;background:#faf7f8;color:#171216;padding:17px 24px;min-height:54px;border-radius:14px;text-decoration:none;font-size:15px;font-weight:600;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease,box-shadow 160ms ease;box-shadow:0 8px 30px rgba(0,0,0,0.3); }
+        .start-button:active { transform:scale(.97); }
+        .start-button:hover { background:#fff;transform:translateY(-2px);box-shadow:0 12px 35px rgba(212,168,85,0.25); }
+        .start-button span { font-size:20px;color:#607995; }
+        .process-link { color:#e4e9f3;font-size:14px;text-decoration:none;border-bottom:1px solid #d7e1f34d;padding:7px 0;transition:all 160ms ease; }
+        .process-link:hover { color:#ffffff;border-color:#ead9b5; }
+        .simulation-note { color:#c4c9d3;font-size:12px;margin-top:18px; }
+        .chain-preview { max-width:850px;margin:57px auto 38px; }
+        .chain-heading { display:flex;justify-content:space-between;color:#c8d4e7;font:10px 'JetBrains Mono',monospace;letter-spacing:.09em;margin-bottom:13px; }
+        .chain-blocks { display:flex;align-items:center; }
+        .preview-block { flex:1;min-width:0;background:#101726d9;border:1px solid #bac9df40;padding:17px 20px;border-radius:12px;transition:all 200ms cubic-bezier(.23,1,.32,1); }
+        .preview-block:hover { border-color:#d4a85588;transform:translateY(-2px); }
+        .block-top { display:flex;justify-content:space-between;align-items:center;color:#bdcde3;font:10px 'JetBrains Mono',monospace;letter-spacing:.04em;margin-bottom:15px; }
+        .block-glyph { font:17px 'Inter',sans-serif;color:#e3cca2; }
+        .preview-block strong { display:block;font-size:14px;font-weight:500;color:#ebeff6;margin-bottom:8px; }
+        .preview-block code { display:block;font:11px 'JetBrains Mono',monospace;color:#bdcde3; }
+        .chain-link { width:28px;height:1px;background:#60799555;flex-shrink:0; }
+        .last-block { border-color:#d4ba874d; }
+        .hero-bottom { display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:1160px;margin:auto;padding-top:22px;border-top:1px solid #d1ddef22;font:11px 'JetBrains Mono',monospace;color:#c4d0e3; }
+        .hero-bottom i { margin:0 12px;color:#c0a679;font-style:normal; }
+        .hero-bottom a { color:#d4ddef;text-decoration:none;transition:color 160ms ease; }
+        .hero-bottom a:hover { color:#ead9b5; }
+        .hero-bottom a span { margin-left:12px; }
+        a:focus-visible,button:focus-visible { outline:2px solid #d4a855;outline-offset:5px; }
+        .skip-link { position:absolute;left:28px;top:-100px;z-index:100;background:white;color:black;padding:12px; }
+        .skip-link:focus { top:28px; }
+        .section-below,.stagger-child { opacity:1;transform:none;transition:opacity 250ms ease,transform 250ms cubic-bezier(.23,1,.32,1); }
+        .feature-card { transition:border-color 180ms ease,transform 180ms ease; }
+        .btn-primary { transition:background-color 160ms ease,transform 160ms ease; }
+        .btn-primary:active { transform:scale(.97); }
+        @media (max-width:900px) {
+            .landing-hero { padding:24px;margin:12px; }
+            .new-nav { padding:16px 20px; }
+            .new-nav nav { gap:18px; }
+            .hero-copy { margin-top:68px; }
+            .hero-copy h1 { font-size:clamp(3rem,7.4vw,5rem); }
+            .workflow-grid { grid-template-columns:1fr !important;gap:32px !important; }
         }
+        @media (max-width:600px) {
+            .landing-hero { margin:8px;padding:16px;border-radius:20px; }
+            .new-nav { border-radius:16px;padding:13px;gap:12px; }
+            .new-nav nav { display:none; }
+            .wordmark { font-size:18px; }
+            .brand-symbol { margin-right:8px; }
+            .hero-copy { margin-top:58px; }
+            .eyebrow { font-size:10px;letter-spacing:.1em;margin-bottom:22px; }
+            .hero-copy h1 { font-size:clamp(2.4rem,10vw,3.6rem);letter-spacing:-.055em;line-height:1.16; }
+            .hero-description { font-size:15px;margin-top:23px; }
+            .desktop-break { display:none; }
+            .hero-actions { flex-direction:column;gap:15px;margin-top:27px; }
+            .start-button { width:100%;justify-content:center; }
+            .chain-preview { margin:38px auto 25px; }
+            .chain-heading span:last-child { display:none; }
+            .chain-blocks { flex-direction:column;align-items:stretch; }
+            .preview-block { padding:16px; }
+            .block-top { margin-bottom:10px; }
+            .chain-link { height:16px;width:1px;align-self:center; }
+            .hero-bottom { justify-content:center;padding-top:19px; }
+            .hero-bottom>a { display:none; }
+            .hero-bottom i { margin:0 5px; }
+            #features,#howtworks,#stats,#cta,footer { padding:60px 24px !important; }
+            .features-grid { grid-template-columns:1fr !important; }
+            .features-grid>.feature-card { grid-column:span 1 !important;padding:26px 22px; }
+            #stats .section-below { grid-template-columns:repeat(2,1fr) !important;row-gap:32px !important; }
+            #stats .section-below>div { border:0 !important; }
+            .code-editor>div:last-child { padding:18px !important;font-size:11px !important; }
+        }
+        @media (prefers-reduced-motion:reduce) { html {scroll-behavior:auto;} *,*::before,*::after { animation:none !important;transition:none !important;} }
     </style>
-</head>
+<style>
+.theme-switch{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:9px 13px;border:1px solid #ccd9ee33;background:transparent;border-radius:10px;color:#d0dcee;font:12px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:background-color 160ms ease,transform 160ms ease}.theme-switch:active{transform:scale(.97)}.nav-utilities{display:flex;align-items:center;gap:18px}.theme-switch:focus-visible{outline:2px solid #d4a855;outline-offset:4px}
+html[data-theme="light"]{color-scheme:light}html[data-theme="light"] body{background:#f4f7fb;color:#20354f}html[data-theme="light"] .theme-switch{color:#20354f;border-color:#839ab450;background:#ffffffa8}
+@media(max-width:700px){.nav-utilities{gap:9px}.theme-switch{padding:8px 10px;font-size:11px}}
+
+.about-section{padding:100px 40px;background:#090e17;border-top:1px solid rgba(255,255,255,0.08)}.about-container{max-width:1200px;margin:auto}.about-eyebrow{font:12px 'JetBrains Mono',monospace;color:#d2ddf0;letter-spacing:.12em;margin-bottom:20px}.about-section h2{font:500 clamp(32px,4vw,52px)/1.12 Inter,system-ui,sans-serif;letter-spacing:-.045em;margin:0 0 26px;max-width:740px;color:#fff}.about-intro{font-size:16px;line-height:1.85;color:#a3b3c9;max-width:710px}.about-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:65px;margin-top:46px}.about-section h3{font-size:21px;font-weight:500;margin:0 0 14px;color:#fff}.about-section p{margin-top:0}.about-muted{font-size:14px;line-height:1.8;color:#a3b3c9}.project-link{display:inline-flex;align-items:center;gap:17px;text-decoration:none;color:#ead9b5;border-bottom:1px solid #d4a855;padding:12px 0;font-size:14px;overflow-wrap:anywhere;transition:all 160ms ease}.project-link:hover{color:#fff;border-color:#fff}.team-placeholder{border-top:1px solid rgba(255,255,255,0.12);padding-top:22px;color:#7a8fa8;font-size:14px}.member-list{list-style:none;margin:0;padding:0}.member-list li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:14px}.member-list a{color:#d4a855;text-underline-offset:4px;transition:color 160ms ease}.member-list a:hover{color:#fff}.tools-heading{margin-top:65px!important;padding-top:35px;border-top:1px solid rgba(255,255,255,0.1)}.tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:25px}.tool-card{padding:22px 0;border-top:1px solid #60799555}.tool-card span{font:11px 'JetBrains Mono',monospace;color:#7a8fa8;display:block;margin-bottom:18px}.tool-card a{color:#ead9b5;text-decoration:none;font-size:22px;letter-spacing:-.02em;transition:color 160ms ease}.tool-card a:hover{color:#fff}.tool-card p{font-size:14px;color:#a3b3c9;line-height:1.7;margin:12px 0 0}.about-note{font-size:12px;color:#7a8fa8;margin-top:28px;line-height:1.7}
+html[data-theme="light"] section:not(.landing-hero),html[data-theme="light"] footer{background:#f4f7fb!important;border-color:#839ab430!important}html[data-theme="light"] .feature-card{background:#fff;border-color:#839ab435}html[data-theme="light"] .feature-card:hover{box-shadow:0 15px 40px rgba(41,68,99,0.12)}html[data-theme="light"] section:not(.landing-hero) [style*="color:"]:not(.code-editor *):not(.feature-icon),html[data-theme="light"] footer [style*="color:"]{color:#465b74!important}html[data-theme="light"] section:not(.landing-hero) h2,html[data-theme="light"] section:not(.landing-hero) h3,html[data-theme="light"] section:not(.landing-hero) h4{color:#20354f!important}html[data-theme="light"] [data-count]{-webkit-text-fill-color:#294463!important;background:none!important}html[data-theme="light"] .feature-card [style*="background: #1E1E2E"]{background:#f0eaf3!important}html[data-theme="light"] .btn-primary{background:#294463;color:white}html[data-theme="light"] .btn-primary:hover{background:#35567d}html[data-theme="light"] .btn-primary .arrow{border-color:#ccd9ee;color:#fff}html[data-theme="light"] .about-eyebrow{color:#476487}html[data-theme="light"] .about-intro,html[data-theme="light"] .about-muted,html[data-theme="light"] .team-placeholder,html[data-theme="light"] .tool-card p,html[data-theme="light"] .about-note{color:#465b74}html[data-theme="light"] .project-link,html[data-theme="light"] .member-list a,html[data-theme="light"] .tool-card a{color:#876338}html[data-theme="light"] .tool-card span{color:#647b97}html[data-theme="light"] #simulation-root{background:#f4f7fb}
+@media(max-width:900px){.new-nav nav{gap:15px}.nav-utilities{gap:12px}}
+@media(max-width:700px){.about-section{padding:65px 24px}.about-grid{grid-template-columns:1fr;gap:35px}.tool-grid{grid-template-columns:1fr;gap:14px}.new-nav .nav-source{display:none}.about-section h2{font-size:34px}}
+</style><style>
+/* Alternative hero: retain the original editorial typography, centered hierarchy. */
+.hero-copy{max-width:1100px;margin-top:70px}.hero-copy h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(3.3rem,6.4vw,6.1rem);font-weight:400;line-height:1.08;letter-spacing:-.035em;text-wrap:balance}.hero-copy h1 span{display:inline-block;margin-top:7px;font-size:.81em;font-style:italic;color:#ead9b5}.hero-description{max-width:650px;margin-top:27px}.hero-actions{margin-top:30px}.chain-preview{margin-top:48px}.wordmark{font-family:'DM Serif Display',Georgia,serif;font-size:23px;font-weight:400}.wordmark>span:last-child{font-style:italic}.hero-copy .eyebrow{margin-bottom:24px}
+html[data-theme="light"] .hero-copy h1 span{color:#876338}
+@media(max-width:900px){.hero-copy{margin-top:60px}.hero-copy h1{font-size:clamp(3.2rem,7.6vw,5.3rem)}}
+@media(max-width:600px){.hero-copy{margin-top:48px}.hero-copy h1{font-size:clamp(2.8rem,10.8vw,4.2rem);line-height:1.09;letter-spacing:-.025em}.hero-copy h1 span{font-size:.74em;margin-top:12px}.hero-description{font-size:15px;line-height:1.8;margin-top:23px}.chain-preview{margin-top:34px}.wordmark{font-size:20px}}
+/* Original blue-to-gold landscape, with LetterGlitch behind the new hierarchy. */
+.landing-hero{background:#16253c}.landing-hero::before{background:radial-gradient(ellipse 120% 60% at 50% 40%, rgba(30, 60, 120, 0.4) 0%, transparent 70%),
+                radial-gradient(ellipse 80% 50% at 30% 60%, rgba(180, 120, 60, 0.3) 0%, transparent 60%),
+                radial-gradient(ellipse 80% 50% at 70% 65%, rgba(160, 100, 50, 0.25) 0%, transparent 60%),
+                linear-gradient(180deg, 
+                    #1a2a4a 0%, 
+                    #2a3a5a 15%,
+                    #4a5a7a 25%,
+                    #7a8aaa 35%,
+                    #a0956a 50%, 
+                    #c8a060 58%,
+                    #d4a855 62%,
+                    #b08040 70%, 
+                    #906030 80%, 
+                    #1a1a1a 100%
+                );z-index:-1}.landing-hero::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(8,14,27,.23),rgba(10,10,10,.13) 40%,rgba(10,10,10,.78) 100%)}
+.letter-glitch{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;opacity:.36}.letter-glitch canvas{display:block;width:100%;height:100%}.glitch-center-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(8,14,25,.83) 0%,rgba(8,14,25,.45) 36%,transparent 75%)}
+.new-nav,.hero-copy,.chain-preview,.hero-bottom{position:relative;z-index:1}.new-nav{background:#101827d9;border-color:#ccd9ee33;backdrop-filter:blur(12px)}.new-nav nav a,.nav-source{color:#d3deee}.new-nav nav a:hover,.nav-source:hover{color:#ffffff}.wordmark>span:last-child{color:#dcc8a6}.brand-symbol{background:#607995}.hero-copy .eyebrow{color:#d2ddf0}.hero-copy h1{color:#fff;text-shadow:0 2px 24px #11182735}.hero-copy h1 span{color:#ead9b5}.hero-description{color:#e0e4ed}.simulation-note{color:#c4c9d3}.process-link{color:#e4e9f3;border-bottom:1px solid #d7e1f34d;transition:all 160ms ease}.process-link:hover{color:#ffffff;border-color:#ead9b5}.chain-heading{color:#c8d4e7}.preview-block{background:#101726d9;border-color:#bac9df40;transition:all 200ms cubic-bezier(.23,1,.32,1)}.preview-block:hover{border-color:#d4a85588;transform:translateY(-2px)}.preview-block strong{color:#ebeff6}.preview-block code,.block-top{color:#bdcde3}.block-glyph{color:#e3cca2}.last-block{border-color:#d4ba874d}.hero-bottom{color:#c4d0e3;border-color:#d1ddef22;flex-wrap:wrap}.hero-bottom a{color:#d4ddef;transition:color 160ms ease}.hero-bottom a:hover{color:#ead9b5}.hero-bottom i{color:#c0a679}.glitch-toggle{font:11px 'JetBrains Mono',monospace;background:transparent;border:1px solid #d2dcee33;border-radius:8px;color:#d0dcee;padding:8px 12px;min-height:36px;cursor:pointer;transition:all 160ms ease}.glitch-toggle:hover{border-color:#ead9b5;color:#ffffff;background:rgba(212,168,85,0.1)}.glitch-toggle:disabled{opacity:.7;cursor:default}.glitch-toggle:focus-visible{outline:2px solid #e4d1a6;outline-offset:4px}
+.start-button{display:inline-flex;align-items:center;gap:24px;background:#faf7f8;color:#171216;padding:17px 24px;min-height:54px;border-radius:14px;text-decoration:none;font-size:15px;font-weight:600;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease,box-shadow 160ms ease;box-shadow:0 8px 30px rgba(0,0,0,0.3)}.start-button:active{transform:scale(.97)}.start-button:hover{background:#fff;transform:translateY(-2px);box-shadow:0 12px 35px rgba(212,168,85,0.25)}.start-button span{font-size:20px;color:#607995}
+html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light"] .landing-hero::before{background:linear-gradient(180deg,#bfcee5 0%,#d6e0ee 28%,#e5d6b8 58%,#e8c587 75%,#f6f5f7 100%)}html[data-theme="light"] .landing-hero::after{background:linear-gradient(180deg,#ffffff18,#ffffff20 45%,#f6f5f780)}html[data-theme="light"] .letter-glitch{opacity:.28}html[data-theme="light"] .glitch-center-vignette{background:radial-gradient(ellipse at 50% 40%,rgba(231,235,243,.91) 0%,rgba(235,235,234,.52) 36%,transparent 75%)}html[data-theme="light"] .new-nav{background:#f9fbfde0;border-color:#839ab442}html[data-theme="light"] .wordmark>span:last-child{color:#7c6040}html[data-theme="light"] .hero-copy .eyebrow{color:#476487}html[data-theme="light"] .hero-copy h1{color:#20354f;text-shadow:none}html[data-theme="light"] .hero-copy h1 span{color:#876338}html[data-theme="light"] .hero-description{color:#465b74}html[data-theme="light"] .simulation-note{color:#576c85}html[data-theme="light"] .process-link{color:#435c7b;border-color:#6b7f9540}html[data-theme="light"] .start-button{background:#294463;color:white;box-shadow:0 8px 24px rgba(41,68,99,0.25)}html[data-theme="light"] .start-button:hover{background:#35567d;box-shadow:0 12px 30px rgba(41,68,99,0.35)}html[data-theme="light"] .start-button span{color:#e1ebf7}html[data-theme="light"] .chain-heading{color:#546883}html[data-theme="light"] .preview-block{background:#f8fbfce6;border-color:#7990af40}html[data-theme="light"] .preview-block strong{color:#33475f}html[data-theme="light"] .preview-block code,html[data-theme="light"] .block-top{color:#5a7090}html[data-theme="light"] .block-glyph{color:#8b6840}html[data-theme="light"] .hero-bottom,html[data-theme="light"] .hero-bottom a{color:#54677f;border-color:#7f90a536}html[data-theme="light"] .glitch-toggle{color:#425d7f;border-color:#7d90ae4d;background:#ffffff6b}
+@media(max-width:600px){.hero-bottom{gap:14px}.hero-bottom>a{display:none}.letter-glitch{opacity:.25}.glitch-toggle{font-size:10px}.hero-copy h1{font-size:clamp(2.8rem,10.8vw,4.2rem)}}
+</style></head>
 <body>
 
-    <!-- ===== HERO SECTION (Full Viewport) ===== -->
-    <section class="hero-section">
-        <!-- Background landscape -->
-        <div class="hero-bg"></div>
-
-        <!-- Number Grid Overlay -->
-        <div class="number-grid" id="numberGrid"></div>
-
-        <!-- 3D Blockchain Cube Sculpture -->
-        <div class="cube-scene">
-            <div class="cube-group" id="cubeGroup"></div>
-        </div>
-
-        <!-- Dark gradient bottom -->
-        <div class="hero-bottom-gradient"></div>
-
-        <!-- ===== NAVIGATION ===== -->
-        <header style="position: absolute; top: 0; left: 0; right: 0; z-index: 20; padding: 20px 30px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <!-- Logo -->
-                <a href="#" style="font-family: 'DM Serif Display', serif; font-size: 22px; color: #fff; text-decoration: none; letter-spacing: -0.02em; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-                    TrustMe<span style="font-style: italic;">Bro</span>
-                </a>
-
-                <!-- Glass Nav Links -->
-                <nav class="glass-nav" style="display: inline-flex; align-items: center; padding: 4px 6px;">
-                    <a href="#features">/Tổng quan</a>
-                    <a href="#howtworks">/Quy trình</a>
-                    <a href="#blockchain">/Blockchain</a>
-                    <a href="#lab">/Lab</a>
-                    <a href="#stats">/Thống kê</a>
-                </nav>
-
-                <!-- CTA Button -->
-                <a href="ui/index.html" class="btn-primary" style="font-size: 13px; padding: 10px 20px;">
-                    <span class="arrow">↗</span>
-                    Vào Ứng dụng
-                </a>
-            </div>
+    <a class="skip-link" href="#features">Bỏ qua phần giới thiệu</a>
+    <section class="landing-hero" id="top" aria-labelledby="hero-title">
+<div class="letter-glitch" id="letter-glitch" aria-hidden="true"><canvas id="letter-glitch-canvas"></canvas><div class="glitch-center-vignette"></div></div>
+        <header class="new-nav">
+            <a class="wordmark" href="#top" aria-label="TrustMeBro — Trang chủ"><span class="brand-symbol" aria-hidden="true">⌘</span>TrustMe<span>Bro</span></a>
+            <nav aria-label="Điều hướng chính"><a href="#features">Khám phá</a><a href="#howtworks">Quy trình</a><a href="#stats">Công nghệ</a><a href="#about">Về nhóm</a></nav>
+            <div class="nav-utilities"><a class="nav-source" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">GitHub <span class="external-label" aria-hidden="true">↗</span></a><button class="theme-switch" id="theme-toggle" aria-pressed="false">Chế độ sáng</button></div>
         </header>
-
-        <!-- ===== HERO CONTENT (Bottom of screen) ===== -->
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; z-index: 10; padding: 40px 40px 50px 40px;">
-            <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 30px;">
-                
-                <!-- Left: Big Headline -->
-                <div style="max-width: 700px;">
-                    <h1 class="headline-text">
-                        Khám phá<br>
-                        Blockchain<br>
-                        <span style="font-style: italic;">Cùng TrustMeBro</span>
-                    </h1>
-                </div>
-
-                <!-- Right: Description + CTA -->
-                <div style="max-width: 340px; padding-bottom: 8px;">
-                    <p class="desc-text">
-                        Mô phỏng quy trình phát hành, băm SHA-256, ký số ECDSA, đào khối Proof of Work và đồng bộ Node P2P. Trải nghiệm blockchain từ bên trong, từ bản ghi đến block.
-                    </p>
-                    <div style="margin-top: 20px;">
-                        <a href="ui/index.html" class="btn-primary">
-                            <span class="arrow">↗</span>
-                            Khám phá ngay
-                        </a>
-                    </div>
-                </div>
-            </div>
+        <main class="hero-copy">
+            <p class="eyebrow">TRUSTMEBRO / BLOCKCHAIN LAB</p>
+            <h1 id="hero-title">Khám phá Blockchain<br><span>cùng TrustMeBro</span></h1>
+            <p class="hero-description">Từ hồ sơ và chữ ký số đến block, đồng thuận và xác minh.<br>Tự thử từng bước để hiểu blockchain hoạt động như thế nào.</p>
+            <div class="hero-actions"><a href="/ui/modes.html" class="start-button">Bắt đầu mô phỏng <span aria-hidden="true">↗</span></a><a href="#howtworks" class="process-link">Xem cách hoạt động</a></div>
+            <p class="simulation-note">Đồ án mô phỏng · Sử dụng dữ liệu mẫu</p>
+        </main>
+        <div class="chain-preview" aria-label="Minh họa ba khối liên kết bằng giá trị băm">
+            <div class="chain-heading"><span>ĐƯỜNG ĐI CỦA MỘT HỒ SƠ</span><span>MINH HỌA / 001</span></div>
+            <div class="chain-blocks"><div class="preview-block"><div class="block-top"><span>01 / HỒ SƠ</span><span class="block-glyph" aria-hidden="true">▤</span></div><strong>Thông tin được ký</strong><code>record → SHA-256</code></div><span class="chain-link" aria-hidden="true"></span><div class="preview-block"><div class="block-top"><span>02 / BLOCK</span><span class="block-glyph" aria-hidden="true">⬡</span></div><strong>Ghi vào chuỗi khối</strong><code>prev_hash → block_hash</code></div><span class="chain-link" aria-hidden="true"></span><div class="preview-block last-block"><div class="block-top"><span>03 / XÁC MINH</span><span class="block-glyph" aria-hidden="true">✓</span></div><strong>Kiểm tra tính toàn vẹn</strong><code>hash + signature</code></div></div>
         </div>
+        <div class="hero-bottom"><span>SHA-256 <i>·</i> ECDSA <i>·</i> MERKLE <i>·</i> PoW <i>·</i> P2P</span><a href="#features">Cuộn để khám phá <span aria-hidden="true">↓</span></a><button type="button" class="glitch-toggle" id="glitch-toggle" aria-pressed="true">Tạm dừng nền</button></div>
     </section>
 
-
     <!-- ===== SECTION: FEATURES ===== -->
-    <section id="features" style="background: #0a0a0a; padding: 100px 40px;">
+    <section id="features" style="background: #090e17; padding: 100px 40px; border-top: 1px solid rgba(255,255,255,0.06);">
         <div style="max-width: 1200px; margin: 0 auto;">
             <div class="section-below">
                 <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px;">// Tính năng</p>
@@ -440,64 +328,64 @@
                 </h2>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+            <div class="features-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                 <!-- Card 1: SHA-256 -->
                 <div class="feature-card stagger-child" style="grid-column: span 2;">
-                    <div class="feature-icon" style="background: rgba(99, 102, 241, 0.12); color: #818cf8;">#</div>
+                    <div class="feature-icon" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">#</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Băm SHA-256</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Chỉ cần thay đổi 1 ký tự, toàn bộ giá trị băm 256-bit thay đổi hoàn toàn. Hiệu ứng tuyết lở (Avalanche Effect) — nền tảng bảo mật của blockchain.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Chỉ cần thay đổi 1 ký tự, toàn bộ giá trị băm 256-bit thay đổi hoàn toàn. Hiệu ứng tuyết lở (Avalanche Effect) — nền tảng bảo mật của blockchain.</p>
                     <!-- Mini hash demo -->
-                    <div style="margin-top: 20px; background: #1E1E2E; border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
-                        <div style="color: rgba(255,255,255,0.3); margin-bottom: 6px;">INPUT:</div>
-                        <div style="color: #a6e3a1; margin-bottom: 12px;">"Nguyễn Văn An — Cử nhân KHMT"</div>
-                        <div style="color: rgba(255,255,255,0.3); margin-bottom: 6px;">SHA-256 OUTPUT:</div>
-                        <div style="color: #f9e2af; word-break: break-all;" id="hashDemo">e3b0c44298fc1c14...loading</div>
+                    <div style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                        <div style="color: rgba(255,255,255,0.35); margin-bottom: 6px;">INPUT:</div>
+                        <div style="color: #60a5fa; margin-bottom: 12px;">"Nguyễn Văn An — Cử nhân KHMT"</div>
+                        <div style="color: rgba(255,255,255,0.35); margin-bottom: 6px;">SHA-256 OUTPUT:</div>
+                        <div style="color: #fbbf24; word-break: break-all;" id="hashDemo">e3b0c44298fc1c14...loading</div>
                     </div>
                 </div>
 
                 <!-- Card 2: ECDSA -->
                 <div class="feature-card stagger-child">
-                    <div class="feature-icon" style="background: rgba(244, 114, 182, 0.12); color: #f472b6;">🔏</div>
+                    <div class="feature-icon" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">🔏</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Chữ ký số ECDSA</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Ký bằng Private Key, xác minh bằng Public Key. Đảm bảo ai phát hành, ai chịu trách nhiệm.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Ký bằng Private Key, xác minh bằng Public Key. Đảm bảo ai phát hành, ai chịu trách nhiệm.</p>
                 </div>
 
                 <!-- Card 3: Merkle -->
                 <div class="feature-card stagger-child">
-                    <div class="feature-icon" style="background: rgba(52, 211, 153, 0.12); color: #34d399;">🌳</div>
+                    <div class="feature-icon" style="background: rgba(52, 211, 153, 0.15); color: #34d399;">🌳</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Cây Merkle</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Gom nhiều giao dịch thành một Merkle Root duy nhất trên tiêu đề khối.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Gom nhiều giao dịch thành một Merkle Root duy nhất trên tiêu đề khối.</p>
                 </div>
 
                 <!-- Card 4: PoW -->
                 <div class="feature-card stagger-child" style="grid-column: span 2;">
-                    <div class="feature-icon" style="background: rgba(251, 191, 36, 0.12); color: #fbbf24;">⛏️</div>
+                    <div class="feature-icon" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">⛏️</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Đào khối Proof of Work</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Thử hàng ngàn nonce để tìm hash bắt đầu bằng "000..." — trải nghiệm trực tiếp cơ chế đồng thuận Nakamoto.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Thử hàng ngàn nonce để tìm hash bắt đầu bằng "000..." — trải nghiệm trực tiếp cơ chế đồng thuận Nakamoto.</p>
                     <!-- Mini mining animation -->
-                    <div style="margin-top: 20px; background: #1E1E2E; border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
-                        <div style="color: rgba(255,255,255,0.3);">MINING BLOCK #4...</div>
+                    <div style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                        <div style="color: rgba(255,255,255,0.35);">MINING BLOCK #4...</div>
                         <div style="margin-top: 8px;">
-                            <span style="color: rgba(255,255,255,0.4);">Nonce: </span>
+                            <span style="color: rgba(255,255,255,0.45);">Nonce: </span>
                             <span style="color: #fbbf24;" id="miningNonce">0</span>
-                            <span style="color: rgba(255,255,255,0.2); margin-left: 16px;">Hash: </span>
-                            <span style="color: rgba(255,255,255,0.3);" id="miningHash">calculating...</span>
+                            <span style="color: rgba(255,255,255,0.3); margin-left: 16px;">Hash: </span>
+                            <span style="color: rgba(255,255,255,0.45);" id="miningHash">calculating...</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Card 5: Explorer -->
                 <div class="feature-card stagger-child">
-                    <div class="feature-icon" style="background: rgba(96, 165, 250, 0.12); color: #60a5fa;">🔗</div>
+                    <div class="feature-icon" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">🔗</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Blockchain Explorer</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">Xem chi tiết từng block, hash linkage, và thử nghiệm sửa đổi dữ liệu.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Xem chi tiết từng block, hash linkage, và thử nghiệm sửa đổi dữ liệu.</p>
                 </div>
 
                 <!-- Card 6: P2P -->
                 <div class="feature-card stagger-child">
-                    <div class="feature-icon" style="background: rgba(167, 139, 250, 0.12); color: #a78bfa;">🌐</div>
+                    <div class="feature-icon" style="background: rgba(167, 139, 250, 0.15); color: #a78bfa;">🌐</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Mạng P2P</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.45); line-height: 1.7;">3 Nodes đồng bộ theo quy tắc chuỗi dài nhất (Longest Chain Rule).</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">3 Nodes đồng bộ theo quy tắc chuỗi dài nhất (Longest Chain Rule).</p>
                 </div>
             </div>
         </div>
@@ -505,7 +393,7 @@
 
 
     <!-- ===== SECTION: HOW IT WORKS ===== -->
-    <section id="howtworks" style="background: #0a0a0a; padding: 100px 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+    <section id="howtworks" style="background: #090e17; padding: 100px 40px; border-top: 1px solid rgba(255,255,255,0.06);">
         <div style="max-width: 1200px; margin: 0 auto;">
             <div class="section-below">
                 <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px;">// Cách hoạt động</p>
@@ -515,13 +403,13 @@
                 </h2>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 60px; align-items: center;">
+            <div class="workflow-grid" style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 60px; align-items: center;">
                 <!-- Left: Steps -->
                 <div class="section-below">
                     <div style="position: relative;">
                         <!-- Step 1 -->
                         <div style="display: flex; gap: 20px; margin-bottom: 36px; position: relative;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">01</div>
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #16253c; border: 1px solid #60799566; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #ead9b5; flex-shrink: 0;">01</div>
                             <div>
                                 <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Nhập thông tin hồ sơ</h4>
                                 <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Họ tên, đơn vị cấp, văn bằng — dữ liệu mẫu mô phỏng.</p>
@@ -529,7 +417,7 @@
                         </div>
                         <!-- Step 2 -->
                         <div style="display: flex; gap: 20px; margin-bottom: 36px;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">02</div>
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #16253c; border: 1px solid #60799566; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #ead9b5; flex-shrink: 0;">02</div>
                             <div>
                                 <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Băm SHA-256 & Ký số ECDSA</h4>
                                 <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Chuẩn hóa JSON, băm 256-bit, ký bằng Private Key SECP256K1.</p>
@@ -537,7 +425,7 @@
                         </div>
                         <!-- Step 3 -->
                         <div style="display: flex; gap: 20px; margin-bottom: 36px;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">03</div>
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #16253c; border: 1px solid #60799566; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #ead9b5; flex-shrink: 0;">03</div>
                             <div>
                                 <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Đào khối Proof of Work</h4>
                                 <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Tìm Nonce thỏa điều kiện độ khó, tính Merkle Root, đóng block.</p>
@@ -545,7 +433,7 @@
                         </div>
                         <!-- Step 4 -->
                         <div style="display: flex; gap: 20px;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;">04</div>
+                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #16253c; border: 1px solid #60799566; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #ead9b5; flex-shrink: 0;">04</div>
                             <div>
                                 <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Đồng bộ Node P2P</h4>
                                 <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">3 Nodes đạt đồng thuận bằng chuỗi dài nhất, phát tán Gossip.</p>
@@ -560,7 +448,7 @@
                         <div class="dot dot-red"></div>
                         <div class="dot dot-yellow"></div>
                         <div class="dot dot-green"></div>
-                        <span style="font-family: 'JetBrains Mono'; font-size: 12px; color: rgba(255,255,255,0.35); margin-left: 12px;">blockchain.ts</span>
+                        <span style="font-family: 'JetBrains Mono'; font-size: 12px; color: rgba(255,255,255,0.35); margin-left: 12px;">Minh họa quy trình · pseudocode</span>
                     </div>
                     <div style="padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.9; min-height: 340px;">
                         <pre id="codeTyping" style="margin: 0; white-space: pre-wrap; color: rgba(255,255,255,0.5);"></pre>
@@ -572,23 +460,23 @@
 
 
     <!-- ===== SECTION: STATS ===== -->
-    <section id="stats" style="background: #0a0a0a; padding: 80px 40px; border-top: 1px solid rgba(255,255,255,0.05);">
+    <section id="stats" style="background: #090e17; padding: 80px 40px; border-top: 1px solid rgba(255,255,255,0.06);">
         <div style="max-width: 1000px; margin: 0 auto;">
             <div class="section-below" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center;">
                 <div>
-                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="6">0</div>
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #60a5fa, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="6">0</div>
                     <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bước mô phỏng</div>
                 </div>
                 <div style="border-left: 1px solid rgba(255,255,255,0.08);">
-                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="256">0</div>
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #60a5fa, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="256">0</div>
                     <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bit SHA-256</div>
                 </div>
                 <div style="border-left: 1px solid rgba(255,255,255,0.08);">
-                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="3">0</div>
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #60a5fa, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="3">0</div>
                     <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Nodes P2P</div>
                 </div>
                 <div style="border-left: 1px solid rgba(255,255,255,0.08);">
-                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="12">0</div>
+                    <div style="font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 5vw, 4rem); background: linear-gradient(135deg, #60a5fa, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" data-count="12">0</div>
                     <div style="font-size: 13px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 8px; font-weight: 500;">Bước kiểm tra</div>
                 </div>
             </div>
@@ -597,7 +485,7 @@
 
 
     <!-- ===== CTA SECTION ===== -->
-    <section id="cta" style="position: relative; background: #0a0a0a; padding: 120px 40px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center; overflow: hidden;">
+    <section id="cta" style="position: relative; background: #090e17; padding: 120px 40px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; overflow: hidden;">
         <!-- Floating particles -->
         <div id="ctaParticles" style="position: absolute; inset: 0; pointer-events: none;"></div>
 
@@ -609,7 +497,7 @@
             <p style="font-size: 15px; color: rgba(255,255,255,0.4); max-width: 440px; margin: 0 auto 36px; line-height: 1.7;">
                 Trải nghiệm mô phỏng blockchain hoàn chỉnh — miễn phí, không cần đăng ký. Đồ án môn học mã nguồn mở.
             </p>
-            <a href="ui/index.html" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
+            <a href="/ui/modes.html" class="btn-primary" style="font-size: 16px; padding: 16px 36px;">
                 <span class="arrow" style="width: 22px; height: 22px;">↗</span>
                 Vào TrustMeBro
             </a>
@@ -621,8 +509,11 @@
     </section>
 
 
+
+<section id="about" class="about-section" aria-labelledby="about-title"><div class="about-container"><p class="about-eyebrow">ABOUT US / NHÓM THỰC HIỆN</p><h2 id="about-title">Cùng xây dựng.<br>Cùng hiểu blockchain.</h2><p class="about-intro">TrustMeBro là đồ án môn học mô phỏng quy trình phát hành, ghi nhận và kiểm tra tính toàn vẹn của hồ sơ bằng blockchain. Nhóm sử dụng dữ liệu giả lập để giúp người học tự thử các khái niệm qua từng thao tác.</p><div class="about-grid"><div><h3>Dự án TrustMeBro</h3><p class="about-muted">Mã nguồn, tài liệu và quá trình phát triển của nhóm được lưu trên GitHub.</p><a class="project-link" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">Xem repository của dự án <span aria-hidden="true">↗</span></a></div><div><h3>Nhóm thực hiện</h3><div id="team-members"><p class="team-placeholder">Thông tin thành viên và GitHub cá nhân đang được cập nhật.</p></div></div></div><h3 class="tools-heading">Công cụ đồng hành</h3><div class="tool-grid"><article class="tool-card"><span>01 / TRỢ LÝ AI</span><a href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claude ↗</a><p>Hỗ trợ phân tích và phát triển nội dung, mã nguồn.</p></article><article class="tool-card"><span>02 / TRỢ LÝ LẬP TRÌNH</span><a href="https://openai.com/codex/" target="_blank" rel="noopener noreferrer">Codex ↗</a><p>Hỗ trợ viết, rà soát mã nguồn và xây dựng giao diện.</p></article><article class="tool-card"><span>03 / MÔI TRƯỜNG PHÁT TRIỂN</span><a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer">Antigravity ↗</a><p>Môi trường nhóm sử dụng để chỉnh sửa và chạy dự án.</p></article></div><p class="about-note">Nhóm chịu trách nhiệm kiểm tra, hiểu và hoàn thiện kết quả. TrustMeBro là mô phỏng phục vụ học tập, không xác minh pháp lý ngoài thực tế.</p></div></section>
+
     <!-- ===== FOOTER ===== -->
-    <footer style="background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.05); padding: 40px;">
+    <footer style="background: #060a10; border-top: 1px solid rgba(255,255,255,0.06); padding: 40px;">
         <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-family: 'DM Serif Display', serif; font-size: 18px; color: #fff;">TrustMe<span style="font-style: italic;">Bro</span></span>
@@ -640,7 +531,7 @@
                 <span>P2P</span>
             </div>
             <div style="font-size: 12px; color: rgba(255,255,255,0.2);">
-                © 2026 TrustMeBro · Đồ án môn học
+                © 2026 TrustMeBro · Đồ án môn học<br><span style="display:block;margin-top:8px;max-width:350px;line-height:1.6;color:#a1a1aa">Dữ liệu mẫu phục vụ học tập; không xác minh pháp lý ngoài thực tế.</span>
             </div>
         </div>
     </footer>
@@ -648,85 +539,6 @@
 
     <!-- ===== SCRIPTS ===== -->
     <script>
-        // ========== 1. NUMBER GRID ==========
-        (function generateNumberGrid() {
-            const grid = document.getElementById('numberGrid');
-            const count = 600;
-            for (let i = 0; i < count; i++) {
-                const span = document.createElement('span');
-                span.textContent = Math.floor(Math.random() * 100);
-                grid.appendChild(span);
-            }
-        })();
-
-
-        // ========== 2. 3D VOXEL CUBES ==========
-        (function createCubes() {
-            const group = document.getElementById('cubeGroup');
-            // Define a "human-like" structure of blocks (col, row offset from center)
-            const layout = [
-                // Head
-                { x: 0, y: -120, z: 0, c: '#4a6fa5' },
-                { x: 28, y: -120, z: 0, c: '#5a7fb5' },
-                { x: 0, y: -92, z: 0, c: '#3a5f95' },
-                { x: 28, y: -92, z: 0, c: '#6a8fc5' },
-                // Torso
-                { x: -28, y: -60, z: 0, c: '#7aa0d0' },
-                { x: 0, y: -60, z: 0, c: '#2a4f85' },
-                { x: 28, y: -60, z: 0, c: '#8ab0e0' },
-                { x: 56, y: -60, z: 0, c: '#3a5f95' },
-                { x: -28, y: -32, z: 0, c: '#4a6fa5' },
-                { x: 0, y: -32, z: 0, c: '#5a7fb5' },
-                { x: 28, y: -32, z: 0, c: '#9ac0f0' },
-                { x: 56, y: -32, z: 0, c: '#7aa0d0' },
-                { x: 0, y: -4, z: 0, c: '#6a8fc5' },
-                { x: 28, y: -4, z: 0, c: '#bcc8d8' },
-                // Arms
-                { x: -56, y: -60, z: 0, c: '#c0b0a0' },
-                { x: -56, y: -32, z: 0, c: '#d0c0b0' },
-                { x: 84, y: -60, z: 0, c: '#a0c0e0' },
-                { x: 84, y: -32, z: 0, c: '#b0d0f0' },
-                // Legs
-                { x: 0, y: 24, z: 0, c: '#4a6fa5' },
-                { x: 28, y: 24, z: 0, c: '#3a5f95' },
-                { x: 0, y: 52, z: 0, c: '#2a4f85' },
-                { x: 28, y: 52, z: 0, c: '#5a7fb5' },
-                { x: 0, y: 80, z: 0, c: '#1a3f75' },
-                { x: 28, y: 80, z: 0, c: '#4a6fa5' },
-                // Back layer for depth
-                { x: 0, y: -60, z: -28, c: '#2a4070' },
-                { x: 28, y: -60, z: -28, c: '#3a5080' },
-                { x: 0, y: -32, z: -28, c: '#1a3060' },
-                { x: 28, y: -32, z: -28, c: '#2a4070' },
-            ];
-
-            layout.forEach(b => {
-                const voxel = document.createElement('div');
-                voxel.className = 'voxel';
-                voxel.style.transform = `translate3d(${b.x}px, ${b.y}px, ${b.z}px)`;
-
-                const darken = (hex, amt) => {
-                    let c = hex.replace('#', '');
-                    let r = Math.max(0, parseInt(c.substr(0, 2), 16) - amt);
-                    let g = Math.max(0, parseInt(c.substr(2, 2), 16) - amt);
-                    let bl = Math.max(0, parseInt(c.substr(4, 2), 16) - amt);
-                    return `rgb(${r},${g},${bl})`;
-                };
-
-                const faces = ['front', 'back', 'left', 'right', 'top', 'bottom'];
-                const adjustments = [0, 40, 20, 20, -10, 50];
-                faces.forEach((f, i) => {
-                    const face = document.createElement('div');
-                    face.className = `face ${f}`;
-                    face.style.background = darken(b.c, adjustments[i]);
-                    voxel.appendChild(face);
-                });
-
-                group.appendChild(voxel);
-            });
-        })();
-
-
         // ========== 3. SCROLL ANIMATIONS ==========
         const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry, i) => {
@@ -759,8 +571,8 @@
 
         // ========== 4. TYPEWRITER CODE EFFECT ==========
         const codeLines = [
-            { text: 'const ', color: '#c792ea' },
-            { text: 'record', color: '#82aaff' },
+            { text: 'const ', color: '#d2ddf0' },
+            { text: 'record', color: '#ead9b5' },
             { text: ' = {\n', color: '#fff' },
             { text: '  id: ', color: '#fff' },
             { text: '"REC-2026-001"', color: '#c3e88d' },
@@ -771,17 +583,17 @@
             { text: '  issuer: ', color: '#fff' },
             { text: '"ĐH Bách Khoa"', color: '#c3e88d' },
             { text: '\n};\n\n', color: '#fff' },
-            { text: 'const ', color: '#c792ea' },
+            { text: 'const ', color: '#d2ddf0' },
             { text: 'hash', color: '#82aaff' },
             { text: ' = ', color: '#fff' },
             { text: 'SHA256', color: '#ffcb6b' },
             { text: '(JSON.stringify(record));\n', color: '#fff' },
-            { text: 'const ', color: '#c792ea' },
+            { text: 'const ', color: '#d2ddf0' },
             { text: 'sig', color: '#82aaff' },
             { text: ' = ', color: '#fff' },
             { text: 'ECDSA.sign', color: '#ffcb6b' },
             { text: '(hash, privateKey);\n', color: '#fff' },
-            { text: 'const ', color: '#c792ea' },
+            { text: 'const ', color: '#d2ddf0' },
             { text: 'block', color: '#82aaff' },
             { text: ' = ', color: '#fff' },
             { text: 'mine', color: '#ffcb6b' },
@@ -880,6 +692,8 @@
             const hashEl = document.getElementById('miningHash');
             
             async function tick() {
+                if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+                if (document.hidden) { setTimeout(tick, 1000); return; }
                 nonce++;
                 nonceEl.textContent = nonce;
                 const h = await sha256('BLOCK_4_' + nonce);
@@ -900,44 +714,65 @@
         })();
 
 
-        // ========== 8. CTA PARTICLES ==========
-        (function createParticles() {
-            const container = document.getElementById('ctaParticles');
-            for (let i = 0; i < 20; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                p.style.left = Math.random() * 100 + '%';
-                p.style.top = Math.random() * 100 + '%';
-                p.style.opacity = 0.1 + Math.random() * 0.25;
-                p.style.width = (2 + Math.random() * 3) + 'px';
-                p.style.height = p.style.width;
-                p.style.animation = `floatParticle ${6 + Math.random() * 8}s ease-in-out infinite ${Math.random() * 5}s`;
-                container.appendChild(p);
-            }
-
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes floatParticle {
-                    0%, 100% { transform: translateY(0) translateX(0); opacity: 0.15; }
-                    25% { transform: translateY(-30px) translateX(10px); opacity: 0.3; }
-                    50% { transform: translateY(-50px) translateX(-5px); opacity: 0.15; }
-                    75% { transform: translateY(-20px) translateX(15px); opacity: 0.25; }
-                }
-            `;
-            document.head.appendChild(style);
-        })();
-
-
-        // ========== 9. MOUSE FOLLOW GRADIENT (HERO) ==========
-        const heroSection = document.querySelector('.hero-section');
-        let mouseGlow = document.createElement('div');
-        mouseGlow.style.cssText = 'position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(100,130,200,0.06) 0%,transparent 70%);pointer-events:none;z-index:1;transition:transform 0.3s ease;';
-        heroSection.appendChild(mouseGlow);
-
-        heroSection.addEventListener('mousemove', (e) => {
-            const rect = heroSection.getBoundingClientRect();
-            mouseGlow.style.transform = `translate(${e.clientX - rect.left - 300}px, ${e.clientY - rect.top - 300}px)`;
-        });
     </script>
-</body>
+
+<script id="team-data" type="application/json">[]</script>
+<script>
+(function(){
+const members=JSON.parse(document.getElementById('team-data').textContent);
+if(!members.length)return;
+const ul=document.createElement('ul');ul.className='member-list';
+for(const m of members){const li=document.createElement('li');const name=document.createElement('span');name.textContent=m.name;li.appendChild(name);try{const url=new URL(m.github);if(url.protocol==='https:'&&url.hostname==='github.com'){const a=document.createElement('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent='GitHub ↗';li.appendChild(a);}}catch{}ul.appendChild(li);}
+document.getElementById('team-members').replaceChildren(ul);
+})();
+</script>
+
+<script>
+(function(){
+  const toggle=document.getElementById('theme-toggle');
+  function apply(theme){
+    document.documentElement.dataset.theme=theme;
+    toggle.textContent=theme==='light'?'Chế độ tối':'Chế độ sáng';
+    toggle.setAttribute('aria-pressed',String(theme==='light'));
+    try{localStorage.setItem('trustmebro-theme',theme);}catch{}
+  }
+  function restore(){
+    try{apply(localStorage.getItem('trustmebro-theme')==='light'?'light':'dark');}
+    catch{apply(document.documentElement.dataset.theme||'dark');}
+  }
+  toggle.addEventListener('click',()=>apply(document.documentElement.dataset.theme==='light'?'dark':'light'));
+  window.addEventListener('pageshow',restore);
+  restore();
+})();
+</script>
+<script>/* Canvas adaptation of the user-supplied React Bits LetterGlitch component.
+   Retains numeric RGB interpolation; no React runtime is needed for this preview. */
+(function(){
+ const host=document.getElementById('letter-glitch'),canvas=document.getElementById('letter-glitch-canvas'),hero=document.querySelector('.landing-hero'),toggle=document.getElementById('glitch-toggle');
+ if(!host||!canvas)return;
+ const ctx=canvas.getContext('2d');if(!ctx){host.hidden=true;toggle.hidden=true;return;}
+ const options={glitchSpeed:50,centerVignette:true,outerVignette:false,smooth:true,characters:'ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$&*()-_+=/[]{};:<>.,0123456789'};
+ const chars=Array.from(options.characters),fontSize=16,charWidth=10,charHeight=20;
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ let letters=[],columns=0,width=0,height=0,raf=0,lastTime=0,lastPaint=0,visible=true,paused=false;
+ const palette=()=>document.documentElement.dataset.theme==='light'?['#496b91','#8c6b38','#537590']:['#a6bad9','#e3c38b','#83accb'];
+ const randomChar=()=>chars[Math.floor(Math.random()*chars.length)];
+ function hexToRgb(hex){hex=hex.replace(/^#/,'');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');if(!/^[a-f\d]{6}$/i.test(hex))return {r:255,g:255,b:255};return {r:parseInt(hex.slice(0,2),16),g:parseInt(hex.slice(2,4),16),b:parseInt(hex.slice(4,6),16)};}
+ const randomRgb=()=>{const colors=palette();return hexToRgb(colors[Math.floor(Math.random()*colors.length)]);};
+ const mix=(a,b,f)=>({r:Math.round(a.r+(b.r-a.r)*f),g:Math.round(a.g+(b.g-a.g)*f),b:Math.round(a.b+(b.b-a.b)*f)});
+ function draw(){if(!letters.length)return;ctx.clearRect(0,0,width,height);ctx.font=fontSize+'px monospace';ctx.textBaseline='top';for(let i=0;i<letters.length;i++){const l=letters[i];ctx.fillStyle=`rgb(${l.rgb.r},${l.rgb.g},${l.rgb.b})`;ctx.fillText(l.char,(i%columns)*charWidth,Math.floor(i/columns)*charHeight);}}
+ function resize(){const rect=hero.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return;width=rect.width;height=rect.height;const dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=width+'px';canvas.style.height=height+'px';ctx.setTransform(dpr,0,0,dpr,0,0);columns=Math.ceil(width/charWidth);const rows=Math.ceil(height/charHeight);letters=Array.from({length:columns*rows},()=>{const rgb=randomRgb();return {char:randomChar(),rgb,fromRgb:rgb,targetRgb:randomRgb(),colorProgress:1};});draw();}
+ function update(){const count=Math.max(1,Math.floor(letters.length*.05));for(let i=0;i<count;i++){const l=letters[Math.floor(Math.random()*letters.length)];l.char=randomChar();l.fromRgb={...l.rgb};l.targetRgb=randomRgb();if(options.smooth)l.colorProgress=0;else{l.rgb=l.targetRgb;l.colorProgress=1;}}}
+ function canRun(){return !paused&&!reduced.matches&&!document.hidden&&visible&&!document.body.classList.contains('simulation-active');}
+ function animate(now){raf=0;if(!canRun())return;let dirty=false;if(now-lastTime>=options.glitchSpeed){update();lastTime=now;dirty=true;}if(now-lastPaint>=1000/30){if(options.smooth)for(const l of letters)if(l.colorProgress<1){l.colorProgress=Math.min(1,l.colorProgress+.1);l.rgb=mix(l.fromRgb,l.targetRgb,l.colorProgress);dirty=true;}if(dirty)draw();lastPaint=now;}raf=requestAnimationFrame(animate);}
+ function sync(){if(raf){cancelAnimationFrame(raf);raf=0;}toggle.disabled=reduced.matches;toggle.textContent=reduced.matches?'Nền tĩnh':paused?'Chạy chuyển động nền':'Tạm dừng nền';toggle.setAttribute('aria-pressed',String(!paused&&!reduced.matches));if(canRun())raf=requestAnimationFrame(animate);}
+ toggle.addEventListener('click',()=>{paused=!paused;sync();});
+ document.addEventListener('visibilitychange',sync);reduced.addEventListener('change',sync);
+ const visibility=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();},{threshold:0});visibility.observe(hero);
+ const sizing=new ResizeObserver(()=>{resize();sync();});sizing.observe(hero);
+ const theme=new MutationObserver(records=>{if(records.some(r=>r.target===document.documentElement))resize();sync();});theme.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});theme.observe(document.body,{attributes:true,attributeFilter:['class']});
+ window.addEventListener('pagehide',()=>{if(raf)cancelAnimationFrame(raf);});window.addEventListener('pageshow',sync);
+ resize();sync();
+})();
+</script></body>
 </html>

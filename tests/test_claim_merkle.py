@@ -45,7 +45,7 @@ def test_claim_leaf_hash_with_salt():
 def test_build_claims_merkle_tree_and_proof():
     """Xây cây Merkle từ các claims và xác minh Proof of Inclusion cho từng claim."""
     claims = {
-        "full_name": "Alice Nguyen",
+        "full_name": "Người học DEMO-001",
         "major": "Computer Science",
         "gpa": "3.85",
         "grade": "A",
@@ -143,8 +143,8 @@ def test_selective_claim_verification_on_blockchain():
 
     cred = Credential(
         credential_id="CRED-SEL-001",
-        issuer_name="Tech University",
-        holder_name="Alice",
+        issuer_name="Trường Đại học A",
+        holder_name="Người học DEMO-001",
         title="BSc Computer Science",
         issue_date="2026-06-15",
         claims_root=claims_root,

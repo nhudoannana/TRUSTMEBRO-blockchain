@@ -40,7 +40,7 @@ def _setup_chain_with_credential():
 
     cred = Credential(
         credential_id="CRED-PROOF-001",
-        issuer_name="Trường Đại học DEMO-A",
+        issuer_name="Trường Đại học A",
         holder_name="Người học DEMO-001",
         title="BSc Demo",
         issue_date="2026-01-01",

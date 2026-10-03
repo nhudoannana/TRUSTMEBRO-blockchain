@@ -43,12 +43,12 @@ def _build_demo():
     w = generate_wallet()
     bc = Blockchain()
     samples = [
-        ("CRED-ATK-001", "Người học DEMO-001", "Chứng chỉ Kỹ năng DEMO-001"),
-        ("CRED-ATK-002", "Người học DEMO-002", "Chứng chỉ Năng lực DEMO-002"),
+        ("CRED-ATK-001", "Người học DEMO-001", "Chứng chỉ Phân tích dữ liệu"),
+        ("CRED-ATK-002", "Người học DEMO-002", "Chứng chỉ Kỹ năng số"),
         ("CRED-ATK-003", "Người học DEMO-003", "BSc Computer Science"),
     ]
     for cred_id, holder, title in samples:
-        cred = Credential(cred_id, "Trường Đại học DEMO-A", holder, title, "2026-01-01", {})
+        cred = Credential(cred_id, "Trường Đại học A", holder, title, "2026-01-01", {})
         tx = Transaction("ISSUE", w.public_key_hex, asdict(cred))
         tx.sign(w)
         prev = bc.get_latest_block().compute_hash()
@@ -114,7 +114,7 @@ st.caption("Kẻ tấn công sửa điểm 6.5 → 8.5 nhưng giữ nguyên ch�
 
 if st.button("▶️ Chạy Attack 1", key="btn_atk1"):
     # Tạo TX hợp lệ
-    cred = Credential("CRED-DEMO-ATK", "Tổ chức Kiểm định DEMO-C", "Người học DEMO-001", "Chứng chỉ Kỹ năng DEMO — Điểm 6.5", "2026-06-01", {})
+    cred = Credential("CRED-DEMO-ATK", "Tổ chức Kiểm định C", "Người học DEMO-001", "Chứng chỉ Phân tích dữ liệu — Điểm 6.5", "2026-06-01", {})
     tx = Transaction("ISSUE", demo_wallet.public_key_hex, asdict(cred))
     tx.sign(demo_wallet)
 
@@ -224,7 +224,7 @@ if st.button("▶️ Chạy Attack 4", key="btn_atk4"):
     rogue = generate_wallet()
 
     # TX ký bằng wallet giả
-    cred = Credential("CRED-ROGUE", "Giả mạo DEMO-X", "Người học DEMO-001", "Fake PhD", "2026-01-01", {})
+    cred = Credential("CRED-ROGUE", "Giả mạo X", "Người học DEMO-001", "Fake PhD", "2026-01-01", {})
     rogue_tx = Transaction("ISSUE", rogue.public_key_hex, asdict(cred))
     rogue_tx.sign(rogue)
 
@@ -264,7 +264,7 @@ st.caption("Nộp lặp cùng TX (replay) hoặc cấp trùng credential_id → 
 if st.button("▶️ Chạy Attack 5", key="btn_atk5"):
     st.markdown("#### 5a. Replay — Nộp cùng TX hai lần")
 
-    cred = Credential("CRED-REPLAY", "Demo University", "Dave", "Cert A", "2026-01-01", {})
+    cred = Credential("CRED-REPLAY", "Trường Đại học A", "Người học DEMO-001", "Chứng chỉ Phân tích dữ liệu", "2026-01-01", {})
     tx = Transaction("ISSUE", demo_wallet.public_key_hex, asdict(cred))
     tx.sign(demo_wallet)
 
@@ -280,7 +280,7 @@ if st.button("▶️ Chạy Attack 5", key="btn_atk5"):
     st.markdown("#### 5b. Duplicate Credential ID — Cấp trùng")
 
     # Credential CRED-ATK-001 đã có trong blockchain (ACTIVE)
-    dup_cred = Credential("CRED-ATK-001", "Demo University", "Eve", "Dup Cert", "2026-06-01", {})
+    dup_cred = Credential("CRED-ATK-001", "Trường Đại học A", "Người học DEMO-002", "Chứng chỉ Kỹ năng số", "2026-06-01", {})
     dup_tx = Transaction("ISSUE", demo_wallet.public_key_hex, asdict(dup_cred))
     dup_tx.sign(demo_wallet)
 
@@ -317,7 +317,7 @@ if st.button("▶️ Chạy Attack 6", key="btn_atk6"):
     old_hash = block1.compute_hash()
 
     # Tạo TX giả thay thế
-    fake_cred = Credential("CRED-ATK-001", "Trường Đại học DEMO-A", "Người học DEMO-001", "Chứng chỉ Giả mạo 9.0", "2026-01-01", {})
+    fake_cred = Credential("CRED-ATK-001", "Trường Đại học A", "Người học DEMO-001", "Chứng chỉ Giả mạo 9.0", "2026-01-01", {})
     fake_tx = Transaction("ISSUE", demo_wallet.public_key_hex, asdict(fake_cred))
     fake_tx.sign(demo_wallet)
 

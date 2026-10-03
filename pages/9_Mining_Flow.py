@@ -42,7 +42,7 @@ if not wallets:
     if st.button("⚡ Tạo wallet demo", key="flow_quick_wallet"):
         w = generate_wallet()
         st.session_state.wallets = [
-            {"name": "Trường Đại học DEMO-A", "private_key_pem": w.private_key_pem,
+            {"name": "Trường Đại học A", "private_key_pem": w.private_key_pem,
              "public_key_hex": w.public_key_hex, "address": w.address}
         ]
         st.rerun()

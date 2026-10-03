@@ -1,4 +1,4 @@
-﻿"""Module pos — Thuật toán đồng thuận Proof of Stake (PoS) và cơ chế phạt Slashing.
+"""Module pos — Thuật toán đồng thuận Proof of Stake (PoS) và cơ chế phạt Slashing.
 
 Mục đích:
 - Mô phỏng cơ chế đồng thuận PoS không dùng bài toán băm tốn điện (PoW).
@@ -357,9 +357,9 @@ def create_trustprofile_consortium() -> PoSRegistry:
     minh họa / học thuật — không đại diện cho bất kỳ tổ chức thật nào.
 
     Các Validator mô phỏng đại diện cho 3 hạng tổ chức trong hệ sinh thái kiểm định:
-    - 🏛️ Trường Đại học A: 500 điểm (50% trọng số)
-    - 🏫 Trường Đại học B: 300 điểm (30% trọng số)
-    - 🏢 Tổ chức Kiểm định C: 200 điểm (20% trọng số)
+    - Trường Đại học A: 500 điểm (50% trọng số)
+    - Trung tâm Đào tạo B: 300 điểm (30% trọng số)
+    - Tổ chức Kiểm định C: 200 điểm (20% trọng số)
     """
     from blockchain.wallet import generate_wallet
 
@@ -367,7 +367,7 @@ def create_trustprofile_consortium() -> PoSRegistry:
 
     w1 = generate_wallet()
     reg.register_validator(
-        name="🏛️ Trường Đại học A",
+        name="Trường Đại học A",
         wallet=w1,
         stake=500,
         institution_type="Đại học Kỹ thuật",
@@ -377,7 +377,7 @@ def create_trustprofile_consortium() -> PoSRegistry:
 
     w2 = generate_wallet()
     reg.register_validator(
-        name="🏫 Trường Đại học B",
+        name="Trung tâm Đào tạo B",
         wallet=w2,
         stake=300,
         institution_type="Học viện Đa ngành",
@@ -387,7 +387,7 @@ def create_trustprofile_consortium() -> PoSRegistry:
 
     w3 = generate_wallet()
     reg.register_validator(
-        name="🏢 Tổ chức Kiểm định C",
+        name="Tổ chức Kiểm định C",
         wallet=w3,
         stake=200,
         institution_type="Tổ chức Kiểm định",

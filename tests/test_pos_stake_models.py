@@ -1,4 +1,4 @@
-﻿"""Tests cho các mô hình tính Stake trong TrustProfile Consortium:
+"""Tests cho các mô hình tính Stake trong TrustProfile Consortium:
 - Mô hình 1: Static Tiered Institutional Reputation (Phân tầng thẩm quyền trường/tổ chức).
 - Mô hình 2: Cumulative Merit (Tích luỹ theo số lượng Credential hợp lệ đã phát hành trên chuỗi).
 - Mô hình 3: Hybrid (Lai ghép giữa Base Stake + Thưởng cống hiến văn bằng - Phạt Slashing).
@@ -34,7 +34,7 @@ def test_cumulative_merit_stake_sync_from_blockchain():
     w_bk = generate_wallet()
     w_tt = generate_wallet()
 
-    v_bk = reg.register_validator("🏛️ Trường Đại học A", w_bk, stake=500)
+    v_bk = reg.register_validator("Trường Đại học A", w_bk, stake=500)
     v_tt = reg.register_validator("Trung tâm Tin học X", w_tt, stake=100)
 
     # Khởi tạo blockchain với các giao dịch cấp bằng

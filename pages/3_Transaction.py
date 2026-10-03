@@ -71,13 +71,13 @@ else:
         },
         "📜 Chứng chỉ Quốc tế / Giấy phép Chuyên môn (Certification)": {
             "cred_id": "CERT-DEMO-9041",
-            "title": "Chứng chỉ Kỹ năng DEMO-001",
+            "title": "Chứng chỉ Phân tích dữ liệu",
             "claims": {
                 "certificate_name": "Chứng chỉ Chuyên môn Giả lập",
                 "score": "912/1000",
                 "valid_until": "2029-09-30",
                 "credential_status": "Active & Verified",
-                "verification_authority": "Tổ chức Kiểm định DEMO-C"
+                "verification_authority": "Tổ chức Kiểm định C"
             }
         },
         "🩺 Hồ sơ Thể trạng / Chứng nhận Y tế Bảo mật (Health Attestation)": {

@@ -88,7 +88,7 @@ def test_node_stores_both_branches_on_fork():
     node = net.create_node("Node-1", "127.0.0.1", 5001)
     wallet = generate_wallet()
 
-    tx_a = _make_tx(wallet, "CRED-FORK-A", "Alice")
+    tx_a = _make_tx(wallet, "CRED-FORK-A", "Người học DEMO-001")
     tx_b = _make_tx(wallet, "CRED-FORK-B", "Bob")
 
     gen_block = node.blockchain.chain[0]
@@ -123,7 +123,7 @@ def test_chain_reorg_and_mempool_rollback():
     node1 = net.create_node("Node-1", "127.0.0.1", 5001)
     wallet = generate_wallet()
 
-    tx_alice = _make_tx(wallet, "CRED-ALICE", "Alice")
+    tx_alice = _make_tx(wallet, "CRED-ALICE", "Người học DEMO-001")
     tx_bob = _make_tx(wallet, "CRED-BOB", "Bob")
     tx_carol = _make_tx(wallet, "CRED-CAROL", "Carol")
 

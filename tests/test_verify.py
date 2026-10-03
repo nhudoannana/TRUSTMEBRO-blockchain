@@ -30,7 +30,7 @@ def _setup():
 
     wallet = generate_wallet()
 
-    cred = Credential("CRED-V-001", "Uni", "Alice", "BSc CS", "2026-01-01", {})
+    cred = Credential("CRED-V-001", "Trường Đại học A", "Người học DEMO-001", "BSc CS", "2026-01-01", {})
     tx = Transaction("ISSUE", wallet.public_key_hex, asdict(cred))
     tx.sign(wallet)
 
@@ -53,7 +53,7 @@ def test_credential_verified():
 
     assert status == "VERIFIED"
     assert all(ok for _, ok, _ in steps), f"Some step failed: {steps}"
-    assert info["holder_name"] == "Alice"
+    assert info["holder_name"] == "Người học DEMO-001"
     assert info["credential_id"] == "CRED-V-001"
     assert info["issue_block_height"] >= 1
 
