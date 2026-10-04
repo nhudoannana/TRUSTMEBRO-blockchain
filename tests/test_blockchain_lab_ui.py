@@ -135,7 +135,7 @@ const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(h
  }
  if(testCase==='cards'){
   assert.equal($('chain-cards').children.filter(e=>e.tag==='article').length,2);
-  assert.equal($('chain-cards').children.filter(e=>e.className==='chain-arrow').length,1);
+  assert.equal($('chain-cards').children.filter(e=>e.className?.startsWith('chain-arrow')).length,1);
   assert.ok(text(card(1)).includes('Timestamp:'));assert.ok(text(card(1)).includes('Nonce:'));
   assert.equal(find(card(0),e=>e.tag==='button'),undefined);return;
  }
@@ -192,6 +192,17 @@ const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(h
   assert.ok(text(card(3)).includes('Tiền tố chuỗi không hợp lệ'));return;
  }
  await run('chainLabAction("recompute")');assert.equal(run('chainLab.result.blocks['+(height+1)+'].link_valid'),false);
+ if(testCase==='link_visualization'){
+  const arrows=$('chain-cards').children.filter(e=>e.className?.startsWith('chain-arrow'));
+  assert.equal(arrows.length,3);
+  const broken=arrows.find(e=>e.dataset.to===String(height+1));
+  assert.equal(broken.dataset.from,String(height));assert.ok(broken.className.includes('link-broken'));
+  assert.ok(broken['aria-label'].includes('previous_hash'));assert.ok(broken['aria-label'].includes('liên kết gãy'));
+  assert.ok(text(broken).includes('Link gãy'));assert.ok(broken.children[0].title.includes('recomputed-hash'));
+  assert.ok(arrows[0].className.includes('link-valid'));
+  assert.ok(card(height).className.includes('own-invalid'));assert.ok(card(height+1).className.includes('prefix-broken'));
+  assert.ok(text(card(height+1)).includes('hash đã ghi của #'+height));return;
+ }
  assert.equal($('chain-recompute').disabled,true);assert.equal($('chain-add').disabled,true);
  const other=run('signature');$('chain-reset').onclick();await run('chainLab.initialization');
  assert.equal(run('signature'),other);assert.equal(run('chainLab.result.chain.length'),1);
@@ -207,6 +218,6 @@ const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(h
 @pytest.mark.parametrize('case', ['flow', 'selection', 'inputs', 'error', 'incomplete',
                                   'reset', 'pagehide', 'rejection', 'reset_mining',
                                   'transaction_hashes', 'prefix_warning', 'add_reasons',
-                                  'difficulty_hint', 'edit_reasons'])
+                                  'difficulty_hint', 'edit_reasons', 'link_visualization'])
 def test_combined_chain_controls(case):
     run_chain_case(case)

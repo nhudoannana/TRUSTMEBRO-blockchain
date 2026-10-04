@@ -8,7 +8,8 @@ import pytest
 @pytest.mark.parametrize('case', ['hash_vectors', 'hash_reset', 'signature', 'key_reset',
                                   'signature_reset', 'merkle', 'merkle_reset', 'errors',
                                   'comparison', 'comparison_reset', 'example_safety',
-                                  'result_guidance', 'sha_navigation', 'sha_preservation'])
+                                  'result_guidance', 'sha_navigation', 'sha_preservation',
+                                  'lab_learning', 'merkle_svg'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
@@ -25,7 +26,7 @@ class Element {
  removeAttribute(k){delete this[k];}
  focus(){document.activeElement=this;}
 }
-const document={title:'',documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();}};
+const document={title:'',documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();},createElementNS(ns,tag){const e=new Element();e.tag=tag;return e;}};
 const storage=new Map(),nativeCrypto=crypto.webcrypto;
 let deferred,held=false;
 const key={key_handle:'handle',public_key_hex:'key',address:'a'.repeat(40),curve:'secp256k1'};
@@ -60,7 +61,31 @@ vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),context);
 const $=id=>document.getElementById(id),run=s=>vm.runInContext(s,context),event={preventDefault(){}};
 context.event=event;
 (async()=>{
-if(testCase==='sha_navigation'){
+if(testCase==='lab_learning'){
+ run('signature.key={key_handle:"keep"};signature.signed={signature_hex:"keep-signature"};chainLab.result={chain:["keep-chain"]};networkLab.handle="keep-network";networkLab.snapshot={keep:true};comparison.results.pow={keep:true}');
+ const owners=run('[signature,chainLab,networkLab,comparison]');
+ const snapshot=run('JSON.stringify([signature,chainLab,networkLab,comparison])');
+ $('sig-message').value='Keep my message';$('merkle-leaves').value='Keep my leaves';$('chain-data').value='Keep my draft';
+ for(const name of ['signatures','merkle','blocks','consensus','network']){
+  assert.equal(run('labLearning["'+name+'"].tab'),'theory');
+  assert.equal($(name+'-previous').disabled,true);$(name+'-previous').onclick();
+  assert.equal(run('labLearning["'+name+'"].topic'),0);
+  for(let i=1;i<4;i++){$(name+'-next').onclick();assert.equal($(name+'-lesson-'+i).hidden,false);assert.equal($(name+'-topic-'+i)['aria-pressed'],'true');}
+  $(name+'-next').onclick();assert.equal($(name+'-practice').hidden,false);
+  assert.equal(document.activeElement,$(run('labPracticeFocus["'+name+'"]')));
+  $(name+'-tab-theory').onclick();$(name+'-topic-1').onclick();
+  context.location.hash='#sha';events.hashchange();context.location.hash='#'+name;events.hashchange();
+  assert.equal(run('labLearning["'+name+'"].topic'),1);assert.equal($(name+'-lesson-1').hidden,false);
+  $(name+'-tab-theory').onkeydown({key:'End',preventDefault(){}});
+  assert.equal($(name+'-tab-practice')['aria-selected'],'true');assert.equal($(name+'-tab-practice').tabIndex,0);
+  $(name+'-tab-practice').onkeydown({key:'ArrowLeft',preventDefault(){}});
+  assert.equal($(name+'-theory').hidden,false);
+ }
+ assert.equal(run('JSON.stringify([signature,chainLab,networkLab,comparison])'),snapshot);
+ run('[signature,chainLab,networkLab,comparison]').forEach((owner,i)=>assert.equal(owner,owners[i]));
+ assert.equal($('sig-message').value,'Keep my message');assert.equal($('merkle-leaves').value,'Keep my leaves');assert.equal($('chain-data').value,'Keep my draft');
+ assert.equal(calls.length,0);assert.equal(run('hashToken'),0);
+}else if(testCase==='sha_navigation'){
  assert.equal(run('shaTab'),'theory');assert.equal(run('shaTopic'),0);
  assert.equal($('sha-theory').hidden,false);assert.equal($('sha-practice').hidden,true);
  assert.equal($('sha-previous').disabled,true);
@@ -165,6 +190,33 @@ if(testCase==='sha_navigation'){
   await run('signatureAction("verify")');assert.equal(run('signature.result.valid'),false);
   await run('resetSignature()');assert.equal(run('signature.key'),null);assert.equal($('sig-signature').textContent,'');
  }
+}else if(testCase==='merkle_svg'){
+ const all=e=>[e,...e.children.flatMap(all)];
+ const draw=(d,previous,count)=>{context.d=d;context.previous=previous;run('showMerkle(d,previous,'+count+')');return all($('merkle-tree'));};
+ const d={levels:[['a','b','c'],['ab','cc'],['root']],root:'root',proof:{index:2,siblings:[['c','right'],['ab','left']],valid:false}};
+ let nodes=draw(d,null,3),groups=nodes.filter(e=>e.tag==='g'),edges=nodes.filter(e=>e.tag==='path');
+ assert.equal(groups.length,6);assert.equal(edges.length,6);
+ assert.equal(edges.filter(e=>e.dataset.duplicate==='true').length,1);
+ assert.ok(edges.some(e=>e.dataset.from==='0:2'&&e.dataset.to==='1:1'));
+ assert.ok(edges.some(e=>e.dataset.from==='1:0'&&e.dataset.to==='2:0'));
+ assert.equal(groups.filter(e=>e['class'].includes('proof-path')).length,3);
+ assert.equal(groups.filter(e=>e['class'].includes('proof-sibling')).length,2);
+ assert.ok($('merkle-proof-result').textContent.includes('không hợp lệ'));
+ const leaf=groups.find(e=>e.dataset.node==='0:2');leaf.onkeydown({key:'Enter',preventDefault(){}});
+ assert.equal(nodes.find(e=>e.dataset.fullNode==='0:2').open,true);
+ assert.ok(Number(groups.find(e=>e.dataset.node==='2:0').dataset.y)<Number(leaf.dataset.y));
+ const previous=structuredClone(d);d.levels[0][0]='new';d.levels[1][0]='new-parent';d.levels[2][0]='new-root';d.root='new-root';
+ nodes=draw(d,previous,3);assert.equal(nodes.filter(e=>e.tag==='g'&&e['class'].includes('changed')).length,3);
+ nodes=draw({levels:[['one']],root:'one',proof:{index:0,siblings:[],valid:true}},null,1);
+ assert.equal(nodes.filter(e=>e.tag==='g').length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
+ assert.ok(nodes.find(e=>e.tag==='g')['aria-label'].includes('Lá / Root'));
+ nodes=draw({levels:[['empty']],root:'empty',proof:null},null,0);
+ assert.equal(nodes.filter(e=>e.tag==='g').length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
+ nodes=draw({levels:[['a','b','c','d','e'],['ab','cd','ee'],['abcd','eeee'],['r']],root:'r',proof:null},null,5);
+ assert.equal(nodes.filter(e=>e.tag==='g').length,11);
+ assert.equal(nodes.filter(e=>e.tag==='path').length,12);
+ assert.equal(nodes.filter(e=>e.tag==='path'&&e.dataset.duplicate==='true').length,2);
+ assert.equal(calls.length,0);
 }else if(testCase==='merkle'){
  assert.deepEqual(Array.from(run('readLeaves("")')),[]);
  assert.deepEqual(Array.from(run('readLeaves("a\\n\\n")')),['a','','']);

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('case', ['navigation', 'signing_pending', 'sidebar', 'offline', 'mining_offline', 'remote_reset', 'local_reset', 'failure'])
+@pytest.mark.parametrize('case', ['navigation', 'signing_pending', 'sidebar', 'offline', 'mining_offline', 'remote_reset', 'local_reset', 'failure', 'hint_states'])
 def test_guided_journey(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -35,7 +35,32 @@ context=vm.createContext({document,console,record,fetch:async(url,options={})=>{
 vm.runInContext(source.slice(0,source.indexOf('(function initTheme()')),context);
 vm.runInContext('render=async()=>{}',context);
 (async()=>{
- if(testCase==='navigation'){
+ if(testCase==='hint_states'){
+  const run=s=>vm.runInContext(s,context),hint=()=>run('journeyGuidance()');
+  const empty=hint();run('state.selectedWalletId="wallet"');assert.notEqual(hint().next,empty.next);
+  run('state.step=1;state.signing=true');const pending=hint();assert.equal(run('canContinue(1)'),false);
+  run('state.signing=false;state.record=record');assert.notEqual(hint().observed,pending.observed);assert.equal(run('canContinue(1)'),true);
+  run('state.step=2;state.mempool={credentialId:record.credential_id,nodes:[],submission:{accepted:false,reason:"Actual rejection <safe>"}}');
+  assert.ok(hint().observed.includes('Actual rejection <safe>'));assert.equal(run('canContinue(2)'),false);
+  const rejected=hint();run('state.mempool.submission.accepted=true');assert.equal(run('canContinue(2)'),true);assert.notEqual(hint().observed,rejected.observed);
+  run('state.step=3;state.mining={pending:true}');const waiting=hint();assert.equal(run('canContinue(3)'),false);
+  run('state.mining={pending:false,result:{mined:false,reason:"Bounded search incomplete"}}');assert.ok(hint().observed.includes('Bounded search incomplete'));
+  run('state.block={height:1};state.mining.result={mined:true,transaction_ids:[record.transaction.tx_id]}');assert.notEqual(hint().observed,waiting.observed);
+  run('state.step=4;state.network={snapshot:{online_nodes_synchronized:true}}');assert.equal(run('canContinue(4)'),true);const online=hint();
+  run('state.network.snapshot.all_nodes_synchronized=true');assert.notEqual(hint().observed,online.observed);
+  run('state.network.error="Actual timeout"');assert.equal(run('canContinue(4)'),false);assert.equal(hint().observed,'Actual timeout');
+  run('state.step=5;state.verification={result:{chain_status:{status:"VERIFIED"},presentation_match:null}}');const idOnly=hint().observed;
+  run('state.verification.result.presentation_match=true');const match=hint().observed;assert.notEqual(match,idOnly);
+  run('state.verification.result.presentation_match=false');assert.notEqual(hint().observed,match);
+  for(const status of ['NOT_FOUND','REVOKED','INVALID']){
+   context.status=status;run('state.verification.result.chain_status={status,reason:"Actual chain reason"}');assert.ok(hint().observed.includes(status));
+  }
+  run('state.verification.revocation={pending:true}');const revoking=hint().next;
+  run('state.verification.busy=true');assert.notEqual(hint().next,revoking);
+  document.getElementById('v-error').hidden=false;document.getElementById('v-error').textContent='<img src=x> API failure';
+  run('showJourneyGuidance()');assert.ok(document.getElementById('journey-observed').textContent.includes('<img src=x> API failure'));
+  assert.equal(document.getElementById('journey-observed').innerHTML,'');assert.equal(posts,0);assert.equal(reads,0);
+ }else if(testCase==='navigation'){
   vm.runInContext('state.step=1;showContinuation(1,"c-next")',context);
   document.getElementById('c-next').onclick();
   assert.equal(vm.runInContext('state.step',context),1);

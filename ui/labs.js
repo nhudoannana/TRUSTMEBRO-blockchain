@@ -74,6 +74,53 @@ function selectShaTopic(index) {
   $('sha-step-status').textContent = `Mục ${shaTopic + 1} / 5`;
 }
 
+// Presentation state only: practice owners and their lifecycle stay unchanged.
+const labLearning = Object.fromEntries(['signatures', 'merkle', 'blocks', 'consensus', 'network']
+  .map(name => [name, { tab: 'theory', topic: 0 }]));
+const labPracticeFocus = { signatures: 'sig-message', merkle: 'merkle-leaves',
+  blocks: 'chain-data', consensus: 'comparison-pow', network: 'network-init' };
+function showLabLearning(name, tab, focusPractice = false) {
+  const s = labLearning[name]; s.tab = tab === 'practice' ? 'practice' : 'theory';
+  for (const value of ['theory', 'practice']) {
+    const selected = s.tab === value, button = $(name + '-tab-' + value);
+    button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
+    $(name + '-' + value).hidden = !selected;
+  }
+  if (focusPractice && s.tab === 'practice') {
+    const target = $(labPracticeFocus[name]);
+    (target.disabled ? $(name + '-practice') : target).focus();
+  }
+}
+function selectLabTopic(name, index) {
+  const s = labLearning[name]; s.topic = Math.max(0, Math.min(3, index));
+  for (let i = 0; i < 4; i++) {
+    $(name + '-topic-' + i).setAttribute('aria-pressed', String(i === s.topic));
+    $(name + '-lesson-' + i).hidden = i !== s.topic;
+  }
+  $(name + '-previous').disabled = s.topic === 0;
+  $(name + '-next').textContent = s.topic === 3 ? 'Thử ngay' : 'Tiếp theo';
+  $(name + '-step-status').textContent = `Mục ${s.topic + 1} / 4`;
+}
+function setupLabLearning() {
+  for (const name of Object.keys(labLearning)) {
+    for (const [index, tab] of ['theory', 'practice'].entries()) {
+      const button = $(name + '-tab-' + tab);
+      button.onclick = () => showLabLearning(name, tab);
+      button.onkeydown = event => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 'theory' : event.key === 'End' ? 'practice' : ['theory', 'practice'][1 - index];
+        showLabLearning(name, next); $(name + '-tab-' + next).focus();
+      };
+    }
+    for (let i = 0; i < 4; i++) $(name + '-topic-' + i).onclick = () => selectLabTopic(name, i);
+    $(name + '-previous').onclick = () => selectLabTopic(name, labLearning[name].topic - 1);
+    $(name + '-next').onclick = () => labLearning[name].topic === 3
+      ? showLabLearning(name, 'practice', true) : selectLabTopic(name, labLearning[name].topic + 1);
+    showLabLearning(name, 'theory'); selectLabTopic(name, 0);
+  }
+}
+
 async function compareHashes(event) {
   event.preventDefault();
   if (hashBusy) return;
@@ -191,12 +238,72 @@ function merkleControls(busy) {
   ['merkle-one', 'merkle-odd', 'merkle-empty'].forEach(id => { $(id).disabled = busy; });
 }
 
+function merkleSvg(data, previous, count, inspections) {
+  const svgElement = (tag, attributes, text) => {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+    if (text !== undefined) element.textContent = text;
+    return element;
+  };
+  const width = Math.max(320, data.levels[0].length * 150), height = data.levels.length * 116 + 24;
+  const svg = svgElement('svg', { viewBox: `0 0 ${width} ${height}`, width, height, role: 'group',
+    'aria-label': 'Cây Merkle: root ở trên, lá ở dưới. Chọn node để mở hash đầy đủ.' });
+  svg.setAttribute('class', 'merkle-svg');
+  const point = (l, i) => ({ x: (i + .5) * width / data.levels[l].length, y: 20 + (data.levels.length - 1 - l) * 116 });
+  const path = new Set(), siblings = new Set();
+  if (data.proof && count) {
+    let index = data.proof.index;
+    path.add(`0:${index}`);
+    data.proof.siblings.forEach(([hash, side], l) => {
+      const sibling = Math.min(side === 'left' ? index - 1 : index + 1, data.levels[l].length - 1);
+      if (data.levels[l][sibling] === hash) siblings.add(`${l}:${sibling}`);
+      index = Math.floor(index / 2); path.add(`${l + 1}:${index}`);
+    });
+  }
+  data.levels.slice(0, -1).forEach((level, l) => {
+    data.levels[l + 1].forEach((hash, parent) => {
+      for (let side = 0; side < 2; side++) {
+        const raw = parent * 2 + side, child = Math.min(raw, level.length - 1), duplicate = raw >= level.length;
+        const a = point(l, child), b = point(l + 1, parent), from = `${l}:${child}`, to = `${l + 1}:${parent}`;
+        const edge = svgElement('path', { d: `M ${a.x + (duplicate ? 18 : 0)} ${a.y} L ${b.x + (duplicate ? 18 : 0)} ${b.y + 76}`,
+          class: 'merkle-edge' + (duplicate ? ' duplicate' : '') + (path.has(to) && (path.has(from) || siblings.has(from)) ? ' proof-edge' : ''),
+          'aria-label': `Tầng ${l}, node ${child + 1} → tầng ${l + 1}, node ${parent + 1}${duplicate ? ' · nhân đôi hash cuối' : ''}` });
+        edge.dataset.from = from; edge.dataset.to = to; edge.dataset.duplicate = String(duplicate); svg.append(edge);
+      }
+    });
+  });
+  data.levels.forEach((level, l) => level.forEach((hash, i) => {
+    const key = `${l}:${i}`, p = point(l, i), changed = previous && previous.levels[l]?.[i] !== hash;
+    const label = l === data.levels.length - 1 ? count === 1 ? 'Lá / Root' : 'Root' : l === 0 ? 'Lá' : 'Cha';
+    const markers = [changed ? 'Đổi / mới' : '', path.has(key) ? l === 0 ? 'Lá chọn' : 'Đường proof' : '', siblings.has(key) ? 'Anh em proof' : ''].filter(Boolean);
+    const group = svgElement('g', { transform: `translate(${p.x - 66},${p.y})`, tabindex: 0, role: 'button',
+      'aria-label': `${label} ${i + 1}, tầng ${l}. ${markers.join('. ')}. Mở hash đầy đủ`,
+      class: 'merkle-visual-node' + (changed ? ' changed' : '') + (path.has(key) ? ' proof-path' : '') + (siblings.has(key) ? ' proof-sibling' : '') });
+    group.dataset.node = key; group.dataset.y = String(p.y);
+    group.append(svgElement('title', {}, `${label} ${i + 1}: ${hash}`), svgElement('rect', { width: 132, height: 76, rx: 12 }),
+      svgElement('text', { x: 66, y: 20, 'text-anchor': 'middle' }, `${label} ${i + 1}`),
+      svgElement('text', { x: 66, y: 41, 'text-anchor': 'middle' }, hash.length > 14 ? hash.slice(0, 6) + '…' + hash.slice(-6) : hash),
+      svgElement('text', { x: 66, y: 62, 'text-anchor': 'middle', class: 'merkle-marker' }, markers.join(' · ')));
+    const inspect = () => { inspections.get(key).details.open = true; inspections.get(key).summary.focus(); };
+    group.onclick = inspect;
+    group.onkeydown = event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); inspect(); } };
+    svg.append(group);
+  }));
+  return svg;
+}
+
 function showMerkle(data, previous, count) {
   $('merkle-result').hidden = false;
   $('merkle-root').textContent = data.root.length > 20 ? shortHash(data.root) : data.root;
   $('merkle-root').title = data.root; $('merkle-root-full').textContent = data.root;
   $('merkle-summary').textContent = `${count} lá · ${previous ? previous.root === data.root ? 'Root giữ nguyên' : 'Root đã thay đổi' : 'Đã tính root'}.`;
   const container = $('merkle-tree'); container.replaceChildren();
+  const diagram = document.createElement('div'); diagram.className = 'merkle-diagram'; diagram.tabIndex = 0;
+  diagram.setAttribute('role', 'region'); diagram.setAttribute('aria-label', 'Sơ đồ cây có thể cuộn ngang'); container.append(diagram);
+  const legend = document.createElement('p'); legend.className = 'hint';
+  legend.textContent = 'Root ở trên, lá ở dưới. Nét đứt: ghép hash cuối với chính nó. Nhãn Đổi / mới so sánh cùng vị trí; nhãn proof chỉ đường được cung cấp, không thay thế kết quả xác minh backend.';
+  container.append(legend);
+  const inspections = new Map();
   if (!count) { const note = document.createElement('p'); note.textContent = 'Không có lá. Backend trả về một tầng chứa root của cây rỗng.'; container.append(note); }
   data.levels.forEach((level, l) => {
     const heading = document.createElement('p'); heading.className = 'level-title';
@@ -207,6 +314,7 @@ function showMerkle(data, previous, count) {
       const node = document.createElement('div'), changed = previous && previous.levels[l]?.[i] !== hash;
       node.className = 'tree-node' + (changed ? ' changed' : '');
       const details = document.createElement('details'), summary = document.createElement('summary'), code = document.createElement('code');
+      details.dataset.fullNode = `${l}:${i}`; inspections.set(`${l}:${i}`, { details, summary });
       summary.textContent = `${i + 1} · ${shortHash(hash)}`;
       code.textContent = hash; details.append(summary, code); node.append(details);
       if (changed) { const label = document.createElement('small'); label.textContent = 'Đổi / mới'; node.append(label); }
@@ -215,6 +323,7 @@ function showMerkle(data, previous, count) {
     });
     container.append(row);
   });
+  diagram.append(merkleSvg(data, previous, count, inspections));
   $('merkle-proof-result').textContent = data.proof
     ? `Lá ${data.proof.index + 1} · Backend kiểm tra proof: ${data.proof.valid ? 'hợp lệ' : 'không hợp lệ'}\n` + JSON.stringify(data.proof.siblings, null, 2)
     : count ? 'Không yêu cầu proof cho lần tính này.' : 'Cây rỗng không có lá để chứng minh.';
@@ -304,8 +413,14 @@ function showChainLab() {
   for (const block of data.chain) {
     const state = data.blocks[block.height];
     if (block.height) {
+      const preceding = data.chain[block.height - 1];
       const arrow = chainText(track, 'span', state.link_valid ? '→' : '✗ →');
-      arrow.className = 'chain-arrow'; arrow.setAttribute('aria-label', state.link_valid ? 'Liên kết tới khối tiếp theo' : 'Liên kết tới khối tiếp theo bị gãy');
+      arrow.className = 'chain-arrow' + (state.link_valid ? ' link-valid' : ' link-broken');
+      arrow.dataset.from = String(preceding.height); arrow.dataset.to = String(block.height);
+      const relation = `Block #${block.height}.previous_hash → hash đã ghi của #${preceding.height}`;
+      arrow.setAttribute('aria-label', `${relation}: ${state.link_valid ? 'đạt' : 'liên kết gãy'}`);
+      const caption = chainText(arrow, 'small', `#${block.height} tham chiếu #${preceding.height}\n${state.link_valid ? '✓ Link đạt' : '✗ Link gãy'}`);
+      caption.title = `${relation}\nPrevious hash: ${block.header.previous_hash}\nHash trước: ${preceding.stored_hash}`;
     }
     const card = document.createElement('article');
     card.className = 'chain-card ' + (!state.own_validation.valid ? 'own-invalid'
@@ -324,7 +439,7 @@ function showChainLab() {
       chainText(card, 'p', `Hash giao dịch tính lại: ${shortHash(state.computed_transaction_hash)}`).title = state.computed_transaction_hash;
       chainText(card, 'p', 'Nội dung đã đổi — hash giao dịch không khớp.');
     }
-    chainText(card, 'p', `Previous hash: ${shortHash(block.header.previous_hash)}`);
+    chainText(card, 'p', `Previous hash${block.height ? ' → hash đã ghi của #' + (block.height - 1) : ' (genesis)'}: ${shortHash(block.header.previous_hash)}`).title = block.header.previous_hash;
     chainText(card, 'p', state.own_validation.valid ? '✓ Nội dung/header và bằng chứng riêng đạt' : '✗ Khối không hợp lệ: nội dung/header hoặc bằng chứng riêng không đạt');
     if (state.own_validation.valid && !state.prefix_valid) {
       chainText(card, 'p', 'Block này còn nguyên, nhưng lịch sử trước nó không hợp lệ.').className = 'chain-prefix-warning';
@@ -777,6 +892,7 @@ async function resetTamperLab() {
   $('sha-previous').onclick = () => selectShaTopic(shaTopic - 1);
   $('sha-next').onclick = () => shaTopic === 4 ? showShaTab('practice', true) : selectShaTopic(shaTopic + 1);
   showShaTab('theory'); selectShaTopic(0);
+  setupLabLearning();
   $('hash-form').onsubmit = compareHashes; $('hash-reset').onclick = resetHash;
   ['hash-a', 'hash-b'].forEach(id => { $(id).oninput = () => { $('hash-status').textContent = 'Nội dung đã đổi. Bấm tính lại để cập nhật kết quả.'; }; });
   $('sig-create').onclick = () => signatureAction('create'); $('sig-other').onclick = () => signatureAction('other');

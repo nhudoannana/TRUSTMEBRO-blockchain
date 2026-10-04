@@ -263,6 +263,11 @@ html[data-theme="light"] {
   </nav>
 
   <!-- Workspace -->
+  <section class="info-strip" aria-label="Mục tiêu và bước tiếp theo">
+    <p><strong>Mục tiêu:</strong> <span id="journey-goal"></span></p>
+    <p id="journey-observed" role="status"></p>
+    <p><strong>Tiếp theo:</strong> <span id="journey-next"></span></p>
+  </section>
   <div class="workspace">
     <main id="stage" tabindex="-1"></main>
 
@@ -416,6 +421,7 @@ function showError(id, msg) {
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
+  showJourneyGuidance();
 }
 
 function credentialSubmitted() {
@@ -439,6 +445,64 @@ function showContinuation(step, id) {
   if (!button) return;
   button.disabled = !canContinue(step);
   button.onclick = () => { if (canContinue(step)) goToStep(step + 1); };
+  showJourneyGuidance();
+}
+
+const JOURNEY_GOALS = [
+  'Chọn hoặc tạo ví ký hồ sơ trong phiên mô phỏng này.',
+  'Chuẩn bị dữ liệu hồ sơ và ký giao dịch bằng ví phát hành.',
+  'Gửi giao dịch đã ký vào hàng đợi chờ ghi vào block.',
+  'Dùng PoW hoặc PoS để tạo một block từ giao dịch đang chờ.',
+  'Kiểm tra sự thống nhất và tính hợp lệ của các bản sao chuỗi.',
+  'Đọc trạng thái hồ sơ trên chuỗi và so sánh riêng bản xuất trình.'
+];
+function journeyGuidance() {
+  const step = state.step, m = state.mempool, p = state.mining, n = state.network, v = state.verification;
+  let observed = '', next = '';
+  if (step === 0) {
+    observed = state.selectedWalletId ? 'Đã chọn ví phát hành trong mô phỏng.' : 'Chưa chọn ví.';
+    next = canContinue(0) ? 'Bấm Tạo và ký hồ sơ; chọn ví không tự phát hành.' : 'Chọn ví có sẵn hoặc tạo ví rồi chọn nó.';
+  } else if (step === 1) {
+    observed = state.signing ? 'Đang chờ backend ký; chưa có kết quả mới.' : state.record ? 'Có hồ sơ đã tạo và ký; chữ ký không tự ghi hồ sơ vào chuỗi.' : 'Chưa có hồ sơ đã ký.';
+    next = canContinue(1) ? 'Mở bước Gửi vào mempool để gửi giao dịch đã ký.' : 'Chọn ví ở bước 1, nhập dữ liệu và chờ ký thành công.';
+  } else if (step === 2) {
+    observed = m?.submitting || m?.enabling ? 'Đang chờ thao tác node; chưa kết luận lần gửi này.'
+      : credentialSubmitted() ? 'Giao dịch được nhận hoặc đã quan sát trong mempool; điều này chưa chứng minh nó đã vào chuỗi.'
+      : m?.submission ? `Gửi chưa được chấp nhận: ${m.submission.reason}` : 'Chưa xác nhận giao dịch được nhận vào mempool.';
+    next = canContinue(2) ? 'Mở Tạo block và kiểm tra node có giao dịch đang chờ.' : 'Cần hồ sơ đã ký và node ONLINE; gửi hoặc làm mới để đọc kết quả thực.';
+  } else if (step === 3) {
+    observed = p?.pending || p?.enabling ? 'Đang xử lý; chỉ kết luận khi backend trả kết quả, không có tiến độ phần trăm giả.'
+      : p?.result ? p.result.mined || p.result.forged ? 'Backend đã tạo block; peer có thể chưa áp dụng xong.' : `Chưa tạo block: ${p.result.reason}`
+      : state.block ? 'Có block đã tạo trước đó trong workflow.' : 'Chưa có kết quả tạo block.';
+    next = canContinue(3) ? 'Mở Kiểm tra và đồng bộ mạng để đọc các bản sao.' : 'Chọn node ONLINE có giao dịch chờ. Nếu không tạo được block, đọc lý do rồi làm mới trước khi thử lại.';
+  } else if (step === 4) {
+    observed = n?.busy ? 'Đang đọc hoặc yêu cầu đồng bộ; chưa có kết luận mới.' : n?.error ? n.error
+      : n?.snapshot?.all_nodes_synchronized ? 'Cả ba node ONLINE đã thống nhất chiều cao/tip với chuỗi hợp lệ.'
+      : n?.snapshot?.online_nodes_synchronized ? 'Các node ONLINE đã thống nhất và có chuỗi hợp lệ; chưa khẳng định cả ba node.'
+      : 'Chưa xác nhận các node ONLINE đồng bộ và có chuỗi hợp lệ. Mempool bằng nhau không chứng minh đồng bộ.';
+    next = canContinue(4) ? 'Mở Xác minh hồ sơ để kiểm tra bản ghi và bản xuất trình.'
+      : !state.record || !state.block ? 'Có thể dùng điều khiển mạng ngay; để tiếp tục hồ sơ, cần ký, gửi và tạo block chứa giao dịch đó.'
+      : 'Làm mới/đồng bộ node ONLINE và kiểm tra block có chứa giao dịch hồ sơ; lỗi hoặc timeout không mở bước tiếp.';
+  } else {
+    const r = v?.result, status = r?.chain_status.status;
+    observed = v?.busy ? 'Đang chờ backend; chưa có kết luận mới.'
+      : status === 'VERIFIED' ? r.presentation_match === true ? 'VERIFIED: bản ghi trên chuỗi hợp lệ và bản xuất trình khớp.'
+        : r.presentation_match === false ? 'Chuỗi hợp lệ, nhưng hồ sơ xuất trình không khớp.' : 'VERIFIED: đã xác minh bản ghi theo ID; chưa so sánh bản xuất trình.'
+      : status === 'NOT_FOUND' ? 'NOT_FOUND: chưa tìm thấy trên node đã chọn; node offline/cũ có thể chưa biết hồ sơ.'
+      : status === 'REVOKED' ? 'REVOKED: node đã chọn thấy hồ sơ bị thu hồi trên chuỗi.'
+      : r ? `${status}: ${r.chain_status.reason}` : 'Chưa có kết quả xác minh.';
+    next = v?.busy ? 'Chờ kết quả backend.' : v?.revocation?.pending ? 'Thu hồi đang chờ block; chủ động mine, kiểm tra/sync mạng rồi xác minh lại.'
+      : 'Chọn node và xác minh; có thể thử sửa bản COPY hoặc thu hồi rõ ràng. Kết quả không phải chứng nhận danh tính pháp lý hay sự thật của tài liệu.';
+  }
+  return { goal: JOURNEY_GOALS[step], observed, next };
+}
+function showJourneyGuidance() {
+  const hint = journeyGuidance();
+  const error = $(['w-error', 'c-error', 'm-error', 'p-error', 'n-error', 'v-error'][state.step]);
+  if (error && !error.hidden && error.textContent) hint.observed = 'Thao tác chưa hoàn tất: ' + error.textContent;
+  for (const [id, value] of [['journey-goal', hint.goal], ['journey-observed', hint.observed], ['journey-next', hint.next]]) {
+    const element = $(id); if (element) element.textContent = value;
+  }
 }
 
 function publicIdentityHtml(key, address) {
@@ -540,6 +604,7 @@ async function renderStep0() {
       <div class="field">
         <label for="w-name">Tên đơn vị phát hành</label>
         <input id="w-name" maxlength="80" placeholder="Ví dụ: Trung tâm Đào tạo Ánh Dương" autocomplete="off">
+        <p class="hint">Tên là nhãn hiển thị; khóa công khai xác định ví ký trong mô phỏng.</p>
         <p class="hint">Ví được tạo thật bằng thư viện <code>cryptography</code>. Khoá riêng lưu server-side, không gửi về browser.</p>
       </div>
       <div class="actions" style="margin-top:16px;">
@@ -650,6 +715,7 @@ function selectWallet(w) {
   // Enable next button
   const nextBtn = $('w-next-btn');
   if (nextBtn) nextBtn.disabled = false;
+  showJourneyGuidance();
 
   // Update rail card
   $('card-title').textContent    = w.name;
@@ -750,7 +816,7 @@ function renderStep1() {
       <div class="field"><label for="c-title">Tiêu đề chứng chỉ</label>
         <input id="c-title" required maxlength="200" value="${esc(state.credential)}"></div>
       <div class="field"><label for="c-date">Ngày cấp</label>
-        <input id="c-date" type="date" required value="${esc(state.date)}"></div>
+        <input id="c-date" type="date" required value="${esc(state.date)}"><p class="hint">Ngày cấp là dữ liệu hồ sơ; ký chưa ghi hồ sơ vào blockchain.</p></div>
       <p class="hint">Bước này chỉ ký metadata; chưa tạo claims, salt hay Merkle root.</p>
       <div class="actions"><button class="primary" id="c-submit" ${state.signing ? 'disabled' : ''}>${state.signing ? 'Đang ký…' : 'Tạo và ký hồ sơ'}</button>
         <button type="button" class="secondary" onclick="goToStep(0)">← Quay lại Ví</button></div>
@@ -895,7 +961,7 @@ async function renderStep2() {
     <p>Transaction ID: <code style="overflow-wrap:anywhere">${esc(record?.transaction.tx_id || '')}</code></p>
     <form id="m-form">
       <div class="field"><label for="m-node">Node nhận giao dịch</label>
-        <select id="m-node" ${m.submitting ? 'disabled' : ''}></select></div>
+        <select id="m-node" ${m.submitting ? 'disabled' : ''}></select><p class="hint">Node này tiếp nhận giao dịch vào mempool. Cần tạo block để ghi vào chuỗi.</p></div>
       <p id="m-node-status" class="hint" aria-live="polite"></p>
       <button type="button" class="secondary" id="m-enable" hidden>Bật node này</button>
       <div class="actions">
@@ -1253,6 +1319,7 @@ async function renderStep4() {
       <p>Có thể mở điều khiển trước mining để demo node offline. Height không tính genesis; block count có tính genesis.</p></div>
     <div class="actions"><button class="secondary" id="n-refresh">Làm mới trạng thái</button>
       <button class="primary" id="n-sync">Đồng bộ node ONLINE</button>
+      <p class="hint">Đồng bộ đối chiếu các bản sao chuỗi; cùng số giao dịch chờ chưa chứng minh các node đồng ý.</p>
       <button class="secondary" onclick="goToStep(0)">← Ví &amp; phát hành</button></div>
     <p id="n-summary" class="info-strip" aria-live="polite"></p>
     <div class="actions"><button class="primary" id="n-next" disabled>Tiếp theo: Xác minh hồ sơ →</button>
@@ -1389,6 +1456,7 @@ async function renderStep5() {
     <form id="v-form"><div class="field"><label for="v-id">Credential ID</label>
       <input id="v-id" required maxlength="200" value="${esc(v.credentialId ?? state.record?.credential_id ?? '')}"></div>
       <div class="field"><label for="v-node">Node xác minh / nhận REVOKE / mining</label><select id="v-node"></select></div>
+      <p class="hint">Xác minh đọc chuỗi tại node đã chọn. Node offline có thể chưa nhận block mới.</p>
       <div class="actions"><button class="primary" id="v-original" type="submit">Xác minh hồ sơ gốc / theo ID</button></div></form>
     <details open><summary>Thử sửa hồ sơ — bản COPY xuất trình</summary>
       <p class="hint">Bản sao riêng; không sửa transaction đã ký hay blockchain.</p>
@@ -1432,6 +1500,7 @@ async function renderStep5() {
 
 function showVerification(v) {
   if (state.step !== 5) return;
+  showJourneyGuidance();
   ['v-original','v-copy','v-revoke','v-mine','v-restore','v-id','v-node','v-reason', ...Object.keys(v.copy || {}).map(k=>'v-'+k)].forEach(id => { $(id).disabled = v.busy; });
   const r = v.result;
   $('v-status').textContent = v.busy ? 'Đang chờ backend…' : !r ? (v.miningResult ? `Đã mine block ${v.miningResult.block.height}: ${v.miningResult.block.hash}. Hãy sync và xác minh lại.` : 'Chưa xác minh.')
@@ -1562,6 +1631,7 @@ function renderJourneyNav() {
 }
 
 function renderRail() {
+  showJourneyGuidance();
   const e = state.step === 3 && state.mining?.mode === 'pos'
     ? ['HỒ SƠ ĐANG ĐƯỢC GHI', 'Ai ký block PoS?',
        'Backend chọn validator theo <strong>trọng số stake</strong> để ký block. Ví phát hành ký hồ sơ; ví validator ký block. Đây là hai khóa riêng, dù tổ chức có thể cùng tên.',
