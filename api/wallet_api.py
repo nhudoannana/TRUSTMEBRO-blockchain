@@ -22,7 +22,8 @@ import time
 import threading
 from contextlib import ExitStack, asynccontextmanager
 from copy import deepcopy
-from datetime import date
+from dataclasses import asdict
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -30,16 +31,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, StrictBool, field_validator
+from pydantic import BaseModel, Field, StrictBool, StrictInt, field_validator
 from api.network_store import session_lock, get_session_info, reset_network
 from api.network_store import signed_credentials
 from api.network_store import get_network, submit_signed_transaction, get_mempool_snapshots
-from api.network_store import get_network_snapshots
+from api.network_store import get_network_snapshots, get_reset_count
+from blockchain.blockchain import Blockchain, verify_pos_signature
 from blockchain.wallet import Wallet
 from blockchain.wallet import generate_wallet, sign_message, verify_signature
 from blockchain.hash import sha256_hex
-from blockchain.merkle import build_merkle_tree, generate_merkle_proof, verify_merkle_proof
-from blockchain.transaction import Credential, Transaction
+from blockchain.merkle import build_merkle_tree, generate_merkle_proof, verify_merkle_proof, calculate_merkle_root
+from blockchain.transaction import Credential, Transaction, verify_transaction
+from blockchain.block import Block
+from blockchain.mining import mine_block, is_acceptable_pow
 from blockchain.node import Network
 
 from api.wallet_store import (
@@ -674,6 +678,74 @@ def api_forge_pos(body: PowMiningRequest):
                 "reset_count": get_session_info()["reset_count"]}
 
 
+class ExplorerSnapshot(BaseModel):
+    node_id: str
+    status: str
+    tip_height: int
+    tip_hash: str | None
+    local_chain_warning: str | None
+    reset_count: int
+
+
+class ExplorerBlocksResponse(ExplorerSnapshot):
+    blocks: list[dict]
+
+
+class ExplorerBlockResponse(ExplorerSnapshot):
+    block: dict
+    header: dict
+    transactions: list[dict]
+    validator: dict | None
+
+
+def _explorer_snapshot(node_id, height=None):
+    """Detached public data; lock order matches PoS API/worker registry access.
+
+    Do not use get_session_info(): it seeds journey wallets on first access.
+    Neither header serialization nor signature verification mutates the network.
+    """
+    with session_lock, ExitStack() as locks:
+        network = get_network()
+        node = network.nodes.get(node_id)
+        if node is None:
+            raise HTTPException(404, detail={"code": "node_not_found", "message": "Node không tồn tại. Hãy chọn lại node."})
+        for peer in sorted(network.nodes.values(), key=lambda n: n.node_id):
+            locks.enter_context(peer._state_lock)
+        chain = node.blockchain.chain
+        snapshot = {"node_id": node.node_id, "status": node.status, "tip_height": node.height,
+                    "tip_hash": chain[-1].compute_hash() if chain else None,
+                    "local_chain_warning": "Node OFFLINE: bản blockchain cục bộ có thể đã cũ." if node.status == "OFFLINE" else None,
+                    "reset_count": get_reset_count()}
+        if height is None:
+            snapshot['blocks'] = [block.to_dict() for block in reversed(chain)]
+        else:
+            block = next((b for b in chain if b.height == height), None)
+            if block is None:
+                raise HTTPException(404, detail={"code": "block_not_found", "message": "Block không tồn tại trong phiên hiện tại. Hãy làm mới."})
+            validator = None
+            if block.header.consensus_type == 'PoS':
+                matched = network.pos_registry.validators.get(block.header.validator_address)
+                if matched and verify_pos_signature(block, network.pos_registry)[0]:
+                    validator = {"name": matched.name, "address": matched.address,
+                                 "public_key_hex": matched.public_key_hex}
+            snapshot.update({"block": block.to_dict(), "header": asdict(block.header),
+                             "transactions": [deepcopy(tx.to_dict()) for tx in block.transactions],
+                             "validator": validator})
+    return snapshot
+
+
+@app.get('/api/explorer/blocks', response_model=ExplorerBlocksResponse,
+         summary="Read the selected guided-demo node's active chain, newest first")
+def api_explorer_blocks(node_id: str = 'Node-1'):
+    return _explorer_snapshot(node_id)
+
+
+@app.get('/api/explorer/blocks/{height}', response_model=ExplorerBlockResponse,
+         summary="Read one guided-demo block and its public serialized transactions")
+def api_explorer_block(height: int, node_id: str = 'Node-1'):
+    return _explorer_snapshot(node_id, height)
+
+
 # Disposable lab keys never enter wallet_store or the shared Network. Expired
 # handles are unusable and lazily removed on each key operation. One worker,
 # at most 64 keys, 15 minutes each; process restart also discards them.
@@ -779,6 +851,393 @@ class LabIssuer(BaseModel):
     name: str
     public_key_hex: str
     address: str
+
+
+# One-block calculations are stateless: public candidates travel with the client.
+# No wallet handle, Network, worker, session lock or registry is needed.
+_BLOCK_LAB_MAX_ATTEMPTS = 200000
+_BLOCK_LAB_MAX_SECONDS = 3.0
+_block_lab_mining_lock = threading.Lock()
+BlockLabHash = Annotated[str, Field(pattern=r'^[0-9a-fA-F]{64}$')]
+
+
+class LabBlockFields(BaseModel):
+    model_config = {"extra": "forbid", "validate_default": True}
+    version: Annotated[StrictInt, Field(ge=1, le=2147483647)] = 1
+    previous_hash: BlockLabHash = '0' * 64
+    difficulty: Annotated[StrictInt, Field(ge=2, le=5)] = 2
+    timestamp: str = Field(min_length=1, max_length=80)
+
+    @field_validator('*', mode='before')
+    @classmethod
+    def utf8_text(cls, value):
+        if isinstance(value, str):
+            try:
+                value.encode('utf-8')
+            except UnicodeEncodeError as exc:
+                raise HTTPException(422, detail='Dữ liệu lab Block cần văn bản UTF-8 hợp lệ.') from exc
+        return value
+
+    @field_validator('timestamp')
+    @classmethod
+    def valid_timestamp(cls, value):
+        parsed = datetime.fromisoformat(value)
+        if 'T' not in value or parsed.tzinfo is None:
+            raise ValueError('Timestamp cần ISO-8601 có múi giờ, ví dụ 2026-10-04T12:00:00+07:00.')
+        return value
+
+
+class LabBlockBuildRequest(LabBlockFields):
+    timestamp: str | None = None
+    data: str = Field(max_length=4000)
+
+    @field_validator('timestamp')
+    @classmethod
+    def valid_timestamp(cls, value):
+        return LabBlockFields.valid_timestamp(value) if value is not None else None
+
+class LabBlockHeader(LabBlockFields):
+    merkle_root: BlockLabHash
+    nonce: Annotated[StrictInt, Field(ge=0, le=9223372036854775807)]
+    consensus_type: Literal['PoW'] = 'PoW'
+    validator_address: Literal[''] = ''
+    validator_signature: Literal[''] = ''
+
+
+class LabBlockPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+    credential_id: str = Field(min_length=1, max_length=200)
+    lab_data: str = Field(max_length=4000)
+
+    @field_validator('lab_data', mode='before')
+    @classmethod
+    def utf8_data(cls, value):
+        return LabBlockFields.utf8_text(value)
+
+
+class LabBlockTransaction(SignedTransactionResponse):
+    model_config = {"extra": "forbid"}
+    tx_id: BlockLabHash
+    tx_type: Literal['ISSUE']
+    sender_public_key: str = Field(min_length=1, max_length=260)
+    payload: LabBlockPayload
+    nonce: str = Field(min_length=1, max_length=200)
+    timestamp: str = Field(min_length=1, max_length=80)
+    signature: str = Field(min_length=1, max_length=1024)
+
+
+class LabBlockCandidate(BaseModel):
+    model_config = {"extra": "forbid"}
+    header: LabBlockHeader
+    transaction: LabBlockTransaction
+    stored_hash: BlockLabHash
+
+
+class LabBlockMineRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    candidate: LabBlockCandidate
+
+
+class LabBlockEditRequest(LabBlockMineRequest):
+    data: str = Field(max_length=4000)
+
+    @field_validator('data', mode='before')
+    @classmethod
+    def utf8_data(cls, value):
+        return LabBlockFields.utf8_text(value)
+
+
+class LabBlockResponse(BaseModel):
+    candidate: LabBlockCandidate
+    stage: Literal['built', 'mined', 'incomplete', 'edited']
+    computed_hash: str
+    computed_transaction_hash: str
+    validation: dict
+    mining: dict | None
+    original_data: str | None = None
+
+
+def _restore_lab_block(candidate, height=1):
+    data = candidate.transaction
+    tx = Transaction(data.tx_type, data.sender_public_key, data.payload.model_dump(),
+                     nonce=data.nonce, timestamp=data.timestamp)
+    tx.tx_id, tx.signature = data.tx_id, data.signature
+    header = candidate.header
+    block = Block([tx], height, header.previous_hash, difficulty=header.difficulty,
+                  nonce=header.nonce, timestamp=header.timestamp, version=header.version)
+    block.header.merkle_root = header.merkle_root  # Preserve the supplied stored header for validation.
+    return block
+
+
+def _lab_block_validation(block, stored_hash):
+    valid_tx, reason = verify_transaction(block.transactions[0])
+    checks = {
+        'transaction': {'valid': valid_tx, 'reason': reason},
+        'merkle_root': {'valid': block.header.merkle_root == calculate_merkle_root([tx.tx_id for tx in block.transactions]),
+                        'reason': 'Đối chiếu Merkle root với tx_id đã ghi.'},
+        'stored_hash': {'valid': stored_hash == block.compute_hash(), 'reason': 'Đối chiếu hash đã ghi với hash header.'},
+        'pow': {'valid': is_acceptable_pow(block), 'reason': 'Kiểm tra PoW bằng is_acceptable_pow().'},
+    }
+    return {'valid': all(check['valid'] for check in checks.values()), 'checks': checks}
+
+
+def _lab_block_result(block, stage, stored_hash, mining=None, original_data=None):
+    return {'candidate': {'header': asdict(block.header), 'transaction': block.transactions[0].to_dict(),
+                          'stored_hash': stored_hash}, 'stage': stage,
+            'computed_hash': block.compute_hash(), 'computed_transaction_hash': block.transactions[0].compute_hash(),
+            'validation': _lab_block_validation(block, stored_hash), 'mining': mining,
+            'original_data': original_data}
+
+
+def _new_lab_data_block(data, height, previous_hash, difficulty, timestamp=None, version=1):
+    # The ledger requires an ISSUE container and ID, not certificate metadata.
+    # This payload is a teaching representation, never submitted to the guided Network.
+    wallet = generate_wallet()
+    tx = Transaction('ISSUE', wallet.public_key_hex,
+                     {'credential_id': str(uuid.uuid4()), 'lab_data': data})
+    tx.sign(wallet)
+    return Block([tx], height, previous_hash, difficulty=difficulty,
+                 timestamp=timestamp, version=version)
+
+
+def _require_lab_block_integrity(block, candidate):
+    checks = _lab_block_validation(block, candidate.stored_hash)['checks']
+    for name, check in checks.items():
+        if name != 'pow' and not check['valid']:
+            raise HTTPException(422, detail=check['reason'])
+
+
+@app.post('/api/labs/block/build', response_model=LabBlockResponse)
+def lab_build_block(body: LabBlockBuildRequest):
+    block = _new_lab_data_block(body.data, 1, body.previous_hash, body.difficulty,
+                                body.timestamp, body.version)
+    return _lab_block_result(block, 'built', block.compute_hash())
+
+
+@app.post('/api/labs/block/mine', response_model=LabBlockResponse)
+def lab_mine_block(body: LabBlockMineRequest):
+    block = _restore_lab_block(body.candidate)
+    _require_lab_block_integrity(block, body.candidate)
+    if not _block_lab_mining_lock.acquire(blocking=False):
+        raise HTTPException(429, detail='Lab Block đang đào một ứng viên. Hãy chờ rồi thử lại.')
+    try:
+        mining = _mine_lab_block_bounded(block)
+        return _lab_block_result(block, 'mined' if mining['completed'] else 'incomplete',
+                                 block.compute_hash(), mining)
+    finally:
+        _block_lab_mining_lock.release()
+
+
+def _mine_lab_block_bounded(block):
+    started, attempts = time.perf_counter(), 0
+    original_nonce = block.header.nonce
+    compute_hash = block.compute_hash
+
+    def bounded_hash():
+        nonlocal attempts
+        if attempts >= _BLOCK_LAB_MAX_ATTEMPTS or time.perf_counter() - started >= _BLOCK_LAB_MAX_SECONDS:
+            raise TimeoutError('Chưa hoàn tất: đã chạm giới hạn số lần băm hoặc thời gian của lab. Có thể tạo ứng viên mới để thử tiếp.')
+        attempts += 1
+        return compute_hash()
+
+    try:
+        # Instrument only this disposable instance; keep the existing nonce loop and SHA-256 implementation.
+        block.compute_hash = bounded_hash
+        try:
+            mining = {**mine_block(block), 'completed': True, 'reason': None}
+        except TimeoutError as exc:
+            block.header.nonce = attempts - 1 if attempts else original_nonce
+            mining = {'completed': False, 'reason': str(exc), 'attempts': attempts,
+                      'seconds': time.perf_counter() - started}
+        finally:
+            del block.compute_hash
+        mining.update({'max_attempts': _BLOCK_LAB_MAX_ATTEMPTS, 'max_seconds': _BLOCK_LAB_MAX_SECONDS,
+                       'elapsed_scope': 'mine_block nonce search including the lab limit guard'})
+        return mining
+    except Exception as exc:
+        logging.getLogger(__name__).exception('Standalone Block lab mining failed')
+        raise HTTPException(500, detail='Backend đào block thất bại. Bạn có thể thử lại ứng viên hoặc tạo ứng viên mới.') from exc
+
+
+@app.post('/api/labs/block/edit', response_model=LabBlockResponse)
+def lab_edit_block(body: LabBlockEditRequest):
+    block = _restore_lab_block(body.candidate)
+    _require_lab_block_integrity(block, body.candidate)
+    if not is_acceptable_pow(block):
+        raise HTTPException(409, detail='Chỉ thử sửa dữ liệu sau khi ứng viên đã đạt PoW.')
+    original = block.transactions[0].payload['lab_data']
+    if body.data == original:
+        raise HTTPException(422, detail='Dữ liệu mới phải khác dữ liệu đã ký.')
+    block.transactions[0].payload['lab_data'] = body.data
+    return _lab_block_result(block, 'edited', body.candidate.stored_hash, original_data=original)
+
+
+# Public snapshots keep this experiment separate from Block and every Network.
+# No retained handle, private key, expiry timer or worker exists to clean up.
+_BLOCKCHAIN_LAB_MAX_BLOCKS = 12  # Excludes genesis.
+_blockchain_lab_mining_lock = threading.Lock()
+
+
+class LabChainHeader(LabBlockHeader):
+    difficulty: Annotated[StrictInt, Field(ge=1, le=5)]
+
+
+class LabChainBlock(BaseModel):
+    model_config = {"extra": "forbid"}
+    height: Annotated[StrictInt, Field(ge=0, le=12)]
+    header: LabChainHeader
+    transaction: LabBlockTransaction | None
+    stored_hash: BlockLabHash
+
+
+class LabChainRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    chain: list[LabChainBlock] = Field(min_length=1, max_length=13)
+
+
+class LabChainAddRequest(LabChainRequest):
+    data: str = Field(max_length=4000)
+    difficulty: Annotated[StrictInt, Field(ge=2, le=5)] = 2
+    version: Annotated[StrictInt, Field(ge=1, le=2147483647)] = 1
+    timestamp: str | None = Field(default=None, max_length=80)
+
+    @field_validator('data', 'timestamp', mode='before')
+    @classmethod
+    def utf8_data(cls, value):
+        return LabBlockFields.utf8_text(value)
+
+    @field_validator('timestamp')
+    @classmethod
+    def valid_timestamp(cls, value):
+        return LabBlockFields.valid_timestamp(value) if value is not None else None
+
+
+class LabChainTargetRequest(LabChainRequest):
+    height: Annotated[StrictInt, Field(ge=1, le=12)]
+
+
+class LabChainEditRequest(LabChainTargetRequest):
+    data: str = Field(max_length=4000)
+
+    @field_validator('data', mode='before')
+    @classmethod
+    def utf8_data(cls, value):
+        return LabBlockFields.utf8_text(value)
+
+
+def _chain_lab_record(block, stored_hash=None):
+    return {'height': block.height, 'header': asdict(block.header),
+            'transaction': block.transactions[0].to_dict() if block.transactions else None,
+            'stored_hash': stored_hash if stored_hash is not None else block.compute_hash()}
+
+
+def _restore_chain_lab(records):
+    chain = Blockchain()
+    if records[0].model_dump() != _chain_lab_record(chain.chain[0]):
+        raise HTTPException(422, detail='Genesis phải giữ nguyên theo backend.')
+    for height, record in enumerate(records[1:], 1):
+        if record.height != height or record.transaction is None or record.header.difficulty < 2:
+            raise HTTPException(422, detail='Block cần đúng vị trí, giao dịch lab và độ khó 2–5.')
+        chain.chain.append(_restore_lab_block(record, height))
+    return chain
+
+
+def _chain_lab_result(chain, records=None, mining=None, change=None, candidate=None):
+    public = records or [_chain_lab_record(block) for block in chain.chain]
+    valid, invalid_height, reason = chain.is_chain_valid()
+    snapshots = []
+    prefix = Blockchain()
+    recorded_prefix = True
+    for height, block in enumerate(chain.chain):
+        record = public[height]
+        if height:
+            checks = _lab_block_validation(block, record['stored_hash'])
+        else:
+            checks = {'valid': True, 'checks': {}}
+        link = height == 0 or block.header.previous_hash == chain.chain[height - 1].compute_hash()
+        prefix.chain = chain.chain[:height + 1]
+        prefix_valid, _, prefix_reason = prefix.is_chain_valid()
+        recorded_prefix = recorded_prefix and record['stored_hash'] == block.compute_hash()
+        snapshots.append({'height': height, 'computed_hash': block.compute_hash(),
+                          'computed_transaction_hash': block.transactions[0].compute_hash() if height else None,
+                          'own_validation': checks, 'link_valid': link,
+                          'prefix_valid': prefix_valid and recorded_prefix,
+                          'prefix_reason': prefix_reason if not prefix_valid else
+                          'Hash đã ghi không khớp trong tiền tố.' if not recorded_prefix else prefix_reason})
+    if valid and not recorded_prefix:
+        valid, reason = False, 'Hash đã ghi không khớp trong chuỗi (kiểm tra bổ sung của lab).'
+        invalid_height = next(s['height'] for s in snapshots if not s['prefix_valid'])
+    return {'chain': public, 'blocks': snapshots, 'validation': {'valid': valid,
+            'invalid_height': invalid_height, 'reason': reason}, 'mining': mining,
+            'change': change, 'candidate': candidate, 'max_blocks': _BLOCKCHAIN_LAB_MAX_BLOCKS}
+
+
+@app.post('/api/labs/blockchain/init')
+def lab_init_blockchain():
+    return _chain_lab_result(Blockchain())
+
+
+@app.post('/api/labs/blockchain/validate')
+def lab_validate_blockchain(body: LabChainRequest):
+    return _chain_lab_result(_restore_chain_lab(body.chain), [r.model_dump() for r in body.chain])
+
+
+@app.post('/api/labs/blockchain/add')
+def lab_add_chain_block(body: LabChainAddRequest):
+    chain = _restore_chain_lab(body.chain)
+    records = [r.model_dump() for r in body.chain]
+    result = _chain_lab_result(chain, records)
+    if not result['validation']['valid']:
+        raise HTTPException(409, detail=result['validation']['reason'])
+    if len(chain.chain) - 1 >= _BLOCKCHAIN_LAB_MAX_BLOCKS:
+        raise HTTPException(422, detail='Lab đã đạt giới hạn 12 block ngoài genesis. Đặt lại để thử chuỗi mới.')
+    if not _blockchain_lab_mining_lock.acquire(blocking=False):
+        raise HTTPException(429, detail='Lab Blockchain đang đào. Hãy chờ rồi thử lại.')
+    try:
+        block = _new_lab_data_block(body.data, len(chain.chain),
+                                   chain.chain[-1].compute_hash(), body.difficulty,
+                                   timestamp=body.timestamp, version=body.version)
+        mining = _mine_lab_block_bounded(block)
+        candidate = _chain_lab_record(block)
+        if mining['completed']:
+            chain.chain.append(block)
+            records.append(candidate)
+        return _chain_lab_result(chain, records, mining=mining, candidate=candidate)
+    finally:
+        _blockchain_lab_mining_lock.release()
+
+
+def _chain_lab_target(body):
+    chain = _restore_chain_lab(body.chain)
+    if body.height >= len(chain.chain):
+        raise HTTPException(404, detail='Không có block ở chiều cao đã chọn.')
+    return chain, chain.chain[body.height], [r.model_dump() for r in body.chain]
+
+
+@app.post('/api/labs/blockchain/edit')
+def lab_edit_chain_block(body: LabChainEditRequest):
+    chain, block, records = _chain_lab_target(body)
+    original = deepcopy(records[body.height])
+    if block.transactions[0].payload['lab_data'] == body.data:
+        raise HTTPException(422, detail='Dữ liệu mới phải khác dữ liệu hiện tại.')
+    block.transactions[0].payload['lab_data'] = body.data
+    records[body.height] = _chain_lab_record(block, original['stored_hash'])
+    return _chain_lab_result(chain, records, change={'height': body.height,
+                             'action': 'edit', 'before': original, 'after': records[body.height]})
+
+
+@app.post('/api/labs/blockchain/recompute')
+def lab_recompute_chain_block(body: LabChainTargetRequest):
+    chain, block, records = _chain_lab_target(body)
+    original = deepcopy(records[body.height])
+    tx = block.transactions[0]
+    if tx.tx_id == tx.compute_hash():
+        raise HTTPException(409, detail='Chưa có dữ liệu sửa cần tính lại dấu vân tay.')
+    tx.tx_id = tx.compute_hash()  # Keep the old signature and nonce; do not repair subsequent links.
+    block.header.merkle_root = calculate_merkle_root([tx.tx_id])
+    records[body.height] = _chain_lab_record(block)
+    return _chain_lab_result(chain, records, change={'height': body.height,
+                             'action': 'recompute', 'before': original, 'after': records[body.height]})
 
 
 class LabConsensusResponse(BaseModel):

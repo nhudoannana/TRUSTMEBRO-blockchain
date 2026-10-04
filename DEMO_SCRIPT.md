@@ -436,6 +436,19 @@ The project implements **detection and longest-chain sync**, not full fork resol
 
 ---
 
+### Block Explorer — phiên có hướng dẫn, chỉ đọc
+
+1. Trong `/ui/trustmebro.html`, tạo/ký hồ sơ → gửi mempool → tạo block PoW hoặc PoS.
+2. Mở http://127.0.0.1:8000/ui/explorer.html từ trang chọn chế độ hoặc thanh điều hướng lab.
+3. Chọn node, bấm **Làm mới**, chọn block mới nhất và xem header, khóa validator PoS
+   (nếu có) cùng giao dịch ISSUE/REVOKE và payload thật. Khóa issuer ký hồ sơ khác
+   khóa validator ký block, kể cả khi tên tổ chức giống nhau.
+
+**Xem blockchain của phiên mô phỏng có hướng dẫn.** Explorer không đọc mạng lab
+cô lập, không tạo block, mining, sync, reset hay đổi stake. Genesis-only: quay lại
+journey tạo block rồi làm mới. Node offline có thể đang đọc chuỗi cũ; hash trên màn
+hình không chứng minh dữ liệu hợp lệ. Trang không tự polling; sau reset phải làm mới.
+
 ### P11 — Attack Simulator
 
 **What does the Attack Simulator demonstrate?**

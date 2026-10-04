@@ -8,11 +8,25 @@ python -m uvicorn api.wallet_api:app --host 127.0.0.1 --port 8000
 
 Home: http://127.0.0.1:8000/ui/modes.html#labs
 
-Exercises: `/ui/labs.html#sha`, `#signatures`, `#merkle`, `#consensus`, `#network`, `#tamper`.
+Exercises: `/ui/labs.html#sha`, `#signatures`, `#merkle`, `#blocks`, `#consensus`, `#network`, `#tamper`.
 The guided PoW/PoS journey remains `/ui/trustmebro.html`. All pages use
-the saved `trustmebro-theme` preference. Other labs remain unavailable.
+the saved `trustmebro-theme` preference. `/ui/explorer.html` is a separate read-only
+view of the shared guided network, not another isolated lab.
 
 ## Where calculations run
+
+The product has two modes: the existing six-step guided credential journey
+and independent experiments. There is no third mode or shared lab sandbox.
+Lab order: SHA-256, signatures, Merkle, Khối & Chuỗi khối,
+PoW–PoS, network synchronization, tamper detection. Explorer remains a
+read-only guided-journey tool, not a lab data source.
+
+Existing scope limits are unchanged: signatures/Hash/Merkle allow repeated
+editable inputs; PoW–PoS accepts editable credential metadata and conditions
+but uses fresh networks and fixed default difficulty. Network-sync retains
+one fixed sample credential/block per initialization, and tamper detection
+edits only the fixed Node-2 title. These two scenario labs have not been
+expanded into free-form blockchain experiments in this change.
 
 - **SHA-256:** browser Web Crypto hashes TextEncoder UTF-8 bytes, including
   empty text. Both full 64-character digests are shown. Changed bits are
@@ -98,6 +112,91 @@ guards. They are separate from browser verification. API tests compare
 Merkle outputs/proofs with existing backend fixtures and verify signature
 integrity, wrong keys, cleanup/limits and journey isolation.
 
+## Khối & Chuỗi khối — combined workspace
+
+Open `/ui/labs.html#blocks`. Legacy `#block` and `#blockchain` URLs open
+this same workspace. There is one navigation entry, one browser-owned chain
+snapshot and one reset action. The chain remains while switching lab tabs;
+reload/page exit clears it. No additional Network, server-side chain store,
+wallet handle or worker is introduced.
+
+Entering initializes the real canonical genesis via the existing chain API.
+Cards display Genesis → Block #1 → Block #2 with connecting arrows in a
+horizontally scrollable, keyboard-focusable track. Mobile cards remain
+readable inside the track. Overall chain validity/reason appear above it.
+Each card shows height, data preview, timestamp, nonce/difficulty, recorded
+and recomputed block hashes, previous_hash, own integrity, linkage and
+prefix validity. Expand for the full backend header, serialized transaction,
+full hashes and actual validation checks.
+
+The compact “Thêm khối” form accepts arbitrary UTF-8 text, including empty
+text and preserved whitespace (4,000 characters). No student/certificate,
+issuance date or issuer choice. Difficulty is 2–5; advanced fields retain
+version (1–2^31−1) and timezone-aware ISO-8601 timestamp (blank = creation
+time). previous_hash is read-only and automatically comes from the actual
+chain tip. Merkle root and nonce are derived. Add computes/signs/mines a
+candidate through the existing backend and appends only on completed PoW.
+No fabricated progress percentages: waiting status, measured attempts/time,
+incomplete work and backend rejection reasons are separate outcomes.
+
+| Method/path | Request | Public response |
+| --- | --- | --- |
+| POST `/api/labs/blockchain/init` | No body | Canonical genesis and actual validation |
+| POST `/api/labs/blockchain/add` | `chain`, `data`, difficulty 2–5, optional version/timestamp | Snapshot; append only after completed PoW; measured mining and candidate |
+| POST `/api/labs/blockchain/validate` | `chain` | Core validity/reason and per-block own integrity, link, prefix checks, recomputed transaction hash |
+| POST `/api/labs/blockchain/edit` | `chain`, non-genesis `height`, different `data` | Edited copy with retained evidence; before/after and actual validation |
+| POST `/api/labs/blockchain/recompute` | `chain`, edited non-genesis `height` | Updated tx_id/Merkle/recorded hash for that block; retained signature/nonce; unchanged descendants |
+
+Existing `/api/labs/block/{build,mine,edit}` endpoints remain available for
+compatibility and keep their calculations/contracts. The UI uses the chain
+API rather than a second standalone Block state.
+
+Click edit on a non-genesis card to edit directly there. Draft typing does
+not replace the input, mutate the chain or claim validation. Explicit edit
+immediately checks the changed public copy while retaining tx_id, signature,
+stored Merkle root, nonce and recorded hash. It does not re-sign, re-mine
+or repair. Header hash can stay unchanged because it hashes the recorded
+Merkle root; the recomputed transaction hash and validator detect corruption.
+
+Direct block integrity, previous_hash linkage and prefix validity are
+separate. Editing a middle block can invalidate later prefixes while those
+blocks' own hashes/proofs and links remain correct. Explicit recompute is
+a separate action: it updates that block's tx_id, Merkle and recorded hash,
+leaving the old signature/nonce and next block's previous_hash unchanged.
+The next link then breaks; recomputation does not restore signatures, PoW
+or consensus. A damaged chain cannot be extended; reset starts a fresh genesis.
+
+Backend Blockchain, Block, Transaction, SHA-256, Merkle and mine_block perform
+all calculations. The ledger requires an ISSUE container with a unique
+credential_id; a disposable wallet signs `{credential_id: UUID, lab_data:
+text}`. This is a teaching representation, not guided credential metadata
+or evidence of a real certificate. Core transaction/ledger validation is
+unchanged. Genesis must match the backend; no arbitrary transaction shapes
+or genesis editing. Core is_chain_valid() provides its real first failure;
+recorded-hash comparison is an additional lab check because Block computes
+its hash from its header rather than maintaining an immutable stored hash.
+
+At most **12 blocks plus genesis**, 4,000 text characters per block. Mining
+uses the existing nonce loop with the same **200,000 search hashes or three
+seconds** guard on the disposable instance. Incomplete work does not append;
+retry starts at nonce zero. Measured search time includes the guard and does
+not measure energy. Concurrent mining returns 429, invalid inputs/limits 422,
+missing target 404, invalid-chain append or no-op recompute 409.
+
+Reset starts only this lab's genesis; object-identity guards discard late
+initialization/mining/edit replies. No private keys survive a request or
+appear in responses. Guided wallets/chains/mempools/stakes/reset_count,
+Explorer and every other lab remain untouched. No expiry/worker cleanup is
+needed for this public snapshot; retained-network labs keep their existing
+lifecycle. User/backend data use textContent, including card editors/details.
+
+Tests cover the production models, hashes/signatures/PoW, optional headers,
+automatic previous_hash, middle edits, broken links after recompute, bounds,
+incomplete work and isolation. Behavioral Node-VM tests cover connected
+cards/details, repeated actions, safe rendering, edit-input identity,
+combined reset/stale replies and legacy-URL navigation. These are automated
+checks, not browser evidence.
+
 ## Added lab: PoW–PoS comparison
 
 `POST /api/labs/consensus/run` accepts `mode` (`pow` or `pos`), optional
@@ -147,8 +246,9 @@ nonce/timestamp and block timestamp, so tx IDs, signatures, hashes and
 selected validator may differ. Editing sample/condition inputs clears
 both results to prevent comparing different experiments. Full public
 identities/hashes/seed/timing are in expandable technical details.
-The network-sync and tamper labs are described below. The block-explorer
-lab remains unavailable.
+The network-sync and tamper labs are described below. Block Explorer is now
+available at `/ui/explorer.html`: create a guided block, open Explorer and inspect
+its transactions. It reads only the shared guided network, never these lab networks.
 
 ## Added lab: network synchronization
 

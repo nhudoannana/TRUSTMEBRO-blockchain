@@ -20,6 +20,7 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-off
 html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#20354f;--muted:#465b74;--line:#839ab435;--accent:#876338}html[data-theme="light"] .mode-card{background:linear-gradient(135deg,#e3eaf3,#fff 80%);box-shadow:0 12px 35px #29446312}html[data-theme="light"] .brand em{color:#876338}html[data-theme="light"] .primary{background:#294463;color:white}
 @media(max-width:700px){.shell{padding:12px 20px 30px}.masthead{padding:14px;border-radius:16px;gap:14px;flex-wrap:wrap}.utilities{gap:12px}.intro{padding:44px 0 28px}.mode-grid{grid-template-columns:1fr;gap:18px}.mode-card,.placeholder{padding:26px}.mode-card h2{font-size:32px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+section.mode-card:hover{transform:none;border-color:var(--line)}
 </style>
 </head>
 <body>
@@ -33,21 +34,21 @@ html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#
       <div class="intro"><p class="eyebrow">TRUSTMEBRO / CHỌN CHẾ ĐỘ</p><h1 id="mode-title" tabindex="-1">Bạn muốn bắt đầu<br>theo cách nào?</h1><p class="lead">Đi từng bước với hành trình có hướng dẫn, hoặc tự thử các phép tính trong phòng thí nghiệm.</p></div>
       <div class="mode-grid">
         <a class="mode-card" id="guided-mode" href="/ui/trustmebro.html"><span class="eyebrow">01 / TỪNG BƯỚC</span><h2>Có hướng dẫn</h2><p>Từ chọn ví đến xác minh. Mỗi bước có thao tác thật qua backend và giải thích để bạn hiểu chuyện gì đang xảy ra.</p><span class="mode-action">Bắt đầu hành trình <span aria-hidden="true">↗</span></span><small>Ví → Hồ sơ → Mempool → PoW / PoS → Đồng bộ → Xác minh</small></a>
-        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Thử SHA-256, chữ ký số, cây Merkle, PoW–PoS, đồng bộ và phát hiện sửa dữ liệu, tách biệt với phiên có hướng dẫn.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>Sáu lab đã sẵn sàng. Lab khám phá block chưa mở.</small></a>
+        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Tự nhập dữ liệu và lặp lại các thí nghiệm độc lập. Mỗi lab giữ ví, giao dịch, mạng và reset riêng; không có mạng sandbox dùng chung.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>Bảy thí nghiệm độc lập có sẵn.</small></a>
       </div>
     </section>
     <section id="labs-placeholder" hidden aria-labelledby="labs-title">
-      <div class="intro"><p class="eyebrow">TRUSTMEBRO / PHÒNG THÍ NGHIỆM</p><h1 id="labs-title" tabindex="-1">Một thay đổi nhỏ.<br>Tự xem kết quả thật.</h1><p class="lead">Mỗi lab có dữ liệu riêng. Tính hash trong trình duyệt; ký số và Merkle dùng backend. Reset lab không reset mạng demo.</p></div>
+      <div class="intro"><p class="eyebrow">TRUSTMEBRO / PHÒNG THÍ NGHIỆM</p><h1 id="labs-title" tabindex="-1">Một thay đổi nhỏ.<br>Tự xem kết quả thật.</h1><p class="lead">Mỗi lab có dữ liệu riêng. Tính hash trong trình duyệt; ký số và Merkle dùng backend. Reset lab không reset mạng demo. Block Explorer đọc phiên có hướng dẫn, không đọc các mạng lab.</p></div>
       <div class="mode-grid">
         <a class="mode-card" href="/ui/labs.html#sha"><span class="eyebrow">01 / TRÌNH DUYỆT</span><h2>SHA-256</h2><p>So sánh hai văn bản, toàn bộ hash và số bit thực sự thay đổi.</p><span class="mode-action">Thử phép băm ↗</span></a>
         <a class="mode-card" href="/ui/labs.html#signatures"><span class="eyebrow">02 / BACKEND</span><h2>Chữ ký số</h2><p>Tạo khóa tạm, ký và sửa thông điệp để tự kiểm tra chữ ký ECDSA.</p><span class="mode-action">Thử ký và xác minh ↗</span></a>
         <a class="mode-card" href="/ui/labs.html#merkle"><span class="eyebrow">03 / BACKEND</span><h2>Cây Merkle</h2><p>Sửa một lá, xem các tầng thật và kiểm tra proof theo quy ước backend.</p><span class="mode-action">Thử cây Merkle ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#consensus"><span class="eyebrow">04 / BACKEND · MẠNG RIÊNG</span><h2>So sánh PoW–PoS</h2><p>Cùng nội dung ISSUE mẫu, hai mạng tạm. Xem nonce PoW, validator PoS và thời gian đo thật.</p><span class="mode-action">Đối chiếu hai cách tạo block ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#network"><span class="eyebrow">05 / BACKEND · MẠNG RIÊNG</span><h2>Đồng bộ mạng</h2><p>Tắt Node-3, tạo block PoW và xác minh hồ sơ trên ba node. Bật lại để quan sát catch-up thật.</p><span class="mode-action">Thử node offline và đồng bộ ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#tamper"><span class="eyebrow">06 / BACKEND · MẠNG RIÊNG</span><h2>Sửa dữ liệu</h2><p>Sửa tiêu đề trong blockchain cục bộ Node-2, kiểm tra lỗi thật và chủ động phục hồi từ peer hợp lệ.</p><span class="mode-action">Thử phát hiện và phục hồi ↗</span></a>
+        <a class="mode-card" href="/ui/labs.html#blocks"><span class="eyebrow">04 / BACKEND · CHUỖI RIÊNG</span><h2>Khối &amp; Chuỗi khối</h2><p>Tự nhập văn bản, thêm các khối nối từ genesis, mở header và thử sửa ngay trên thẻ khối.</p><span class="mode-action">Thử khối và chuỗi khối ↗</span></a>
+        <a class="mode-card" href="/ui/labs.html#consensus"><span class="eyebrow">05 / BACKEND · MẠNG RIÊNG</span><h2>So sánh PoW–PoS</h2><p>Cùng nội dung ISSUE mẫu, hai mạng tạm. Xem nonce PoW, validator PoS và thời gian đo thật.</p><span class="mode-action">Đối chiếu hai cách tạo block ↗</span></a>
+        <a class="mode-card" href="/ui/labs.html#network"><span class="eyebrow">06 / BACKEND · MẠNG RIÊNG</span><h2>Đồng bộ mạng</h2><p>Tắt Node-3, tạo block PoW và xác minh hồ sơ trên ba node. Bật lại để quan sát catch-up thật.</p><span class="mode-action">Thử node offline và đồng bộ ↗</span></a>
+        <a class="mode-card" href="/ui/labs.html#tamper"><span class="eyebrow">07 / BACKEND · MẠNG RIÊNG</span><h2>Sửa dữ liệu</h2><p>Sửa tiêu đề trong blockchain cục bộ Node-2, kiểm tra lỗi thật và chủ động phục hồi từ peer hợp lệ.</p><span class="mode-action">Thử phát hiện và phục hồi ↗</span></a>
       </div>
-      <details class="placeholder" style="margin-top:24px"><summary>Lab dự kiến — chưa khả dụng</summary><p>Khám phá block chưa được triển khai thành lab. Hiện chưa có thao tác cho lab này.</p></details>
-      <div class="actions"><a class="primary" href="/ui/trustmebro.html">Hành trình có hướng dẫn →</a><a class="back" id="back-to-modes" href="/ui/modes.html#">← Chọn lại chế độ</a><a class="back" href="/landing.html">Trang chủ</a></div>
+      <div class="actions"><a class="primary" href="/ui/trustmebro.html">Hành trình có hướng dẫn →</a><a class="back" id="back-to-modes" href="/ui/modes.html#">← Chọn lại chế độ</a><a class="back" href="/landing.html">Trang chủ</a><a class="back" id="explorer-mode" href="/ui/explorer.html">Block Explorer — đọc riêng phiên có hướng dẫn ↗</a></div>
     </section>
     <p class="note">Mô phỏng học tập trong một server, dùng dữ liệu mẫu. Không phải hệ thống đồng thuận production.</p>
   </main>

@@ -200,6 +200,186 @@ function resetMerkle() {
   labError('merkle-error'); $('merkle-status').textContent = 'Đã reset riêng lab Merkle; không gọi reset phiên demo.';
 }
 
+function freshChainLab() { return { busy: false, result: null, selected: 0, draft: '', initialization: null }; }
+let chainLab = freshChainLab();
+
+function chainText(parent, tag, text) {
+  const element = document.createElement(tag); element.textContent = text; parent.append(element); return element;
+}
+
+function chainButtonReason(id, reason) {
+  const note = $(id);
+  if (!note) return;
+  note.textContent = reason; note.hidden = !reason; note.setAttribute('role', 'status');
+}
+
+function chainControls() {
+  const s = chainLab, data = s.result;
+  formBusy('chain-form', s.busy);
+  $('chain-init').hidden = s.busy || !!data;
+  $('chain-init').disabled = s.busy;
+  $('chain-example').disabled = s.busy;
+  $('chain-add').disabled = s.busy || !data || !data.validation.valid || data.chain.length > data.max_blocks;
+  const busyReason = s.busy ? $('chain-status').textContent : '';
+  chainButtonReason('chain-add-reason', busyReason || (!data
+    ? 'Chưa có chuỗi. Bấm Thử khởi tạo genesis lại nếu khởi tạo thất bại.'
+    : !data.validation.valid ? 'Chuỗi đang không hợp lệ nên không thêm khối. Xem khối bị đánh dấu đỏ/vàng, hoặc bấm Đặt lại.'
+    : data.chain.length > data.max_blocks ? 'Đã đạt 12 khối (giới hạn của lab). Bấm Đặt lại để làm chuỗi mới.' : ''));
+  $('chain-difficulty-hint').textContent = Number($('chain-difficulty').value) >= 4
+    ? 'Độ khó 4–5 là thử thách: có thể chưa tìm được nonce trong giới hạn; khi đó khối chưa được thêm.'
+    : 'Độ khó 2–3 phù hợp để bắt đầu; mỗi lượt đào vẫn có giới hạn.';
+  $('chain-validate').disabled = s.busy || !data;
+  $('chain-previous').value = data?.blocks.at(-1)?.computed_hash || '';
+  const selected = data?.chain[s.selected], state = data?.blocks[s.selected];
+  if ($('chain-edited-data')) $('chain-edited-data').disabled = s.busy;
+  if ($('chain-edit')) $('chain-edit').disabled = s.busy || !s.selected || !selected
+    || s.draft === selected.transaction?.payload.lab_data;
+  if ($('chain-recompute')) $('chain-recompute').disabled = s.busy || !s.selected || !selected
+    || selected.transaction.tx_id === state?.computed_transaction_hash;
+  if (selected?.transaction) {
+    chainButtonReason('chain-edit-reason', busyReason || (s.draft === selected.transaction.payload.lab_data
+      ? 'Hãy đổi dữ liệu trước khi sửa.' : ''));
+    chainButtonReason('chain-recompute-reason', busyReason || (selected.transaction.tx_id === state?.computed_transaction_hash
+      ? 'Hash giao dịch đã khớp; không có dấu vân tay mới để tính lại.' : ''));
+  }
+}
+
+function selectChainBlock(height) {
+  const s = chainLab;
+  if (s.busy || !height || !s.result?.chain[height]) return;
+  s.selected = height;
+  s.draft = s.result.chain[height].transaction.payload.lab_data;
+  showChainLab();
+  $('chain-edited-data').focus();
+}
+
+function showChainLab() {
+  const s = chainLab, data = s.result, panel = $('chain-result'), track = $('chain-cards');
+  panel.hidden = !data; track.replaceChildren(); $('chain-summary').replaceChildren(); $('chain-evidence').replaceChildren();
+  if (!data) { chainControls(); return; }
+  const summary = $('chain-summary');
+  summary.className = 'result ' + (data.validation.valid ? 'valid' : 'invalid');
+  chainText(summary, 'h2', (data.validation.valid ? '✓ Chuỗi hợp lệ' : '✗ Chuỗi không hợp lệ') + ` · ${data.chain.length - 1} khối ngoài genesis`);
+  chainText(summary, 'p', data.validation.reason);
+  if (data.mining) chainText(summary, 'p', `${data.mining.completed ? '✓ Đã thêm khối' : '⏳ Chưa thêm khối: đào chưa hoàn tất'} · ${data.mining.attempts} lần băm · ${Number(data.mining.seconds).toFixed(3)} giây. ${data.mining.reason || ''}`);
+  for (const block of data.chain) {
+    const state = data.blocks[block.height];
+    if (block.height) {
+      const arrow = chainText(track, 'span', state.link_valid ? '→' : '✗ →');
+      arrow.className = 'chain-arrow'; arrow.setAttribute('aria-label', state.link_valid ? 'Liên kết tới khối tiếp theo' : 'Liên kết tới khối tiếp theo bị gãy');
+    }
+    const card = document.createElement('article');
+    card.className = 'chain-card ' + (!state.own_validation.valid ? 'own-invalid'
+      : !state.prefix_valid ? 'prefix-broken' : 'own-valid');
+    card.dataset.height = String(block.height); track.append(card);
+    chainText(card, 'h3', block.height === 0 ? 'Genesis · #0' : 'Block #' + block.height);
+    const text = block.transaction?.payload.lab_data;
+    const preview = chainText(card, 'p', block.height === 0 ? 'Khối khởi đầu cố định' : text ? text.slice(0, 160) + (text.length > 160 ? '…' : '') : '(Văn bản rỗng)');
+    preview.className = 'chain-data-preview';
+    chainText(card, 'p', `Timestamp: ${block.header.timestamp}`);
+    chainText(card, 'p', `Nonce: ${block.header.nonce} · Độ khó: ${block.header.difficulty}`);
+    chainText(card, 'p', `Hash đã ghi: ${shortHash(block.stored_hash)}`);
+    chainText(card, 'p', `Hash tính lại: ${shortHash(state.computed_hash)}`);
+    if (block.transaction && state.computed_transaction_hash !== block.transaction.tx_id) {
+      chainText(card, 'p', `Hash giao dịch đã ghi: ${shortHash(block.transaction.tx_id)}`).title = block.transaction.tx_id;
+      chainText(card, 'p', `Hash giao dịch tính lại: ${shortHash(state.computed_transaction_hash)}`).title = state.computed_transaction_hash;
+      chainText(card, 'p', 'Nội dung đã đổi — hash giao dịch không khớp.');
+    }
+    chainText(card, 'p', `Previous hash: ${shortHash(block.header.previous_hash)}`);
+    chainText(card, 'p', state.own_validation.valid ? '✓ Nội dung/header và bằng chứng riêng đạt' : '✗ Khối không hợp lệ: nội dung/header hoặc bằng chứng riêng không đạt');
+    if (state.own_validation.valid && !state.prefix_valid) {
+      chainText(card, 'p', 'Block này còn nguyên, nhưng lịch sử trước nó không hợp lệ.').className = 'chain-prefix-warning';
+    }
+    chainText(card, 'p', state.link_valid ? '✓ Liên kết với khối trước đạt' : '✗ Previous hash bị gãy');
+    chainText(card, 'p', state.prefix_valid ? '✓ Tiền tố chuỗi hợp lệ' : '✗ Tiền tố chuỗi không hợp lệ; hash riêng của khối này có thể vẫn đúng.');
+    const details = document.createElement('details'); card.append(details);
+    chainText(details, 'summary', 'Header, dữ liệu và kiểm tra đầy đủ');
+    if (block.transaction) {
+      chainText(details, 'p', 'Hash giao dịch đã ghi / tính lại:');
+      chainText(details, 'pre', `${block.transaction.tx_id}\n${state.computed_transaction_hash}`);
+    }
+    chainText(details, 'pre', JSON.stringify({ block, validation: state }, null, 2));
+    if (!block.height) continue;
+    const edit = chainText(card, 'button', 'Sửa dữ liệu Block #' + block.height);
+    edit.type = 'button'; edit.className = 'secondary'; edit.disabled = s.busy;
+    edit.onclick = () => selectChainBlock(block.height);
+    if (s.selected !== block.height) continue;
+    const form = document.createElement('form'); form.className = 'chain-editor'; card.append(form);
+    const label = chainText(form, 'label', 'Dữ liệu thay thế — giữ nguyên bằng chứng đã ghi');
+    label.setAttribute('for', 'chain-edited-data');
+    const input = document.createElement('textarea'); input.id = 'chain-edited-data'; input.maxLength = 4000; input.value = s.draft;
+    form.append(input);
+    const submit = chainText(form, 'button', 'Sửa và kiểm tra');
+    submit.id = 'chain-edit'; submit.className = 'secondary';
+    chainText(form, 'p', '').id = 'chain-edit-reason';
+    form.onsubmit = event => chainLabAction('edit', event);
+    input.oninput = () => {
+      s.draft = input.value; chainControls();
+      $('chain-status').textContent = 'Bản nháp đã đổi; bấm sửa và kiểm tra để backend kiểm tra ngay. Bằng chứng đã ghi giữ nguyên.';
+    };
+    const recompute = chainText(form, 'button', 'Tính lại dấu vân tay và Merkle');
+    recompute.id = 'chain-recompute'; recompute.type = 'button'; recompute.className = 'secondary';
+    chainText(form, 'p', '').id = 'chain-recompute-reason';
+    recompute.onclick = () => chainLabAction('recompute');
+    chainText(form, 'p', 'Tính lại là thao tác riêng: đổi tx_id, Merkle và hash của khối này; không ký lại, đào lại hay sửa liên kết phía sau.');
+  }
+  const evidence = $('chain-evidence');
+  if (data.change) {
+    const details = document.createElement('details'); details.open = true; evidence.append(details);
+    chainText(details, 'summary', `Trước / sau — Block #${data.change.height}`);
+    chainText(details, 'pre', `${data.change.before.transaction.payload.lab_data} → ${data.change.after.transaction.payload.lab_data}`);
+    const technical = document.createElement('details'); details.append(technical);
+    chainText(technical, 'summary', 'Hash, Merkle, nonce và chữ ký trước / sau');
+    chainText(technical, 'pre', JSON.stringify(data.change, null, 2));
+  }
+  if (data.mining) {
+    const details = document.createElement('details'); evidence.append(details);
+    chainText(details, 'summary', 'Ứng viên và số liệu đào thực tế (kể cả chưa hoàn tất)');
+    chainText(details, 'pre', JSON.stringify({ mining: data.mining, candidate: data.candidate }, null, 2));
+  }
+  chainControls();
+}
+
+async function chainLabAction(action, event) {
+  event?.preventDefault();
+  const s = chainLab;
+  if (s.busy || (action !== 'init' && !s.result) || (action === 'init' && s.result)) return;
+  if (['edit', 'recompute'].includes(action) && !s.selected) return;
+  let body = action === 'init' ? {} : { chain: s.result.chain };
+  if (action === 'add') Object.assign(body, { data: $('chain-data').value,
+    difficulty: Number($('chain-difficulty').value), version: Number($('chain-version').value),
+    timestamp: $('chain-timestamp').value.trim() || null });
+  if (['edit', 'recompute'].includes(action)) body.height = s.selected;
+  if (action === 'edit') body.data = s.draft;
+  s.busy = true; labError('chain-error');
+  $('chain-status').textContent = action === 'add' ? '⏳ Backend đang tính hash và tìm nonce có giới hạn; chỉ thêm khối khi đạt PoW…'
+    : action === 'init' ? 'Đang khởi tạo genesis của lab…' : 'Backend đang kiểm tra chuỗi riêng của lab…';
+  showChainLab();
+  try {
+    const data = await labPost('/blockchain/' + action, body);
+    if (s !== chainLab) return;
+    s.result = data;
+    if (action === 'add') s.selected = 0;
+    s.draft = data.chain[s.selected]?.transaction?.payload.lab_data || '';
+    $('chain-status').textContent = data.mining && !data.mining.completed ? 'Đào chưa hoàn tất trong giới hạn; ứng viên chưa được thêm vào chuỗi.'
+      : data.validation.valid ? 'Chuỗi đã được kiểm tra. Thêm khối hoặc chọn thẻ khối để thử sửa.'
+      : 'Phát hiện lỗi thật. Không tự ký lại, đào lại hay sửa các liên kết phía sau.';
+  } catch (error) {
+    if (s === chainLab) {
+      labError('chain-error', error.message);
+      $('chain-status').textContent = 'Thao tác không thành công; chuỗi trước đó được giữ nguyên.';
+    }
+  } finally { if (s === chainLab) { s.busy = false; showChainLab(); } }
+}
+
+function resetChainLab(initialize = true) {
+  chainLab = freshChainLab(); $('chain-data').value = ''; $('chain-difficulty').value = '2';
+  $('chain-version').value = '1'; $('chain-timestamp').value = '';
+  labError('chain-error'); showChainLab();
+  $('chain-status').textContent = 'Đã đặt lại riêng lab Khối & Chuỗi khối. Các lab khác và mạng có hướng dẫn giữ nguyên.';
+  if (initialize) chainLab.initialization = chainLabAction('init');
+}
+
 function freshComparison() { return { mode: 'pow', busy: false, results: { pow: null, pos: null } }; }
 let comparison = freshComparison();
 
@@ -521,16 +701,18 @@ async function resetTamperLab() {
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   window.addEventListener('pageshow', restoreTheme); restoreTheme();
   function route(focus) {
-    const labs = ['sha', 'signatures', 'merkle', 'consensus', 'network', 'tamper'];
-    const name = labs.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'sha';
+    const labs = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'tamper'];
+    const requested = ['block', 'blockchain'].includes(location.hash.slice(1)) ? 'blocks' : location.hash.slice(1);
+    const name = labs.includes(requested) ? requested : 'sha';
     labs.forEach(id => { $('lab-' + id).hidden = id !== name; });
     document.querySelectorAll('[data-lab]').forEach(a => {
       if (a.dataset.lab === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
+    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
+    if (name === 'blocks' && !chainLab.result && !chainLab.busy) chainLab.initialization = chainLabAction('init');
   }
-  window.addEventListener('hashchange', () => route(true)); route(false);
+  window.addEventListener('hashchange', () => route(true));
   $('hash-form').onsubmit = compareHashes; $('hash-reset').onclick = resetHash;
   ['hash-a', 'hash-b'].forEach(id => { $(id).oninput = () => { $('hash-status').textContent = 'Nội dung đã đổi. Bấm tính lại để cập nhật kết quả.'; }; });
   $('sig-create').onclick = () => signatureAction('create'); $('sig-other').onclick = () => signatureAction('other');
@@ -544,6 +726,13 @@ async function resetTamperLab() {
     $(id).onclick = () => { if (merkleBusy) return; $('merkle-leaves').value = text; $('merkle-leaves').oninput(); };
   }
   $('comparison-form').onsubmit = runComparison; $('comparison-reset').onclick = resetComparison;
+  $('chain-init').onclick = () => chainLabAction('init');
+  $('chain-form').onsubmit = event => chainLabAction('add', event);
+  $('chain-difficulty').onchange = chainControls;
+  $('chain-validate').onclick = () => chainLabAction('validate');
+  $('chain-reset').onclick = () => resetChainLab();
+  $('chain-example').onclick = () => { if (!chainLab.busy) $('chain-data').value = 'Ghi chú của tôi: mỗi block nối với block trước.'; };
+  resetChainLab(false);
   for (const mode of ['pow', 'pos']) {
     $('comparison-' + mode).onchange = () => {
       if (comparison.busy) return;
@@ -569,6 +758,7 @@ async function resetTamperLab() {
   $('tamper-input').oninput = showTamperLab;
   $('tamper-reset').onclick = resetTamperLab; showTamperLab();
   window.addEventListener('pagehide', () => {
+    resetChainLab(false);
     const oldTamper = tamperLab; oldTamper.abort?.abort(); tamperLab = freshNetworkLab(); showTamperLab();
     $('tamper-status').textContent = 'Đã rời trang; tạo chuỗi mẫu mới để tiếp tục.';
     if (oldTamper.handle) closeTamperLab(oldTamper).catch(() => {});
@@ -580,5 +770,5 @@ async function resetTamperLab() {
     $('sig-status').textContent = 'Đã rời trang; tạo khóa tạm mới để ký tiếp.';
     [old.key, old.other].filter(Boolean).forEach(k => navigator.sendBeacon(`${LAB_API}/signatures/keys/${encodeURIComponent(k.key_handle)}/reset`));
   });
-  showSignature(); updateProofChoices();
+  showSignature(); updateProofChoices(); route(false);
 })();

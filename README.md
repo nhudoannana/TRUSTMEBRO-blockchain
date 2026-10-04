@@ -328,6 +328,18 @@ Existing simulation limitations are preserved:
 
 ### TRUSTMEBRO app review
 
+Block Explorer: http://127.0.0.1:8000/ui/explorer.html — **Xem blockchain của phiên
+mô phỏng có hướng dẫn.** Chọn Node-1/2/3 để đọc chuỗi chính (gồm genesis), header
+PoW/PoS và payload/chữ ký ISSUE hoặc REVOKE. Tạo một block trong journey, mở Explorer,
+chọn block rồi xem giao dịch. Sau thay đổi/reset, bấm **Làm mới**; không có polling.
+Explorer chỉ đọc dữ liệu; không tạo block hay đồng bộ node, và không xem mạng lab
+cô lập. Node offline vẫn đọc được nhưng có cảnh báo dữ liệu cũ. Danh tính issuer
+và validator hiển thị riêng; tên validator chỉ lấy từ registry khi khóa khớp chữ ký.
+GET `/api/explorer/blocks?node_id=Node-1` trả snapshot và các block mới nhất trước;
+GET `/api/explorer/blocks/{height}?node_id=Node-1` trả header/giao dịch public.
+Hash hiển thị không thay thế việc xác minh chuỗi. Đây là trạng thái trong bộ nhớ
+của tiến trình FastAPI; restart/reset tạo phiên mới.
+
 See [the project review](docs/REVIEW_2026-09-26.md) for confirmed fixes, validation and remaining scope.
 The network starts with three validator wallets. Reset Stake keeps their existing keys;
 Generate Wallet intentionally creates another identity. Wallets with equal names may still

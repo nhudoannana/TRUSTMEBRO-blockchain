@@ -58,6 +58,12 @@ def get_session_info() -> dict:
         }
 
 
+def get_reset_count() -> int:
+    """Read the session generation without seeding or accessing wallets."""
+    with session_lock:
+        return _reset_count
+
+
 def submit_signed_transaction(network, node, tx) -> tuple[bool, str, str]:
     """Caller holds session_lock; workers use node locks, not session_lock.
 

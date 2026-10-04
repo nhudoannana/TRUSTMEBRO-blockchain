@@ -1104,6 +1104,7 @@ function showMining(p, m) {
   $('p-result').innerHTML = result && (result.mined || result.forged) ? `
     <section class="result-summary"><h3>Đã tạo block #${result.block.height} bằng ${result.forged ? 'PoS' : 'PoW'}</h3>
       <p>${esc(result.node_id)} · ${result.block.transaction_count} giao dịch · ${Number(result.seconds).toFixed(3)} giây</p>
+      <p><a href="/ui/explorer.html?node_id=${encodeURIComponent(result.node_id)}&amp;height=${result.block.height}">Xem block vừa tạo →</a></p>
       ${result.forged ? `<p>Validator tạo block — ký block: ${publicValidatorHtml(result.signer)}</p>` : ''}
       <p class="hint">Đây là thời gian xử lý được đo, không phải mức tiêu thụ điện năng. Block đã được gửi qua queue; xem mạng để xác nhận lan truyền.</p>
     <details class="technical"><summary>Chi tiết kỹ thuật</summary>
@@ -1591,6 +1592,72 @@ async function render() {
 
 
 // ═══════════════════════════════════════════════════════════════
+//  PUBLIC WORKFLOW CHECKPOINT (one browser tab; never proof of chain validity)
+const JOURNEY_STORAGE = 'trustmebro-guided-workflow';
+let journeyRestoreMessage = '';
+
+function saveJourney() {
+  try {
+    if (!state.selectedWalletId && !state.network?.snapshot) {
+      sessionStorage.removeItem(JOURNEY_STORAGE); return;
+    }
+    const pick = (object, keys) => object && Object.fromEntries(keys.filter(key => key in object).map(key => [key, object[key]]));
+    const saved = {
+      version: 1, generation: state.mempool?.generation ?? state.network?.snapshot?.reset_count ?? state.verification?.generation ?? null,
+      step: state.step, max: state.max, holder: state.holder, credential: state.credential, date: state.date,
+      wallet: pick(state.selectedWallet, ['id','name','address','public_key_hex','source']),
+      record: pick(state.record, ['credential_id','credential','issuer_wallet_id','issuer_address','transaction']),
+      block: state.block,
+      submission: state.mempool?.submission, submissionNode: state.mempool?.nodeId,
+      mining: pick(state.mining, ['mode','nodeId','result']),
+      verification: pick(state.verification, ['credentialId','nodeId','original','originalId','copy','revocation']),
+    };
+    sessionStorage.setItem(JOURNEY_STORAGE, JSON.stringify(saved, (key, value) => /private/i.test(key) ? undefined : value));
+  } catch { /* Storage may be disabled; navigation still works without a checkpoint. */ }
+}
+
+async function restoreJourney() {
+  const current = state;
+  try {
+    const raw = sessionStorage.getItem(JOURNEY_STORAGE);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (saved.version !== 1 || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 5
+        || !Number.isInteger(saved.max) || saved.max < 0 || saved.max > 5) throw new Error('Trạng thái lưu không hợp lệ.');
+    const wallet = saved.wallet ? await apiGetWallet(saved.wallet.id) : null;
+    if (saved.wallet && (!wallet || wallet.public_key_hex !== saved.wallet.public_key_hex || wallet.address !== saved.wallet.address))
+      throw new Error('Ví của phiên trước không còn tồn tại.');
+    if (saved.record && (!wallet || saved.record.issuer_wallet_id !== wallet.id || saved.record.transaction?.sender_public_key !== wallet.public_key_hex))
+      throw new Error('Hồ sơ lưu không khớp ví phát hành.');
+    const response = await fetch(`${API_BASE}/mempool`), snapshot = await response.json();
+    if (!response.ok) throw new Error(`Lỗi ${response.status}`);
+    if (saved.generation !== null && saved.generation !== snapshot.reset_count) throw new Error('Phiên đã reset.');
+    if (state !== current) { sessionStorage.removeItem(JOURNEY_STORAGE); return false; }
+    const restored = freshState();
+    for (const key of ['step','max','holder','credential','date','record','block']) if (saved[key] !== undefined) restored[key] = saved[key];
+    restored.selectedWallet = wallet;
+    restored.selectedWalletId = wallet?.id || null;
+    restored.selectedWalletName = wallet?.name || null;
+    state = restored;
+    Object.assign(mempoolState(), { generation: snapshot.reset_count, nodes: snapshot.nodes,
+      submission: saved.submission || null, nodeId: saved.submissionNode || null });
+    if (saved.mining) Object.assign(miningState(), saved.mining);
+    if (saved.verification) Object.assign(verificationState(), saved.verification);
+    // Runtime flags, cached validity/verification results and timers are never restored.
+    return true;
+  } catch {
+    try { sessionStorage.removeItem(JOURNEY_STORAGE); } catch {}
+    if (state === current) journeyRestoreMessage = 'Không khôi phục hành trình cũ: phiên có thể đã reset hoặc chưa xác nhận được với backend. Hãy chọn ví ở bước 1.';
+    return false;
+  }
+}
+
+async function enterJourney() {
+  await restoreJourney();
+  await render();
+  if (journeyRestoreMessage) showError('reset-error', journeyRestoreMessage);
+}
+
 //  THEME TOGGLE
 // ═══════════════════════════════════════════════════════════════
 
@@ -1626,6 +1693,8 @@ $('reset').onclick = async () => {
       throw new Error(detail.detail || `Lỗi ${r.status}`);
     }
     state = freshState();
+    try { sessionStorage.removeItem(JOURNEY_STORAGE); } catch {}
+    journeyRestoreMessage = '';
     await render();
     clearWalletSelection();
   } catch (err) {
@@ -1640,7 +1709,11 @@ $('reset').onclick = async () => {
 //  INIT
 // ═══════════════════════════════════════════════════════════════
 
-render();
+window.addEventListener('pagehide', saveJourney);
+window.addEventListener('pageshow', event => {
+  if (event.persisted) { state = freshState(); journeyRestoreMessage = ''; enterJourney(); }
+});
+enterJourney();
 </script>
 </body>
 </html>
