@@ -33,7 +33,7 @@ html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#
       <div class="intro"><p class="eyebrow">TRUSTMEBRO / CHỌN CHẾ ĐỘ</p><h1 id="mode-title" tabindex="-1">Bạn muốn bắt đầu<br>theo cách nào?</h1><p class="lead">Đi từng bước với hành trình có hướng dẫn, hoặc tự thử các phép tính trong phòng thí nghiệm.</p></div>
       <div class="mode-grid">
         <a class="mode-card" id="guided-mode" href="/ui/trustmebro.html"><span class="eyebrow">01 / TỪNG BƯỚC</span><h2>Có hướng dẫn</h2><p>Từ chọn ví đến xác minh. Mỗi bước có thao tác thật qua backend và giải thích để bạn hiểu chuyện gì đang xảy ra.</p><span class="mode-action">Bắt đầu hành trình <span aria-hidden="true">↗</span></span><small>Ví → Hồ sơ → Mempool → PoW / PoS → Đồng bộ → Xác minh</small></a>
-        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Thử SHA-256, chữ ký số, cây Merkle, PoW–PoS và đồng bộ node bằng backend thật, tách biệt với phiên có hướng dẫn.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>Năm lab đã sẵn sàng. Các lab còn lại chưa mở.</small></a>
+        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Thử SHA-256, chữ ký số, cây Merkle, PoW–PoS, đồng bộ và phát hiện sửa dữ liệu, tách biệt với phiên có hướng dẫn.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>Sáu lab đã sẵn sàng. Lab khám phá block chưa mở.</small></a>
       </div>
     </section>
     <section id="labs-placeholder" hidden aria-labelledby="labs-title">
@@ -44,8 +44,9 @@ html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#
         <a class="mode-card" href="/ui/labs.html#merkle"><span class="eyebrow">03 / BACKEND</span><h2>Cây Merkle</h2><p>Sửa một lá, xem các tầng thật và kiểm tra proof theo quy ước backend.</p><span class="mode-action">Thử cây Merkle ↗</span></a>
         <a class="mode-card" href="/ui/labs.html#consensus"><span class="eyebrow">04 / BACKEND · MẠNG RIÊNG</span><h2>So sánh PoW–PoS</h2><p>Cùng nội dung ISSUE mẫu, hai mạng tạm. Xem nonce PoW, validator PoS và thời gian đo thật.</p><span class="mode-action">Đối chiếu hai cách tạo block ↗</span></a>
         <a class="mode-card" href="/ui/labs.html#network"><span class="eyebrow">05 / BACKEND · MẠNG RIÊNG</span><h2>Đồng bộ mạng</h2><p>Tắt Node-3, tạo block PoW và xác minh hồ sơ trên ba node. Bật lại để quan sát catch-up thật.</p><span class="mode-action">Thử node offline và đồng bộ ↗</span></a>
+        <a class="mode-card" href="/ui/labs.html#tamper"><span class="eyebrow">06 / BACKEND · MẠNG RIÊNG</span><h2>Sửa dữ liệu</h2><p>Sửa tiêu đề trong blockchain cục bộ Node-2, kiểm tra lỗi thật và chủ động phục hồi từ peer hợp lệ.</p><span class="mode-action">Thử phát hiện và phục hồi ↗</span></a>
       </div>
-      <details class="placeholder" style="margin-top:24px"><summary>Các lab dự kiến — chưa khả dụng</summary><p>Khám phá block và thử sửa chuỗi chưa được triển khai thành lab. Hiện chưa có thao tác cho các lab này.</p></details>
+      <details class="placeholder" style="margin-top:24px"><summary>Lab dự kiến — chưa khả dụng</summary><p>Khám phá block chưa được triển khai thành lab. Hiện chưa có thao tác cho lab này.</p></details>
       <div class="actions"><a class="primary" href="/ui/trustmebro.html">Hành trình có hướng dẫn →</a><a class="back" id="back-to-modes" href="/ui/modes.html#">← Chọn lại chế độ</a><a class="back" href="/landing.html">Trang chủ</a></div>
     </section>
     <p class="note">Mô phỏng học tập trong một server, dùng dữ liệu mẫu. Không phải hệ thống đồng thuận production.</p>

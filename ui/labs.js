@@ -292,21 +292,7 @@ function showNetworkLab() {
     : !data.online_nodes_valid ? 'Có chuỗi ONLINE không hợp lệ. Xem lý do backend trong chi tiết.'
     : 'Các node ONLINE chưa có cùng chiều cao và tip hash; đang quan sát trạng thái thực.';
   if (data?.all_nodes_synchronized && !s.pollFailed) summary.className += ' valid';
-  const container = $('network-nodes'); container.replaceChildren();
-  for (const node of data?.nodes || []) {
-    const card = document.createElement('article'); card.className = 'panel';
-    const heading = document.createElement('h2'); heading.textContent = `${node.node_id} · ${node.status === 'ONLINE' ? 'Đang bật' : 'Offline'}`;
-    card.append(heading);
-    function line(text) { const p = document.createElement('p'); p.textContent = text; card.append(p); }
-    line(`Chiều cao: ${node.height} · ${node.block_count} block (gồm genesis)`);
-    line(`Tip: ${shortHash(node.tip_hash)} · Giao dịch chờ: ${node.pending_count}`);
-    line(`Chuỗi: ${node.chain_valid ? 'Hợp lệ' : 'Không hợp lệ'}`);
-    line(node.verification ? `Hồ sơ: ${node.verification.status}` : 'Chưa có hồ sơ mẫu để xác minh.');
-    if (node.local_chain_warning) line(node.local_chain_warning);
-    const details = document.createElement('details'), label = document.createElement('summary'), pre = document.createElement('pre');
-    label.textContent = 'Tip đầy đủ, lý do và các bước xác minh';
-    pre.textContent = JSON.stringify(node, null, 2); details.append(label, pre); card.append(details); container.append(card);
-  }
+  showLabNodes('network-nodes', data?.nodes || []);
   $('network-technical').textContent = data ? JSON.stringify(data, null, 2) : '';
   $('network-credential').textContent = data?.mining
     ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}; hồ sơ ${data.credential_id}.`
@@ -314,30 +300,51 @@ function showNetworkLab() {
     : 'Thử: tắt Node-3 → tạo block → quan sát NOT_FOUND trên node offline → bật lại Node-3.';
 }
 
-async function readNetworkLab(s, timeout = 2000) {
+function showLabNodes(id, nodes) {
+  const container = $(id); container.replaceChildren();
+  for (const node of nodes) {
+    const card = document.createElement('article'); card.className = 'panel';
+    const heading = document.createElement('h2'); heading.textContent = `${node.node_id} · ${node.status === 'ONLINE' ? 'Đang bật' : 'Offline'}`;
+    card.append(heading);
+    function line(text) { const p = document.createElement('p'); p.textContent = text; card.append(p); }
+    line(`Chiều cao: ${node.height} · ${node.block_count} block (gồm genesis)`);
+    line(`Tip: ${shortHash(node.tip_hash)} · Giao dịch chờ: ${node.pending_count}`);
+    line(`Chuỗi: ${node.chain_valid ? '✓ Hợp lệ' : '✗ Không hợp lệ'}`);
+    line(node.verification ? `Hồ sơ: ${node.verification.status}` : 'Chưa có hồ sơ mẫu để xác minh.');
+    if (node.local_title != null) line(`Tiêu đề trong bản sao cục bộ: ${node.local_title}`);
+    if (node.local_chain_warning) line(node.local_chain_warning);
+    const details = document.createElement('details'), label = document.createElement('summary'), pre = document.createElement('pre');
+    label.textContent = 'Tip đầy đủ, lý do và các bước xác minh';
+    pre.textContent = JSON.stringify(node, null, 2); details.append(label, pre); card.append(details); container.append(card);
+  }
+}
+
+async function readNetworkLab(s, timeout = 2000, path = networkPath(s)) {
   const controller = new AbortController(); s.abort = controller;
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    return await labResponse(await fetch(LAB_API + networkPath(s), { signal: controller.signal }));
+    return await labResponse(await fetch(LAB_API + path, { signal: controller.signal }));
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('Hết thời gian đọc trạng thái mạng. Hãy làm mới.');
     throw error;
   } finally { clearTimeout(timer); if (s.abort === controller) s.abort = null; }
 }
 
-async function pollNetworkLab(s, complete) {
+async function pollNetworkLab(s, complete, {
+  isCurrent = () => s === networkLab, render = showNetworkLab, path = networkPath(s)
+} = {}) {
   const deadline = Date.now() + 5000;
-  while (s === networkLab && Date.now() < deadline) {
+  while (isCurrent() && Date.now() < deadline) {
     let data;
-    try { data = await readNetworkLab(s, Math.min(2000, deadline - Date.now())); }
-    catch (error) { if (s === networkLab) s.pollFailed = true; throw error; }
-    if (s !== networkLab) return false;
-    s.snapshot = data; showNetworkLab();
+    try { data = await readNetworkLab(s, Math.min(2000, deadline - Date.now()), path); }
+    catch (error) { if (isCurrent()) s.pollFailed = true; throw error; }
+    if (!isCurrent()) return false;
+    s.snapshot = data; render();
     if (complete(data)) return true;
     const remaining = deadline - Date.now();
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, Math.min(250, remaining)));
   }
-  if (s !== networkLab) return false;
+  if (!isCurrent()) return false;
   s.pollFailed = true;
   throw new Error('Hết thời gian chờ truyền/đồng bộ block (tối đa 5 giây). Chưa xác nhận hoàn tất; hãy làm mới.');
 }
@@ -409,6 +416,97 @@ async function resetNetworkLab() {
   } finally { if (s === networkLab) { s.busy = s.mutating = false; showNetworkLab(); } }
 }
 
+let tamperLab = freshNetworkLab();
+const tamperPath = s => `/tamper/${encodeURIComponent(s.handle)}`;
+async function closeTamperLab(s) {
+  return labResponse(await fetch(LAB_API + tamperPath(s), { method: 'DELETE', keepalive: true }));
+}
+
+function showTamperLab() {
+  const s = tamperLab, data = s.snapshot;
+  $('tamper-create').disabled = s.busy || !!s.handle;
+  $('tamper-reset').disabled = s.mutating || !s.handle;
+  $('tamper-refresh').disabled = s.busy || !s.handle;
+  $('tamper-sync').disabled = s.busy || !s.handle || data?.edited_title == null;
+  $('tamper-input').disabled = s.busy || !data?.ready;
+  const title = $('tamper-input').value.trim();
+  $('tamper-edit').disabled = s.busy || !data?.ready || !title || title === data.original_title;
+  const summary = $('tamper-summary'); summary.className = 'result';
+  summary.textContent = !data ? 'Chưa có chuỗi mẫu. Tạo chuỗi để xác minh hồ sơ trên cả ba node.'
+    : s.pollFailed ? 'Chưa xác nhận hoàn tất trong thời hạn. Đây là trạng thái cuối đã đọc; hãy kiểm tra lại.'
+    : data.restored && data.ready ? '✓ Đã phục hồi từ peer: cả ba chuỗi hợp lệ, cùng tip và hồ sơ VERIFIED với tiêu đề gốc.'
+    : data.ready ? '✓ Chuỗi mẫu sẵn sàng: cả ba chuỗi hợp lệ, cùng tip và hồ sơ VERIFIED.'
+    : data.tampered ? '✗ Bản sao Node-2 đã bị sửa. Đọc kết quả kiểm tra thật bên dưới; chưa yêu cầu phục hồi.'
+    : 'Chưa xác nhận chuỗi mẫu sẵn sàng. Kiểm tra các node và lý do backend.';
+  if (data?.ready && !s.pollFailed) summary.className += ' valid';
+  else if (data?.tampered) summary.className += ' invalid';
+  $('tamper-original').textContent = data?.original_title || 'Chưa có tiêu đề gốc.';
+  $('tamper-local').textContent = data?.nodes.find(n => n.node_id === 'Node-2')?.local_title || 'Chưa đọc được bản sao Node-2.';
+  $('tamper-credential').textContent = data?.credential_id ? `Hồ sơ mẫu: ${data.credential_id}` : '';
+  $('tamper-reason').textContent = data?.reason || '';
+  showLabNodes('tamper-nodes', data?.nodes || []);
+  $('tamper-technical').textContent = data ? JSON.stringify(data, null, 2) : '';
+}
+
+async function tamperLabAction(action) {
+  const s = tamperLab;
+  if (s.busy || (action === 'create' ? s.handle : !s.handle)) return;
+  if (action === 'edit' && (!s.snapshot?.ready || !$('tamper-input').value.trim()
+      || $('tamper-input').value.trim() === s.snapshot.original_title)) return;
+  if (action === 'sync' && s.snapshot?.edited_title == null) return;
+  s.busy = true; s.mutating = action !== 'refresh'; s.pollFailed = false;
+  showTamperLab(); labError('tamper-error');
+  $('tamper-status').textContent = action === 'create' ? 'Đang ký/gửi mẫu và mining PoW thật trên Node-1…'
+    : action === 'sync' ? 'Đang yêu cầu backend phục hồi qua peer hợp lệ…' : 'Đang chờ backend…';
+  try {
+    const data = action === 'create' ? await labPost('/tamper')
+      : action === 'refresh' ? await readNetworkLab(s, 2000, tamperPath(s))
+      : await labPost(tamperPath(s) + '/' + action, action === 'edit' ? { title: $('tamper-input').value } : undefined);
+    if (s !== tamperLab) {
+      if (action === 'create') await closeTamperLab({ handle: data.lab_id });
+      return;
+    }
+    if (action === 'create') s.handle = data.lab_id;
+    s.snapshot = data; s.mutating = false;
+    if (action === 'create') {
+      if (!data.prepared) throw new Error(data.reason);
+      $('tamper-input').value = `${data.original_title} (đã sửa)`;
+    }
+    if (action === 'create' || action === 'sync') {
+      $('tamper-status').textContent = 'Đang đọc trạng thái thực, tối đa 5 giây. Không giữ khóa backend khi chờ peer.';
+      await pollNetworkLab(s, snapshot => snapshot.ready && (action !== 'sync' || snapshot.restored), {
+        isCurrent: () => s === tamperLab, render: showTamperLab, path: tamperPath(s)
+      });
+    }
+    if (s !== tamperLab) return;
+    $('tamper-status').textContent = action === 'create' ? 'Chuỗi mẫu đã sẵn sàng. Thử đổi tiêu đề trên bản sao Node-2.'
+      : action === 'edit' ? 'Đã sửa riêng payload Node-2 và chạy kiểm tra backend. Không re-sign, re-hash hay tự đồng bộ.'
+      : action === 'sync' ? 'Đã xác nhận phục hồi tiêu đề gốc từ peer hợp lệ, VERIFIED trên cả ba node.'
+      : 'Đã đọc các validator và verifier thật. Kiểm tra không tự phục hồi dữ liệu.';
+  } catch (error) {
+    if (s === tamperLab) {
+      labError('tamper-error', error.message);
+      $('tamper-status').textContent = 'Chưa hoàn tất. Đọc lỗi và kiểm tra lại; không báo thành công khi chưa xác nhận.';
+      if (error.status === 404) { s.handle = null; s.snapshot = null; $('tamper-status').textContent = 'Lab không còn tồn tại hoặc đã hết hạn. Hãy tạo chuỗi mẫu mới.'; }
+    }
+  } finally { if (s === tamperLab) { s.busy = s.mutating = false; showTamperLab(); } }
+}
+
+async function resetTamperLab() {
+  const old = tamperLab;
+  if (old.mutating || !old.handle) return;
+  old.abort?.abort(); tamperLab = freshNetworkLab();
+  const s = tamperLab; s.busy = s.mutating = true;
+  $('tamper-input').value = ''; labError('tamper-error'); showTamperLab();
+  $('tamper-status').textContent = 'Đang dừng worker và reset riêng lab sửa dữ liệu…';
+  try {
+    await closeTamperLab(old);
+    if (s === tamperLab) $('tamper-status').textContent = 'Đã reset riêng lab này. Journey và các lab khác giữ nguyên.';
+  } catch (error) {
+    if (s === tamperLab) labError('tamper-error', `Đã xóa trạng thái cục bộ; chưa xác nhận dọn worker: ${error.message}. Mạng tự hết hạn sau tối đa 15 phút.`);
+  } finally { if (s === tamperLab) { s.busy = s.mutating = false; showTamperLab(); } }
+}
+
 (function setupLabs() {
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
@@ -423,13 +521,13 @@ async function resetNetworkLab() {
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   window.addEventListener('pageshow', restoreTheme); restoreTheme();
   function route(focus) {
-    const labs = ['sha', 'signatures', 'merkle', 'consensus', 'network'];
+    const labs = ['sha', 'signatures', 'merkle', 'consensus', 'network', 'tamper'];
     const name = labs.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'sha';
     labs.forEach(id => { $('lab-' + id).hidden = id !== name; });
     document.querySelectorAll('[data-lab]').forEach(a => {
       if (a.dataset.lab === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : 'Chữ ký số'} — TrustMeBro`;
+    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
   }
   window.addEventListener('hashchange', () => route(true)); route(false);
@@ -464,7 +562,16 @@ async function resetNetworkLab() {
     $('network-' + action).onclick = () => networkLabAction(action);
   });
   $('network-reset').onclick = resetNetworkLab; showNetworkLab();
+  ['create', 'refresh', 'sync'].forEach(action => {
+    $('tamper-' + action).onclick = () => tamperLabAction(action);
+  });
+  $('tamper-form').onsubmit = event => { event.preventDefault(); return tamperLabAction('edit'); };
+  $('tamper-input').oninput = showTamperLab;
+  $('tamper-reset').onclick = resetTamperLab; showTamperLab();
   window.addEventListener('pagehide', () => {
+    const oldTamper = tamperLab; oldTamper.abort?.abort(); tamperLab = freshNetworkLab(); showTamperLab();
+    $('tamper-status').textContent = 'Đã rời trang; tạo chuỗi mẫu mới để tiếp tục.';
+    if (oldTamper.handle) closeTamperLab(oldTamper).catch(() => {});
     const oldNetwork = networkLab; oldNetwork.abort?.abort(); networkLab = freshNetworkLab(); showNetworkLab();
     $('network-status').textContent = 'Đã rời trang; khởi tạo mạng lab mới để tiếp tục.';
     if (oldNetwork.handle) navigator.sendBeacon(LAB_API + networkPath(oldNetwork) + '/reset');

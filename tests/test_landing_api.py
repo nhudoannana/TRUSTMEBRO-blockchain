@@ -54,7 +54,7 @@ def test_entry_static_boundary_and_landing_assets(client):
 def test_lab_home_links_use_existing_ui_mount(client):
     modes = client.get('/ui/modes.html')
     links = [url for url in Links(modes.text).urls if url and url.startswith('/ui/labs.html#')]
-    assert set(links) == {'/ui/labs.html#sha', '/ui/labs.html#signatures', '/ui/labs.html#merkle', '/ui/labs.html#consensus', '/ui/labs.html#network'}
+    assert set(links) == {'/ui/labs.html#sha', '/ui/labs.html#signatures', '/ui/labs.html#merkle', '/ui/labs.html#consensus', '/ui/labs.html#network', '/ui/labs.html#tamper'}
     for url in links:
         assert client.get(url.split('#')[0]).status_code == 200
     script = client.get('/ui/labs.js')

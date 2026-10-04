@@ -8,7 +8,7 @@ python -m uvicorn api.wallet_api:app --host 127.0.0.1 --port 8000
 
 Home: http://127.0.0.1:8000/ui/modes.html#labs
 
-Exercises: `/ui/labs.html#sha`, `#signatures`, `#merkle`, `#consensus`, `#network`.
+Exercises: `/ui/labs.html#sha`, `#signatures`, `#merkle`, `#consensus`, `#network`, `#tamper`.
 The guided PoW/PoS journey remains `/ui/trustmebro.html`. All pages use
 the saved `trustmebro-theme` preference. Other labs remain unavailable.
 
@@ -147,8 +147,8 @@ nonce/timestamp and block timestamp, so tx IDs, signatures, hashes and
 selected validator may differ. Editing sample/condition inputs clears
 both results to prevent comparing different experiments. Full public
 identities/hashes/seed/timing are in expandable technical details.
-The network-sync lab is described below. Tamper and block-explorer labs
-remain unavailable.
+The network-sync and tamper labs are described below. The block-explorer
+lab remains unavailable.
 
 ## Added lab: network synchronization
 
@@ -230,3 +230,95 @@ registry forwarding, equal-height divergent tips, invalid chains, rejection
 reasons, isolation, reset/mining serialization and worker/timer shutdown.
 Node-VM tests exercise controls, bounded polling, timeout, errors, stale
 responses and navigation. They remain separate from real browser checks.
+
+## Added lab: local tamper detection and recovery
+
+Open `http://127.0.0.1:8000/ui/labs.html#tamper`. This is a **separate retained
+three-node queue-based Network**, not the guided network or network-sync
+lab. Create a sample chain → wait for VERIFIED on all three nodes → edit
+the title on Node-2 → inspect actual validation failures → explicitly sync
+to recover. Only this lab's reset/close deletes its handle and stops workers.
+
+| Method/path | Request | Response |
+| --- | --- | --- |
+| POST `/api/labs/tamper` | No body | 201: handle, actual preparation/readiness and node snapshots |
+| GET `/api/labs/tamper/{lab_id}` | No body | Actual validator/verifier snapshots; no automatic repair |
+| POST `/api/labs/tamper/{lab_id}/edit` | Only `{"title":"Changed title"}` | Snapshot after local corruption; title trimmed, required, max 200 characters |
+| POST `/api/labs/tamper/{lab_id}/sync` | No body | Snapshot after existing backend synchronization; completion requires validation |
+| DELETE `/api/labs/tamper/{lab_id}` | No body | Idempotent `cleared`, worker shutdown and handle deletion |
+
+Responses expose `lab_id` (also `lab_handle` for the shared snapshot format),
+credential ID, original/edited titles, public issuer/transaction/block data,
+expiry and `prepared`, `ready`, `tampered`, `restored` flags. `prepared` means
+Node-1 mined the sample, not that peers have received it. `ready` requires
+all three ONLINE with matching height/tip, valid chains, VERIFIED and the
+original title. `restored` additionally requires a prior edit. Per-node
+snapshots include local title, height excluding genesis, block count,
+online status, pending count, header tip hash, validity/reason and actual
+credential checks/status/info. Metadata from an INVALID result is untrusted
+local content, not an accepted presented document. No private keys are returned.
+
+The existing sample helper generates a disposable issuer, signs ISSUE with
+`Transaction.sign()`, submits on Node-1 and calls `mine_pending()` at default
+difficulty **3**, using their existing broadcasts. Propagation is asynchronous.
+The UI polls GET outside backend locks for at most **5 seconds** (at most
+2 seconds per read); timeout never means success. An expected mining rejection
+returns the backend reason and keeps pending data until explicit reset or
+expiry. Unexpected preparation failure cleans an unreachable network before
+returning 500. Failed sync leaves its network available for inspection.
+
+Editing is allowed only after all three have confirmed the original sample,
+and targets **Node-2, block #1, that sample's sole ISSUE payload.title**.
+No arbitrary paths/nodes/genesis edits are accepted. Blank/unchanged titles
+and extra fields return 422; premature/repeated editing before recovery or
+sync before any edit returns 409. Missing/reset/expired/wrong-type handles
+return 404; capacity returns 429. Network-lab routes also reject tamper
+handles, preventing cross-lab mutation through a different endpoint.
+
+The lab lock serializes preparation/edit/sync/reset/expiry. Editing takes
+node locks in the backend's sorted node-ID order and deep-copies Node-2's
+local Blockchain graph before changing its title, preserving internal aliases
+and preventing accidental sharing with peers. It keeps credential ID, tx_id,
+signature, stored Merkle root and header fields unchanged. It does not re-sign,
+re-hash, mine, broadcast or automatically synchronize corrupted data.
+
+In this backend a Block does not cache a hash field: `tip_hash` and
+`stored_tip_hash` report `compute_hash()` of its retained header. Since the
+header Merkle root commits to retained tx_ids, that hash stays unchanged after
+a payload-only edit. The existing transaction validator independently checks
+`tx_id == compute_hash()` over signed transaction data, detects the changed
+title and returns its real rejection text. Node-2 therefore has an invalid
+chain and INVALID credential, while Node-1/3 remain valid and VERIFIED.
+Equal header hashes alone do **not** prove valid contents.
+
+Recovery calls `Network.sync_all_nodes(online_only=True)` with no manually
+saved-chain restoration, replacement Network or validation-rule changes.
+Existing backend logic validates peers with `pos_registry` and can replace an
+invalid local chain from a valid peer even at equal height/header hash/work.
+Only observed original titles, valid matching tips and VERIFIED everywhere
+produce `restored=true`. A failed/incomplete recovery keeps the failure
+visible. Backend reorganization may retain old local data in its internal
+side-branch history; recovery here concerns the active chain. Recovery cannot
+legitimize the edited title or undo an authorized revocation on a valid chain.
+
+This differs from the guided journey's presented-document comparison:
+that flow edits a presented copy while leaving the chain unchanged; this
+lab intentionally corrupts one isolated local blockchain copy. Both use
+existing backend verification semantics. Three queue workers on one server
+are not three independently secured physical machines or production consensus.
+
+Lifecycle reuses the retained-network store and shared **eight-network**
+capacity, fixed **15-minute** expiry timers and application-shutdown cleanup.
+No duplicate store or adapter is introduced. Reset is idempotent and joins
+workers without holding node locks. Page exit performs DELETE best effort;
+expiry is the fallback if the request is interrupted. Handles and live state
+are lost on server restart; use one server process. UI identity/abort guards
+discard stale replies after reset, forbid overlapping mutations and never
+automatically sync after editing. User/backend titles are rendered as text.
+
+Tests cover real preparation/corruption/recovery, unchanged peer data and
+transaction/header metadata, matching registry forwarding, wrong handle
+types, rejected inputs/lifecycle actions, pending failure preservation,
+reset/sync serialization, isolation, expiry and worker shutdown. Node-VM
+tests cover controls, safe rendering, explicit recovery, polling/timeouts,
+errors, navigation and stale replies; these are not browser verification.

@@ -21,6 +21,7 @@ import uuid
 import time
 import threading
 from contextlib import ExitStack, asynccontextmanager
+from copy import deepcopy
 from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
@@ -876,11 +877,14 @@ _lab_networks = {}
 _lab_network_lock = threading.RLock()
 
 
-def _close_lab_network(handle):
+def _close_lab_network(handle, kind=None):
     """Caller holds lab lock, no node lock; workers can finish before join."""
-    entry = _lab_networks.pop(handle, None)
+    entry = _lab_networks.get(handle)
     if entry is None:
         return False
+    if kind is not None and entry['kind'] != kind:
+        raise HTTPException(404, detail="Handle không thuộc loại lab này.")
+    del _lab_networks[handle]
     entry['timer'].cancel()
     for node in entry['network'].nodes.values():
         node.stop()
@@ -901,7 +905,10 @@ def close_lab_networks():
             _close_lab_network(handle)
 
 
-def _get_lab_network(handle):
+def _get_lab_network(handle, kind='network'):
+    entry = _lab_networks.get(handle)
+    if entry is not None and entry['kind'] != kind:
+        raise HTTPException(404, detail="Handle không thuộc loại lab này.")
     _expire_lab_network(handle)
     entry = _lab_networks.get(handle)
     if entry is None:
@@ -968,32 +975,38 @@ def _lab_network_snapshot(handle, entry):
             'events': network.get_event_log()}
 
 
+def _initialize_lab_network(kind):
+    """Caller holds the shared lab lock. Both retained labs reuse this lifecycle."""
+    for handle in list(_lab_networks):
+        _expire_lab_network(handle)
+    if len(_lab_networks) >= _LAB_NETWORK_LIMIT:
+        raise HTTPException(429, detail="Đã đủ mạng lab tạm. Reset lab không dùng hoặc chờ hết hạn.")
+    network = Network()
+    handle = str(uuid.uuid4())
+    timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle,))
+    timer.daemon = True
+    entry = {'kind': kind, 'network': network, 'tx': None, 'issuer': None, 'submitted': False,
+             'mining': None, 'expires': time.monotonic() + _LAB_NETWORK_TTL, 'timer': timer}
+    try:
+        for i in range(1, 4):
+            network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
+        _lab_networks[handle] = entry
+        timer.start()
+        return handle, entry
+    except Exception as exc:
+        timer.cancel()
+        _lab_networks.pop(handle, None)
+        for node in network.nodes.values():
+            node.stop()
+        raise HTTPException(500, detail="Không khởi tạo được mạng lab; worker tạm đã được dọn.") from exc
+
+
 @app.post('/api/labs/network', status_code=201, response_model=LabNetworkSnapshot)
 def lab_initialize_network():
     # ponytail: serialize at most eight lab sessions; per-handle locks if throughput matters.
     with _lab_network_lock:
-        for handle in list(_lab_networks):
-            _expire_lab_network(handle)
-        if len(_lab_networks) >= _LAB_NETWORK_LIMIT:
-            raise HTTPException(429, detail="Đã đủ mạng lab tạm. Reset lab không dùng hoặc chờ hết hạn.")
-        network = Network()
-        handle = str(uuid.uuid4())
-        timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle,))
-        timer.daemon = True
-        entry = {'network': network, 'tx': None, 'issuer': None, 'submitted': False,
-                 'mining': None, 'expires': time.monotonic() + _LAB_NETWORK_TTL, 'timer': timer}
-        try:
-            for i in range(1, 4):
-                network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
-            _lab_networks[handle] = entry
-            timer.start()
-            return _lab_network_snapshot(handle, entry)
-        except Exception as exc:
-            timer.cancel()
-            _lab_networks.pop(handle, None)
-            for node in network.nodes.values():
-                node.stop()
-            raise HTTPException(500, detail="Không khởi tạo được mạng lab; worker tạm đã được dọn.") from exc
+        handle, entry = _initialize_lab_network('network')
+        return _lab_network_snapshot(handle, entry)
 
 
 @app.get('/api/labs/network/{handle}', response_model=LabNetworkSnapshot)
@@ -1005,7 +1018,7 @@ def lab_read_network(handle: str):
 @app.post('/api/labs/network/{handle}/reset')
 def lab_reset_network(handle: str):
     with _lab_network_lock:
-        return {'cleared': _close_lab_network(handle)}
+        return {'cleared': _close_lab_network(handle, 'network')}
 
 
 @app.post('/api/labs/network/{handle}/nodes/{node_id}/status')
@@ -1023,35 +1036,41 @@ def lab_node_status(handle: str, node_id: str, body: NodeStatusRequest):
                 'snapshot': _lab_network_snapshot(handle, entry)}
 
 
+def _mine_lab_sample(entry):
+    """Same sample signing/admission/mining for both retained lab scenarios."""
+    node = entry['network'].nodes['Node-1']
+    with node._state_lock:
+        if entry['tx'] is None:
+            wallet = generate_wallet()
+            entry['issuer'] = {'name': 'Trường Đại học A', 'public_key_hex': wallet.public_key_hex,
+                               'address': wallet.address}
+            credential = Credential(str(uuid.uuid4()), entry['issuer']['name'], 'Người học DEMO-001',
+                                    'Chứng chỉ Phân tích dữ liệu', '2026-01-01')
+            tx = Transaction('ISSUE', wallet.public_key_hex, credential.to_onchain_payload())
+            tx.sign(wallet)
+            entry['tx'] = tx
+        if not entry['submitted']:
+            accepted, reason = node.submit_transaction(entry['tx'])
+            if not accepted:
+                return None, reason
+            entry['submitted'] = True
+        try:
+            block, result = node.mine_pending()
+        except Exception as exc:
+            logging.getLogger(__name__).exception('Network lab mining failed')
+            raise HTTPException(500, detail="Backend mining lab thất bại; giao dịch vẫn chờ. Làm mới hoặc reset riêng lab.") from exc
+        if block:
+            entry['mining'] = {'block': block.to_dict(), **result}
+        return block, result
+
+
 @app.post('/api/labs/network/{handle}/mine')
 def lab_network_mine(handle: str):
     with _lab_network_lock:
         entry = _get_lab_network(handle)
         if entry['mining'] is not None:
             raise HTTPException(409, detail="Lab đã tạo block mẫu. Reset riêng lab để thử lại từ đầu.")
-        node = entry['network'].nodes['Node-1']
-        with node._state_lock:
-            if entry['tx'] is None:
-                wallet = generate_wallet()
-                entry['issuer'] = {'name': 'Trường Đại học A', 'public_key_hex': wallet.public_key_hex,
-                                   'address': wallet.address}
-                credential = Credential(str(uuid.uuid4()), entry['issuer']['name'], 'Người học DEMO-001',
-                                        'Chứng chỉ Phân tích dữ liệu', '2026-01-01')
-                tx = Transaction('ISSUE', wallet.public_key_hex, credential.to_onchain_payload())
-                tx.sign(wallet)
-                entry['tx'] = tx
-            if not entry['submitted']:
-                accepted, reason = node.submit_transaction(entry['tx'])
-                if not accepted:
-                    return {'mined': False, 'reason': reason, 'snapshot': _lab_network_snapshot(handle, entry)}
-                entry['submitted'] = True
-            try:
-                block, result = node.mine_pending()
-            except Exception as exc:
-                logging.getLogger(__name__).exception('Network lab mining failed')
-                raise HTTPException(500, detail="Backend mining lab thất bại; giao dịch vẫn chờ. Làm mới hoặc reset riêng lab.") from exc
-            if block:
-                entry['mining'] = {'block': block.to_dict(), **result}
+        block, result = _mine_lab_sample(entry)
         # Release Node-1 before reading other worker locks.
         return {'mined': block is not None, 'reason': result if block is None else None,
                 'block': block.to_dict() if block else None, 'snapshot': _lab_network_snapshot(handle, entry)}
@@ -1071,6 +1090,125 @@ def lab_sync_network(handle: str):
         reason = None if snapshot['all_nodes_synchronized'] else (
             invalid['validity_reason'] if invalid else 'Adapter: chưa quan sát đủ ba node ONLINE cùng height/tip; node OFFLINE không được sync.')
         return {'completed': snapshot['all_nodes_synchronized'], 'reason': reason, 'snapshot': snapshot}
+
+
+class LabTamperEditRequest(BaseModel):
+    model_config = {'extra': 'forbid'}
+    title: str
+
+    @field_validator('title')
+    @classmethod
+    def required_title(cls, value, info):
+        value.encode('utf-8')
+        return CredentialCreateRequest.required_text(value, info)
+
+
+class LabTamperNodeSnapshot(LabNetworkNodeSnapshot):
+    stored_tip_hash: str
+    local_title: str | None
+
+
+class LabTamperSnapshot(LabNetworkSnapshot):
+    lab_id: str
+    original_title: str | None
+    edited_title: str | None
+    prepared: bool
+    ready: bool
+    tampered: bool
+    restored: bool
+    reason: str | None
+    nodes: list[LabTamperNodeSnapshot]
+
+
+def _tamper_lab_snapshot(handle, entry):
+    data = _lab_network_snapshot(handle, entry)
+    original_title = entry['tx'].payload['title'] if entry['tx'] else None
+    for row in data['nodes']:
+        # Block has no cached hash attribute: this is its unchanged header hash.
+        row['stored_tip_hash'] = row['tip_hash']
+        row['local_title'] = row['verification']['info'].get('title') if row['verification'] else None
+    ready = bool(entry['mining']) and data['all_nodes_synchronized'] and all(
+        row['height'] >= 1 and row['verification']['status'] == 'VERIFIED'
+        and row['local_title'] == original_title for row in data['nodes'])
+    node2 = next(row for row in data['nodes'] if row['node_id'] == 'Node-2')
+    invalid = next((row for row in data['nodes'] if not row['chain_valid']), None)
+    unverified = next((row for row in data['nodes'] if row['verification'] and row['verification']['status'] != 'VERIFIED'), None)
+    data.update({'lab_id': handle, 'original_title': original_title,
+                 'edited_title': entry.get('edited_title'), 'prepared': entry['mining'] is not None,
+                 'ready': ready,
+                 'tampered': node2['local_title'] is not None and node2['local_title'] != original_title,
+                 'restored': ready and entry.get('edited_title') is not None,
+                 'reason': None if ready else (entry.get('prepare_failure') or
+                     (invalid['validity_reason'] if invalid else unverified['verification']['reason'] if unverified
+                      else 'Adapter: chưa quan sát đủ ba node ONLINE cùng tip, chuỗi hợp lệ và VERIFIED.'))})
+    return data
+
+
+@app.post('/api/labs/tamper', status_code=201, response_model=LabTamperSnapshot)
+def lab_prepare_tamper():
+    with _lab_network_lock:
+        handle, entry = _initialize_lab_network('tamper')
+        try:
+            block, reason = _mine_lab_sample(entry)
+            entry['prepare_failure'] = reason if block is None else None
+            return _tamper_lab_snapshot(handle, entry)
+        except Exception:
+            # No handle was returned; prevent an unreachable network leaking workers.
+            _close_lab_network(handle)
+            raise
+
+
+@app.get('/api/labs/tamper/{lab_id}', response_model=LabTamperSnapshot)
+def lab_observe_tamper(lab_id: str):
+    with _lab_network_lock:
+        return _tamper_lab_snapshot(lab_id, _get_lab_network(lab_id, 'tamper'))
+
+
+@app.post('/api/labs/tamper/{lab_id}/edit', response_model=LabTamperSnapshot)
+def lab_edit_tamper(lab_id: str, body: LabTamperEditRequest):
+    with _lab_network_lock, ExitStack() as locks:
+        entry = _get_lab_network(lab_id, 'tamper')
+        # Same sorted lock order as sync; workers hold only their own node lock.
+        for peer in sorted(entry['network'].nodes.values(), key=lambda n:n.node_id):
+            locks.enter_context(peer._state_lock)
+        if not _tamper_lab_snapshot(lab_id, entry)['ready']:
+            raise HTTPException(409, detail="Chờ ba node VERIFIED và hợp lệ, hoặc đồng bộ để phục hồi trước khi sửa tiếp.")
+        node = entry['network'].nodes['Node-2']
+        target = node.blockchain.chain[1]
+        if target.height != 1 or len(target.transactions) != 1 or target.transactions[0].tx_type != 'ISSUE':
+            raise HTTPException(409, detail="Không có ISSUE mẫu tại Block #1 của Node-2.")
+        tx = target.transactions[0]
+        if tx.tx_id != entry['tx'].tx_id or tx.payload.get('credential_id') != entry['tx'].payload['credential_id']:
+            raise HTTPException(409, detail="Giao dịch tại đích không khớp ISSUE mẫu của lab.")
+        if body.title == tx.payload['title']:
+            raise HTTPException(422, detail="Tiêu đề chưa thay đổi. Hãy sửa bản cục bộ của Node-2.")
+        # Copy the local graph (chain + block_pool aliases); never mutate peer objects.
+        local_chain = deepcopy(node.blockchain)
+        local_chain.chain[1].transactions[0].payload['title'] = body.title
+        node.blockchain = local_chain
+        entry['edited_title'] = body.title
+        # No sign/hash assignment, mining, broadcast, or automatic repair.
+        return _tamper_lab_snapshot(lab_id, entry)
+
+
+@app.post('/api/labs/tamper/{lab_id}/sync', response_model=LabTamperSnapshot)
+def lab_recover_tamper(lab_id: str):
+    with _lab_network_lock:
+        entry = _get_lab_network(lab_id, 'tamper')
+        if entry.get('edited_title') is None:
+            raise HTTPException(409, detail="Lab chưa sửa dữ liệu. Hãy quan sát bản gốc rồi sửa Node-2 trước.")
+        try:
+            entry['network'].sync_all_nodes(online_only=True)
+        except Exception as exc:
+            logging.getLogger(__name__).exception('Tamper lab synchronization failed')
+            raise HTTPException(500, detail="Backend sync lab thất bại. Dữ liệu chưa được xác nhận phục hồi.") from exc
+        return _tamper_lab_snapshot(lab_id, entry)
+
+
+@app.delete('/api/labs/tamper/{lab_id}')
+def lab_close_tamper(lab_id: str):
+    with _lab_network_lock:
+        return {'cleared': _close_lab_network(lab_id, 'tamper')}
 
 
 @app.post("/api/labs/signatures/keys", status_code=201, response_model=LabKeyResponse)
