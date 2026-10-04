@@ -7,7 +7,8 @@ import pytest
 
 @pytest.mark.parametrize('case', ['hash_vectors', 'hash_reset', 'signature', 'key_reset',
                                   'signature_reset', 'merkle', 'merkle_reset', 'errors',
-                                  'comparison', 'comparison_reset'])
+                                  'comparison', 'comparison_reset', 'example_safety',
+                                  'result_guidance', 'sha_navigation', 'sha_preservation'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
@@ -22,7 +23,7 @@ class Element {
  set innerHTML(value){throw Error('Unsafe HTML rendering');}
  setAttribute(k,v){this[k]=v;}
  removeAttribute(k){delete this[k];}
- focus(){}
+ focus(){document.activeElement=this;}
 }
 const document={title:'',documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();}};
 const storage=new Map(),nativeCrypto=crypto.webcrypto;
@@ -59,7 +60,76 @@ vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),context);
 const $=id=>document.getElementById(id),run=s=>vm.runInContext(s,context),event={preventDefault(){}};
 context.event=event;
 (async()=>{
-if(testCase==='hash_vectors'){
+if(testCase==='sha_navigation'){
+ assert.equal(run('shaTab'),'theory');assert.equal(run('shaTopic'),0);
+ assert.equal($('sha-theory').hidden,false);assert.equal($('sha-practice').hidden,true);
+ assert.equal($('sha-previous').disabled,true);
+ $('sha-previous').onclick();assert.equal(run('shaTopic'),0);
+ for(let i=1;i<=4;i++){
+  $('sha-next').onclick();assert.equal(run('shaTopic'),i);
+  assert.equal($('sha-lesson-'+i).hidden,false);
+  assert.equal($('sha-topic-'+i)['aria-pressed'],'true');
+  assert.equal($('sha-lesson-'+(i-1)).hidden,true);
+ }
+ run('selectShaTopic(99)');assert.equal(run('shaTopic'),4);
+ $('sha-next').onclick();assert.equal(run('shaTopic'),4);assert.equal(run('shaTab'),'practice');
+ assert.equal(document.activeElement,$('hash-a'));assert.equal($('sha-practice').hidden,false);
+ $('sha-tab-theory').onclick();assert.equal(run('shaTopic'),4);
+ $('sha-previous').onclick();assert.equal(run('shaTopic'),3);
+ $('sha-topic-1').onclick();assert.equal(run('shaTopic'),1);
+ let prevented=false;$('sha-tab-theory').onkeydown({key:'ArrowRight',preventDefault(){prevented=true;}});
+ assert.equal(prevented,true);assert.equal(run('shaTab'),'practice');
+ assert.equal(document.activeElement,$('sha-tab-practice'));assert.equal($('sha-tab-practice').tabIndex,0);
+ assert.equal($('sha-tab-theory').tabIndex,-1);assert.equal($('sha-tab-practice')['aria-selected'],'true');
+ $('sha-tab-practice').onkeydown({key:'Home',preventDefault(){}});assert.equal(run('shaTab'),'theory');
+ assert.equal(calls.length,0);assert.equal(run('hashToken'),0);
+}else if(testCase==='sha_preservation'){
+ $('sha-tab-practice').onclick();$('hash-a').value='abc';$('hash-b').value='abd';
+ await run('compareHashes(event)');
+ const before=['hash-a','hash-b','hash-original','hash-edited','hash-difference','hash-status'].map(id=>[$(id).value,$(id).textContent]);
+ const token=run('hashToken');context.crypto={subtle:{digest(){throw Error('Navigation must not compute');}}};
+ $('sha-tab-theory').onclick();$('sha-topic-3').onclick();
+ context.location.hash='#merkle';events.hashchange();context.location.hash='#sha';events.hashchange();
+ assert.equal(run('shaTab'),'theory');assert.equal(run('shaTopic'),3);
+ assert.equal($('sha-lesson-3').hidden,false);$('sha-tab-practice').onclick();
+ assert.deepEqual(['hash-a','hash-b','hash-original','hash-edited','hash-difference','hash-status'].map(id=>[$(id).value,$(id).textContent]),before);
+ assert.equal($('hash-result').hidden,false);assert.equal(run('hashToken'),token);assert.equal(calls.length,0);
+ run('resetHash()');assert.equal($('hash-result').hidden,true);assert.equal(run('shaTab'),'practice');assert.equal(run('shaTopic'),3);
+}else if(testCase==='example_safety'){
+ let accepted=false,prompts=0;
+ context.window.confirm=()=>{prompts++;return accepted;};
+ $('merkle-leaves').value='My own data';
+ $('merkle-one').onclick();assert.equal($('merkle-leaves').value,'My own data');
+ assert.equal(calls.length,0);assert.equal(prompts,1);
+ accepted=true;$('merkle-one').onclick();assert.notEqual($('merkle-leaves').value,'My own data');
+ assert.equal(calls.length,0);assert.equal(run('merklePrevious'),null);
+ $('chain-data').value='Keep this';accepted=false;$('chain-example').onclick();
+ assert.equal($('chain-data').value,'Keep this');
+ accepted=true;$('chain-example').onclick();assert.notEqual($('chain-data').value,'Keep this');
+ assert.equal(calls.length,0);assert.equal(run('chainLab.result'),null);
+ run('chainLab.busy=true');$('chain-data').value='Pending';$('chain-example').onclick();
+ assert.equal($('chain-data').value,'Pending');
+ $('merkle-leaves').value='';const before=prompts;$('merkle-odd').onclick();
+ assert.equal(prompts,before);assert.equal(run('readLeaves($("merkle-leaves").value).length'),3);
+ assert.equal(calls.length,0);
+}else if(testCase==='result_guidance'){
+ run('showSignature()');assert.equal($('sig-sign').disabled,true);
+ const empty=$('sig-control-note').textContent;
+ await run('signatureAction("create")');assert.equal($('sig-sign').disabled,false);
+ assert.notEqual($('sig-control-note').textContent,empty);
+ $('sig-message').value='Original';await run('signatureAction("sign")');
+ assert.equal($('sig-original').disabled,false);
+ await run('signatureAction("original")');const valid=$('sig-result').textContent;
+ assert.equal($('sig-result').className,'result valid');
+ $('sig-presented').value='Edited';await run('signatureAction("verify")');
+ assert.equal($('sig-result').className,'result invalid');assert.notEqual($('sig-result').textContent,valid);
+ assert.equal(run('signature.signed.message'),'Original');
+ assert.equal(run('signature.signed.signature_hex'),'original-signature');
+ context.data={root:'a'.repeat(64),levels:[['a'.repeat(64)]],proof:null};
+ run('showMerkle(data,null,1)');assert.equal($('merkle-root').title,'a'.repeat(64));
+ assert.equal($('merkle-root-full').textContent,'a'.repeat(64));
+ assert.ok($('merkle-root').textContent.length<64);
+}else if(testCase==='hash_vectors'){
  assert.equal(await run('hashText("")'),'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
  assert.equal(await run('hashText("abc")'),'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
  const text='Hồ sơ 🌏';context.text=text;

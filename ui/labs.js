@@ -26,6 +26,14 @@ function labError(id, message = '') { $(id).textContent = message; $(id).hidden 
 function formBusy(id, busy) { $(id).querySelectorAll('input,textarea,select,button').forEach(e => { e.disabled = busy; }); }
 const shortHash = value => value.slice(0, 12) + '…' + value.slice(-8);
 
+function fillLabExample(id, text) {
+  const input = $(id);
+  if (input.value === text) return;
+  if (input.value && !window.confirm('Thay nội dung đang nhập bằng ví dụ? Chỉ điền dữ liệu, không chạy thí nghiệm.')) return;
+  input.value = text;
+  input.oninput?.();
+}
+
 async function hashText(text) {
   if (!globalThis.crypto?.subtle) throw new Error('Web Crypto cần HTTPS hoặc localhost. Hãy mở trang qua server.');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -42,6 +50,30 @@ function changedHashBits(a, b) {
 }
 
 let hashToken = 0, hashBusy = false;
+let shaTab = 'theory', shaTopic = 0;
+
+function showShaTab(tab, focusInput = false) {
+  shaTab = tab === 'practice' ? 'practice' : 'theory';
+  for (const name of ['theory', 'practice']) {
+    const button = $('sha-tab-' + name), selected = name === shaTab;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    $('sha-' + name).hidden = !selected;
+  }
+  if (focusInput && shaTab === 'practice') $('hash-a').focus();
+}
+
+function selectShaTopic(index) {
+  shaTopic = Math.max(0, Math.min(4, index));
+  for (let i = 0; i < 5; i++) {
+    $('sha-topic-' + i).setAttribute('aria-pressed', String(i === shaTopic));
+    $('sha-lesson-' + i).hidden = i !== shaTopic;
+  }
+  $('sha-previous').disabled = shaTopic === 0;
+  $('sha-next').textContent = shaTopic === 4 ? 'Thử ngay' : 'Tiếp theo';
+  $('sha-step-status').textContent = `Mục ${shaTopic + 1} / 5`;
+}
+
 async function compareHashes(event) {
   event.preventDefault();
   if (hashBusy) return;
@@ -57,7 +89,7 @@ async function compareHashes(event) {
       (original === edited ? 'Hai đầu vào giống nhau tạo cùng hash SHA-256, vì vậy chênh lệch là 0%.'
         : 'Với hai đầu vào khác nhau, hiệu ứng avalanche thường làm khoảng một nửa số bit hash thay đổi; tỷ lệ không cần đạt 100%.');
     $('hash-result').hidden = false;
-    $('hash-status').textContent = 'Đã tính hai hash thật cho nội dung tại thời điểm bấm nút.';
+    $('hash-status').textContent = 'Đã tính hai hash thật cho nội dung tại thời điểm bấm nút. Thử đổi một ký tự rồi tính lại; kết quả đo số bit khác nhau trên 256 bit.';
   } catch (error) { if (token === hashToken) labError('hash-error', error.message); }
   finally { if (token === hashToken) { hashBusy = false; formBusy('hash-form', false); } }
 }
@@ -78,6 +110,10 @@ function showSignature() {
   ['sig-create', 'sig-other', 'sig-message', 'sig-presented', 'sig-key-choice'].forEach(id => { $(id).disabled = s.busy; });
   $('sig-sign').disabled = s.busy || !s.key;
   $('sig-original').disabled = $('sig-verify').disabled = s.busy || !s.signed;
+  $('sig-control-note').textContent = s.busy ? 'Đang chờ backend; các thao tác ký/kiểm tra tạm khóa.'
+    : !s.key ? 'Bắt đầu bằng Tạo khóa tạm. Có khóa mới ký được thông điệp; có chữ ký mới xác minh được.'
+    : !s.signed ? 'Khóa đã sẵn sàng. Nhập thông điệp rồi bấm Ký thông điệp để mở các nút xác minh.'
+    : 'Có thể xác minh bản gốc hoặc sửa bản sao rồi kiểm tra. Chữ ký đã ghi được giữ nguyên.';
   $('sig-other-option').disabled = !s.other;
   $('sig-other-option').textContent = s.other ? `Khóa khác — ${shortHash(s.other.address)}` : 'Khóa khác — chưa tạo';
   $('sig-key-status').textContent = s.key
@@ -89,7 +125,8 @@ function showSignature() {
   $('sig-result').hidden = !s.result;
   if (s.result) {
     $('sig-result').className = 'result ' + (s.result.valid ? 'valid' : 'invalid');
-    $('sig-result').textContent = `${s.result.valid ? '✓ Chữ ký hợp lệ' : '✗ Chữ ký không hợp lệ'} — ${s.result.label}. Backend đã kiểm tra bằng khóa công khai đã chọn.`;
+    $('sig-result').textContent = `${s.result.valid ? '✓ Chữ ký hợp lệ' : '✗ Chữ ký không hợp lệ'} — ${s.result.label}. Backend đã kiểm tra bằng khóa công khai đã chọn. ` +
+      (s.result.valid ? 'Thử sửa bản sao hoặc dùng khóa khác rồi xác minh lại.' : 'Đối chiếu bản gốc bằng khóa đã ký để so sánh; kết quả này không sửa thông điệp hay chữ ký.');
   }
 }
 
@@ -155,7 +192,9 @@ function merkleControls(busy) {
 }
 
 function showMerkle(data, previous, count) {
-  $('merkle-result').hidden = false; $('merkle-root').textContent = data.root;
+  $('merkle-result').hidden = false;
+  $('merkle-root').textContent = data.root.length > 20 ? shortHash(data.root) : data.root;
+  $('merkle-root').title = data.root; $('merkle-root-full').textContent = data.root;
   $('merkle-summary').textContent = `${count} lá · ${previous ? previous.root === data.root ? 'Root giữ nguyên' : 'Root đã thay đổi' : 'Đã tính root'}.`;
   const container = $('merkle-tree'); container.replaceChildren();
   if (!count) { const note = document.createElement('p'); note.textContent = 'Không có lá. Backend trả về một tầng chứa root của cây rỗng.'; container.append(note); }
@@ -293,7 +332,7 @@ function showChainLab() {
     chainText(card, 'p', state.link_valid ? '✓ Liên kết với khối trước đạt' : '✗ Previous hash bị gãy');
     chainText(card, 'p', state.prefix_valid ? '✓ Tiền tố chuỗi hợp lệ' : '✗ Tiền tố chuỗi không hợp lệ; hash riêng của khối này có thể vẫn đúng.');
     const details = document.createElement('details'); card.append(details);
-    chainText(details, 'summary', 'Header, dữ liệu và kiểm tra đầy đủ');
+    chainText(details, 'summary', 'Chi tiết kỹ thuật — header, dữ liệu và kiểm tra đầy đủ');
     if (block.transaction) {
       chainText(details, 'p', 'Hash giao dịch đã ghi / tính lại:');
       chainText(details, 'pre', `${block.transaction.tx_id}\n${state.computed_transaction_hash}`);
@@ -336,6 +375,7 @@ function showChainLab() {
     const details = document.createElement('details'); evidence.append(details);
     chainText(details, 'summary', 'Ứng viên và số liệu đào thực tế (kể cả chưa hoàn tất)');
     chainText(details, 'pre', JSON.stringify({ mining: data.mining, candidate: data.candidate }, null, 2));
+    chainText(summary, 'p', 'Nonce là giá trị trong header; số lần băm là lượng công việc backend đã đo, không phải nonce. Thời gian không đo điện năng.');
   }
   chainControls();
 }
@@ -463,6 +503,10 @@ function showNetworkLab() {
   $('network-offline').disabled = s.busy || !node3 || node3.status === 'OFFLINE';
   $('network-online').disabled = s.busy || !node3 || node3.status === 'ONLINE';
   $('network-mine').disabled = s.busy || !s.handle || !!data?.mining;
+  $('network-control-note').textContent = s.busy ? 'Đang chờ kết quả thực; các thao tác mạng tạm khóa.'
+    : !s.handle ? 'Khởi tạo mạng trước để mở các nút điều khiển Node-3 và tạo block.'
+    : data?.mining ? 'Mẫu này đã có một block. Thử bật/tắt Node-3, làm mới hoặc đồng bộ; đặt lại lab để tạo mẫu mới.'
+    : 'Thử tắt Node-3 trước khi tạo block. Nút Bật/Tắt chỉ khả dụng khi node đang ở trạng thái ngược lại.';
   const summary = $('network-summary');
   summary.className = 'result';
   summary.textContent = !data ? 'Chưa có mạng lab. Khởi tạo để xem ba node ở block genesis.'
@@ -494,7 +538,7 @@ function showLabNodes(id, nodes) {
     if (node.local_title != null) line(`Tiêu đề trong bản sao cục bộ: ${node.local_title}`);
     if (node.local_chain_warning) line(node.local_chain_warning);
     const details = document.createElement('details'), label = document.createElement('summary'), pre = document.createElement('pre');
-    label.textContent = 'Tip đầy đủ, lý do và các bước xác minh';
+    label.textContent = 'Chi tiết kỹ thuật — tip đầy đủ, lý do và các bước xác minh';
     pre.textContent = JSON.stringify(node, null, 2); details.append(label, pre); card.append(details); container.append(card);
   }
 }
@@ -611,6 +655,11 @@ function showTamperLab() {
   $('tamper-input').disabled = s.busy || !data?.ready;
   const title = $('tamper-input').value.trim();
   $('tamper-edit').disabled = s.busy || !data?.ready || !title || title === data.original_title;
+  $('tamper-control-note').textContent = s.busy ? 'Đang chờ backend; chưa thể sửa hoặc phục hồi lần nữa.'
+    : !s.handle ? 'Tạo chuỗi mẫu trước để mở phần sửa dữ liệu.'
+    : !data?.ready ? 'Đọc kết quả các node. Nếu đã sửa, bấm Đồng bộ để phục hồi; nếu chưa sẵn sàng, bấm Kiểm tra các node.'
+    : !title || title === data.original_title ? 'Nhập tiêu đề không trống, khác bản gốc để mở nút Sửa. Phục hồi chỉ mở sau khi đã sửa.'
+    : 'Có thể sửa riêng Node-2 rồi đọc kết quả. Đồng bộ để phục hồi chỉ mở sau khi đã sửa.';
   const summary = $('tamper-summary'); summary.className = 'result';
   summary.textContent = !data ? 'Chưa có chuỗi mẫu. Tạo chuỗi để xác minh hồ sơ trên cả ba node.'
     : s.pollFailed ? 'Chưa xác nhận hoàn tất trong thời hạn. Đây là trạng thái cuối đã đọc; hãy kiểm tra lại.'
@@ -713,6 +762,21 @@ async function resetTamperLab() {
     if (name === 'blocks' && !chainLab.result && !chainLab.busy) chainLab.initialization = chainLabAction('init');
   }
   window.addEventListener('hashchange', () => route(true));
+  for (const [index, name] of ['theory', 'practice'].entries()) {
+    const button = $('sha-tab-' + name);
+    button.onclick = () => showShaTab(name);
+    button.onkeydown = event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 'theory' : event.key === 'End' ? 'practice'
+        : ['theory', 'practice'][1 - index];
+      showShaTab(next); $('sha-tab-' + next).focus();
+    };
+  }
+  for (let i = 0; i < 5; i++) $('sha-topic-' + i).onclick = () => selectShaTopic(i);
+  $('sha-previous').onclick = () => selectShaTopic(shaTopic - 1);
+  $('sha-next').onclick = () => shaTopic === 4 ? showShaTab('practice', true) : selectShaTopic(shaTopic + 1);
+  showShaTab('theory'); selectShaTopic(0);
   $('hash-form').onsubmit = compareHashes; $('hash-reset').onclick = resetHash;
   ['hash-a', 'hash-b'].forEach(id => { $(id).oninput = () => { $('hash-status').textContent = 'Nội dung đã đổi. Bấm tính lại để cập nhật kết quả.'; }; });
   $('sig-create').onclick = () => signatureAction('create'); $('sig-other').onclick = () => signatureAction('other');
@@ -723,7 +787,7 @@ async function resetTamperLab() {
   $('merkle-form').onsubmit = computeMerkle; $('merkle-reset').onclick = resetMerkle;
   $('merkle-leaves').oninput = () => { updateProofChoices(); $('merkle-status').textContent = 'Lá đã đổi. Bấm tính lại để so sánh các node.'; };
   for (const [id, text] of [['merkle-one', 'Hồ sơ An'], ['merkle-odd', 'Hồ sơ An\nHồ sơ Bình\nHồ sơ Chi'], ['merkle-empty', '']]) {
-    $(id).onclick = () => { if (merkleBusy) return; $('merkle-leaves').value = text; $('merkle-leaves').oninput(); };
+    $(id).onclick = () => { if (merkleBusy) return; fillLabExample('merkle-leaves', text); };
   }
   $('comparison-form').onsubmit = runComparison; $('comparison-reset').onclick = resetComparison;
   $('chain-init').onclick = () => chainLabAction('init');
@@ -731,7 +795,7 @@ async function resetTamperLab() {
   $('chain-difficulty').onchange = chainControls;
   $('chain-validate').onclick = () => chainLabAction('validate');
   $('chain-reset').onclick = () => resetChainLab();
-  $('chain-example').onclick = () => { if (!chainLab.busy) $('chain-data').value = 'Ghi chú của tôi: mỗi block nối với block trước.'; };
+  $('chain-example').onclick = () => { if (!chainLab.busy) fillLabExample('chain-data', 'Ghi chú của tôi: mỗi block nối với block trước.'); };
   resetChainLab(false);
   for (const mode of ['pow', 'pos']) {
     $('comparison-' + mode).onchange = () => {

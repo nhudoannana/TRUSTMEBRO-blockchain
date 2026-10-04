@@ -62,6 +62,16 @@ def test_lab_home_links_use_existing_ui_mount(client):
     assert 'javascript' in script.headers['content-type']
 
 
+def test_attack_navigation_uses_existing_static_mount(client):
+    assert '/ui/attacks.html' in Links(client.get('/ui/modes.html').text).urls
+    labs = client.get('/ui/labs.html').text
+    assert '/ui/attacks.html' in Links(labs).urls
+    assert '/ui/labs.html#tamper' in Links(client.get('/ui/modes.html').text).urls
+    page = client.get('/ui/attacks.html')
+    assert page.status_code == 200 and '/ui/labs.html' in Links(page.text).urls
+    assert client.get('/ui/attacks.js').status_code == 200
+
+
 def test_explorer_entry_preserves_static_boundary_and_guided_state(client):
     modes = Links(client.get('/ui/modes.html').text)
     assert modes.hrefs['explorer-mode'] == '/ui/explorer.html'

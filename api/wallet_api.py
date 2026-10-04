@@ -1337,6 +1337,92 @@ def lab_run_consensus(body: LabConsensusRequest):
 
 
 # Unlike the single-call comparison, this lab needs state across actions.
+class LabAttackRequest(BaseModel):
+    """Fixed experiments, no client-supplied wallets, paths or networks."""
+    model_config = {'extra': 'forbid'}
+    scenario: Literal['tamper', 'impersonation', 'replay']
+    edited_title: str = Field(default='Chứng chỉ đã bị sửa', min_length=1, max_length=200)
+
+    @field_validator('edited_title')
+    @classmethod
+    def validate_title(cls, value):
+        value = value.strip()
+        if not value or value == 'Chứng chỉ mẫu lab':
+            raise ValueError('Tiêu đề sửa phải không trống và khác tiêu đề mẫu.')
+        return value
+
+
+@app.post('/api/labs/attacks/run')
+def lab_run_attack(body: LabAttackRequest):
+    """One disposable node, two submissions, no mining or retained handles.
+
+    The trusted issuer set is explicit. Each outcome comes from the existing
+    verifier/admission; the hash gate precedes ECDSA in verify_transaction.
+    Session middleware pins the request; workers are stopped before returning.
+    """
+    network = Network()
+    try:
+        issuer, attacker = generate_wallet(), generate_wallet()
+        node = network.create_node('Attack-Node', '127.0.0.1', 5001,
+                                   authorized_issuers={issuer.public_key_hex})
+        credential = Credential(str(uuid.uuid4()), 'Đơn vị phát hành mẫu',
+                                'Người học mẫu', 'Chứng chỉ mẫu lab', '2026-01-01')
+        baseline = Transaction('ISSUE', issuer.public_key_hex, credential.to_onchain_payload())
+        baseline.sign(issuer)
+
+        def verification(tx):
+            valid, reason = verify_transaction(tx)
+            # All transactions here have the valid fixed type/payload/key and
+            # a signature. Only the existing hash gate can skip ECDSA.
+            return {'valid': valid, 'reason': reason,
+                    'computed_hash': tx.compute_hash(),
+                    'signature_checked': tx.tx_id == tx.compute_hash()}
+
+        with node._state_lock:
+            before = verification(baseline)
+            accepted, reason = node.submit_transaction(baseline)
+            if not before['valid'] or not accepted:
+                raise HTTPException(409, detail=reason if not accepted else before['reason'])
+            attack = deepcopy(baseline)
+            if body.scenario == 'tamper':
+                attack.payload['title'] = body.edited_title
+            elif body.scenario == 'impersonation':
+                payload = deepcopy(baseline.payload)
+                payload['credential_id'] = str(uuid.uuid4())
+                attack = Transaction('ISSUE', attacker.public_key_hex, payload)
+                attack.sign(attacker)
+            after = verification(attack)
+            attack_accepted, attack_reason = node.submit_transaction(attack)
+            layer = None
+            if not attack_accepted:
+                if not after['valid']:
+                    layer = 'transaction_hash' if not after['signature_checked'] else 'signature'
+                elif attack.sender_public_key not in node.mempool.authorized_issuers:
+                    layer = 'issuer_authorization'
+                elif attack.tx_id in {tx.tx_id for tx in node.mempool.get_transactions()}:
+                    layer = 'duplicate_submission'
+                else:
+                    layer = 'admission'
+            def public(wallet):
+                return {'public_key_hex': wallet.public_key_hex, 'address': wallet.address}
+            return {'scenario': body.scenario, 'context_generation': current_session().generation,
+                    'node_id': node.node_id, 'authorized_issuer': public(issuer),
+                    'attacker': public(attacker) if body.scenario == 'impersonation' else None,
+                    'baseline': {'transaction': baseline.to_dict(), 'verification': before,
+                                 'submission': {'accepted': accepted, 'reason': reason}},
+                    'attack': {'transaction': attack.to_dict(), 'verification': after,
+                               'submission': {'accepted': attack_accepted, 'reason': attack_reason}},
+                    'failure_layer': layer, 'pending_count': len(node.mempool.get_transactions())}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logging.getLogger(__name__).exception('Disposable attack lab failed')
+        raise HTTPException(500, detail='Thí nghiệm backend thất bại. Mạng tạm đã được dọn; hãy thử lại.') from exc
+    finally:
+        for node in network.nodes.values():
+            node.stop()
+
+
 # Opaque handles, bounded lifetime/capacity and independent locks match lab keys.
 _LAB_NETWORK_TTL = 900
 _LAB_NETWORK_LIMIT = 8
