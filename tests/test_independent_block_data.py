@@ -9,4 +9,3 @@ def test_free_text_without_certificate_fields(client):
     payload = response.json()['candidate']['transaction']['payload']
     assert payload['lab_data'] == text
     assert set(payload) == {'credential_id', 'lab_data'}
-
