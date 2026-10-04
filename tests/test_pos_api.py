@@ -1,4 +1,6 @@
 """Guided PoS integration uses existing selection, signatures and chains."""
+from api.session_store import current_session
+
 import pytest
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -121,7 +123,7 @@ def test_reset_replaces_registry_and_public_contract(client):
     assert network_store.get_network().pos_registry is not old
     assert after['reset_count'] == before['reset_count'] + 1
     assert set(v['address'] for v in before['validators']).isdisjoint(v['address'] for v in after['validators'])
-    assert not network_store.signed_credentials
+    assert not current_session().signed_credentials
     assert all(n['pending_count'] == 0 for n in client.get('/api/mempool').json()['nodes'])
 
 
@@ -139,7 +141,7 @@ def test_forging_metadata_and_reset_share_locks(client, monkeypatch):
     entered, release, requested = threading.Event(), threading.Event(), threading.Event()
     original = node.forge_pos_pending
     def paused():
-        assert network_store.session_lock._is_owned()
+        assert current_session().lock._is_owned()
         assert all(n._state_lock._is_owned() for n in old.nodes.values())
         entered.set()
         assert release.wait(2)

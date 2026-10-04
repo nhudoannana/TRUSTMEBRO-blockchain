@@ -1,4 +1,6 @@
 """Step G uses actual local chains, issuer keys and pending REVOKE transactions."""
+from api.session_store import current_session
+
 import pytest
 
 from api import network_store, wallet_store
@@ -34,7 +36,7 @@ def revoke(client, credential_id, **extra):
 
 def test_original_and_each_changed_field_without_adapter_record(client, low_difficulty):
     credential = issued(client)
-    network_store.signed_credentials.clear()
+    current_session().signed_credentials.clear()
     original = presentation(credential)
     result = verify(client, credential['credential_id'], presented=original)
     assert result['success'] and result['presentation_match']
@@ -127,7 +129,7 @@ def test_pos_registry_fixture_verifies_and_rejects_forged_signature(client):
     node = network_store.get_network().nodes['Node-1']
     registry = node.network.pos_registry
     with node._state_lock:
-        tx = network_store.signed_credentials[credential['credential_id']][1]
+        tx = current_session().signed_credentials[credential['credential_id']][1]
         validator = next(iter(registry.validators.values()))
         block = registry.forge_block(validator, [tx], 1, node.blockchain.chain[0].compute_hash())
         node.blockchain.add_block(block)

@@ -1,8 +1,8 @@
-"""Shared demo session lifecycle tests (FastAPI TestClient, no browser)."""
+"""Browser simulation lifecycle tests (FastAPI TestClient, no browser)."""
 
 import threading
 
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 
 from api.wallet_api import app
 from blockchain.node import Network
@@ -33,7 +33,7 @@ def test_reset_reseeds_wallets_and_replaces_network():
         response = client.post("/api/session/reset")
         assert response.status_code == 200
         session = response.json()
-        assert session["shared_session"] is True
+        assert session["shared_session"] is False
         assert session["reset_count"] == before["reset_count"] + 1
         assert session["wallet_count"] == 2
         assert session["nodes"] == [

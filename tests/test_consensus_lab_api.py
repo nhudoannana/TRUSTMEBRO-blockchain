@@ -1,4 +1,6 @@
 """Real disposable consensus runs; no shared journey network mutations."""
+from api.session_store import current_session
+
 import json
 
 import pytest
@@ -80,7 +82,7 @@ def test_guided_session_and_stake_unchanged(client, lab_nodes, monkeypatch):
     shared = network_store.get_network()
     registry = shared.pos_registry
     def snapshot():
-        return (wallet_store.list_wallets(), dict(network_store.signed_credentials),
+        return (wallet_store.list_wallets(), dict(current_session().signed_credentials),
                 client.get('/api/session').json(), client.get('/api/network').json(),
                 client.get('/api/mempool').json(),
                 client.get('/api/consensus/pos?node_id=Node-1').json())

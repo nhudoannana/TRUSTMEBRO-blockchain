@@ -109,7 +109,8 @@ async function explorerRead(height = null) {
       const error = new Error(typeof data.detail === 'string' ? data.detail : data.detail?.message || `Lỗi HTTP ${response.status}`);
       error.status = response.status; throw error;
     }
-    if (!list && (data.reset_count !== expected.reset_count || data.block.hash !== block.hash)) {
+    if (!list && (data.context_generation !== expected.context_generation
+        || data.reset_count !== expected.reset_count || data.block.hash !== block.hash)) {
       clearExplorerList(); throw new Error('Phiên hoặc chuỗi đã thay đổi. Bấm Làm mới để đọc lại.');
     }
     if (list) { explorerSnapshot = data; showExplorerBlocks(data); }

@@ -32,8 +32,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictBool, StrictInt, field_validator
-from api.network_store import session_lock, get_session_info, reset_network
-from api.network_store import signed_credentials
+from api.network_store import get_session_info, reset_network
+from api import session_store
+from api.session_store import current_session, bind_session, SimulationSessionMiddleware
 from api.network_store import get_network, submit_signed_transaction, get_mempool_snapshots
 from api.network_store import get_network_snapshots, get_reset_count
 from blockchain.blockchain import Blockchain, verify_pos_signature
@@ -60,10 +61,11 @@ _UI_DIR   = _BASE_DIR / "ui"
 # ── App ───────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lab_lifespan(_app):
+    session_store.registry.start()
     try:
         yield
     finally:
-        close_lab_networks()
+        session_store.registry.shutdown()
 
 
 app = FastAPI(
@@ -74,6 +76,8 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lab_lifespan,
 )
+
+app.add_middleware(SimulationSessionMiddleware)
 
 # Allow localhost origins during development only.
 # In production, tighten allowed_origins to the actual serving domain.
@@ -188,6 +192,7 @@ class MempoolSubmitResponse(BaseModel):
     reason: str
     reason_source: Literal["backend", "adapter"]
     reset_count: int
+    context_generation: str
 
 
 class NodeMempoolSnapshot(BaseModel):
@@ -200,6 +205,7 @@ class NodeMempoolSnapshot(BaseModel):
 class MempoolSnapshotsResponse(BaseModel):
     nodes: list[NodeMempoolSnapshot]
     reset_count: int
+    context_generation: str
 
 
 class PowMiningRequest(BaseModel):
@@ -216,6 +222,7 @@ class PowMiningResponse(BaseModel):
     seconds: float | None
     attempts: int | None
     reset_count: int
+    context_generation: str
 
 
 class PublicValidator(BaseModel):
@@ -241,6 +248,7 @@ class PosConsensusResponse(BaseModel):
     previous_hash: str
     reason: str | None
     reset_count: int
+    context_generation: str
 
 
 class PosMiningResponse(BaseModel):
@@ -253,6 +261,7 @@ class PosMiningResponse(BaseModel):
     seconds: float
     elapsed_scope: str
     reset_count: int
+    context_generation: str
 
 
 class NodeStatusRequest(BaseModel):
@@ -275,6 +284,7 @@ class NetworkNodeSnapshot(BaseModel):
 class NetworkSnapshotResponse(BaseModel):
     nodes: list[NetworkNodeSnapshot]
     reset_count: int
+    context_generation: str
     online_nodes_agree: bool
     online_nodes_valid: bool
     online_nodes_synchronized: bool
@@ -320,6 +330,7 @@ class VerifyResponse(BaseModel):
     record_verified: bool
     presented_document_accepted: bool
     reset_count: int
+    context_generation: str
 
 
 class RevokeRequest(PowMiningRequest):
@@ -342,7 +353,7 @@ def api_verify(body: VerifyRequest):
     meaning (ID-only VERIFIED is true); presented_document_accepted requires
     VERIFIED and an explicitly matching presentation.
     """
-    with session_lock:
+    with current_session().lock:
         network = get_network()
         node = network.nodes.get(body.node_id)
         if node is None:
@@ -364,7 +375,7 @@ def api_verify(body: VerifyRequest):
                     "success": status == "VERIFIED" and match is not False,
                     "record_verified": status == "VERIFIED",
                     "presented_document_accepted": status == "VERIFIED" and match is True,
-                    "reset_count": get_session_info()["reset_count"]}
+                    "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"]}
 
 
 @app.post("/api/credentials/{credential_id}/revoke", response_model=RevokeResponse, summary="Sign and submit REVOKE; never mine")
@@ -376,7 +387,7 @@ def api_revoke(credential_id: str, body: RevokeRequest):
     """
     if not credential_id.strip() or len(credential_id) > 200:
         raise HTTPException(422, detail="credential_id cần 1–200 ký tự.")
-    with session_lock:
+    with current_session().lock:
         network = get_network()
         node = network.nodes.get(body.node_id)
         if node is None:
@@ -404,7 +415,7 @@ def api_revoke(credential_id: str, body: RevokeRequest):
         accepted, reason, source = submit_signed_transaction(network, node, tx)
         return {"credential_id": credential_id, "node_id": body.node_id, "tx_id": tx.tx_id,
                 "accepted": accepted, "pending": accepted, "reason": reason, "reason_source": source,
-                "transaction": tx.to_dict(), "reset_count": get_session_info()["reset_count"]}
+                "transaction": tx.to_dict(), "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"]}
 
 
 # ── API routes ──────────────────────────────────────────────────────────────
@@ -412,7 +423,7 @@ def api_revoke(credential_id: str, body: RevokeRequest):
 @app.get("/api/wallets", response_model=list[WalletResponse], summary="List wallets")
 def api_list_wallets():
     """Return all wallets. Private keys are never included."""
-    with session_lock:
+    with current_session().lock:
         return list_wallets()
 
 
@@ -430,7 +441,7 @@ def api_create_wallet(body: WalletCreateRequest):
     - Wallet persists until server restart (in-memory store, Phase 1).
     """
     try:
-        with session_lock:
+        with current_session().lock:
             wallet = create_wallet(body.name)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -444,7 +455,7 @@ def api_create_wallet(body: WalletCreateRequest):
 )
 def api_get_wallet(wallet_id: str):
     """Return a single wallet by ID. 404 if not found."""
-    with session_lock:
+    with current_session().lock:
         wallet = get_wallet(wallet_id)
     if wallet is None:
         raise HTTPException(status_code=404, detail="Ví không tồn tại.")
@@ -460,10 +471,10 @@ def api_create_credential(body: CredentialCreateRequest):
     """Return public metadata and Transaction.to_dict() (tx_id, public key, signature).
 
     Claims are outside step C: retain Credential's empty claims_root default.
-    Store credential and signed transaction until shared reset/server restart.
+    Store credential and signed transaction until this session's reset/expiry/restart.
     No submission, broadcasting or mining occurs here.
     """
-    with session_lock:
+    with current_session().lock:
         stored = get_wallet(body.issuer_wallet_id)
         if stored is None:
             raise HTTPException(status_code=404, detail="Ví không tồn tại. Hãy chọn lại ví ở bước 1.")
@@ -472,7 +483,7 @@ def api_create_credential(body: CredentialCreateRequest):
                                 body.title, body.issue_date)
         tx = Transaction("ISSUE", wallet.public_key_hex, credential.to_onchain_payload())
         tx.sign(wallet)
-        signed_credentials[credential.credential_id] = (credential, tx)
+        current_session().signed_credentials[credential.credential_id] = (credential, tx)
         return {
             "credential_id": tx.payload["credential_id"],
             "credential": tx.payload,
@@ -481,7 +492,7 @@ def api_create_credential(body: CredentialCreateRequest):
             "transaction": tx.to_dict(),
         }
 
-@app.get("/api/session", summary="Shared demo session")
+@app.get("/api/session", summary="Current browser simulation")
 def api_session():
     return get_session_info()
 
@@ -493,8 +504,8 @@ def api_submit_mempool(body: MempoolSubmitRequest):
     404 detail.code identifies credential_not_found or node_not_found.
     No replacement payload, signing, extra broadcast or mining.
     """
-    with session_lock:
-        stored = signed_credentials.get(body.credential_id)
+    with current_session().lock:
+        stored = current_session().signed_credentials.get(body.credential_id)
         if stored is None:
             raise HTTPException(404, detail={"code": "credential_not_found", "message": "Hồ sơ đã ký không tồn tại hoặc phiên đã reset. Hãy tạo và ký lại."})
         network = get_network()
@@ -505,7 +516,7 @@ def api_submit_mempool(body: MempoolSubmitRequest):
         accepted, reason, source = submit_signed_transaction(network, node, tx)
         return {"credential_id": body.credential_id, "node_id": body.node_id,
                 "tx_id": tx.tx_id, "accepted": accepted, "reason": reason,
-                "reason_source": source, "reset_count": get_session_info()["reset_count"]}
+                "reason_source": source, "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"]}
 
 
 @app.get("/api/mempool", response_model=MempoolSnapshotsResponse, summary="Real per-node mempool snapshots")
@@ -514,9 +525,9 @@ def api_get_mempool():
     return get_mempool_snapshots()
 
 
-@app.post("/api/session/reset", summary="Reset shared demo session")
+@app.post("/api/session/reset", summary="Reset current browser simulation")
 def api_reset_session():
-    with session_lock:
+    with current_session().lock:
         reset_network()
         return get_session_info()
 
@@ -538,7 +549,7 @@ def api_sync_network():
     The backend chooses the chain. No polling while holding worker/session locks.
     Offline nodes catch up only after their explicit go_online request.
     """
-    with session_lock:
+    with current_session().lock:
         try:
             get_network().sync_all_nodes(online_only=True)
         except Exception as exc:
@@ -555,7 +566,7 @@ def api_sync_network():
 @app.post("/api/network/nodes/{node_id}/status", response_model=NodeStatusResponse, summary="Explicit online/offline demo control")
 def api_node_status(node_id: str, body: NodeStatusRequest):
     """Repeated requests are no-ops. go_online already requests queue-based sync."""
-    with session_lock:
+    with current_session().lock:
         node = get_network().nodes.get(node_id)
         if node is None:
             raise HTTPException(404, detail={"code": "node_not_found", "message": "Node không tồn tại."})
@@ -579,7 +590,7 @@ def api_mine_pow(body: PowMiningRequest):
     A backend rejection returns mined=false and its reason verbatim.
     Mining already validates, removes included TXs and broadcasts the block.
     """
-    with session_lock:
+    with current_session().lock:
         node = get_network().nodes.get(body.node_id)
         if node is None:
             raise HTTPException(404, detail={"code": "node_not_found", "message": "Node không tồn tại. Hãy chọn lại node."})
@@ -598,7 +609,7 @@ def api_mine_pow(body: PowMiningRequest):
                 "transaction_ids": [tx.tx_id for tx in block.transactions] if block is not None else [],
                 "seconds": result["seconds"] if block is not None else None,
                 "attempts": result["attempts"] if block is not None else None,
-                "reset_count": get_session_info()["reset_count"],
+                "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"],
             }
 
 
@@ -620,7 +631,7 @@ def public_pos_validators(registry):
 @app.get("/api/consensus/pos", response_model=PosConsensusResponse)
 def api_pos_consensus(node_id: str):
     """Provisional backend prediction for the selected node's current tip."""
-    with session_lock, ExitStack() as locks:
+    with current_session().lock, ExitStack() as locks:
         network = get_network()
         node = network.nodes.get(node_id)
         if node is None:
@@ -642,7 +653,7 @@ def api_pos_consensus(node_id: str):
                 "prediction_provisional": True, "target_height": height,
                 "previous_hash": previous_hash,
                 "reason": None if predicted else "Không tìm thấy validator hợp lệ trong mạng PoS",
-                "reset_count": get_session_info()["reset_count"]}
+                "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"]}
 
 
 @app.post("/api/mining/pos", response_model=PosMiningResponse)
@@ -653,7 +664,7 @@ def api_forge_pos(body: PowMiningRequest):
     local append and queue broadcast), excluding API lock acquisition/response.
     Public signer/stake metadata is captured in the same session as forging.
     """
-    with session_lock, ExitStack() as locks:
+    with current_session().lock, ExitStack() as locks:
         network = get_network()
         node = network.nodes.get(body.node_id)
         if node is None:
@@ -675,7 +686,7 @@ def api_forge_pos(body: PowMiningRequest):
                 "transaction_ids": [tx.tx_id for tx in block.transactions] if block else [],
                 "signer": next((v for v in validators if block and v['address'] == block.header.validator_address), None),
                 "seconds": seconds, "elapsed_scope": "forge_pos_pending call",
-                "reset_count": get_session_info()["reset_count"]}
+                "context_generation": current_session().generation, "reset_count": get_session_info()["reset_count"]}
 
 
 class ExplorerSnapshot(BaseModel):
@@ -685,6 +696,7 @@ class ExplorerSnapshot(BaseModel):
     tip_hash: str | None
     local_chain_warning: str | None
     reset_count: int
+    context_generation: str
 
 
 class ExplorerBlocksResponse(ExplorerSnapshot):
@@ -704,7 +716,7 @@ def _explorer_snapshot(node_id, height=None):
     Do not use get_session_info(): it seeds journey wallets on first access.
     Neither header serialization nor signature verification mutates the network.
     """
-    with session_lock, ExitStack() as locks:
+    with current_session().lock, ExitStack() as locks:
         network = get_network()
         node = network.nodes.get(node_id)
         if node is None:
@@ -715,7 +727,7 @@ def _explorer_snapshot(node_id, height=None):
         snapshot = {"node_id": node.node_id, "status": node.status, "tip_height": node.height,
                     "tip_hash": chain[-1].compute_hash() if chain else None,
                     "local_chain_warning": "Node OFFLINE: bản blockchain cục bộ có thể đã cũ." if node.status == "OFFLINE" else None,
-                    "reset_count": get_reset_count()}
+                    "context_generation": current_session().generation, "reset_count": get_reset_count()}
         if height is None:
             snapshot['blocks'] = [block.to_dict() for block in reversed(chain)]
         else:
@@ -751,16 +763,14 @@ def api_explorer_block(height: int, node_id: str = 'Node-1'):
 # at most 64 keys, 15 minutes each; process restart also discards them.
 _LAB_KEY_TTL = 900
 _LAB_KEY_LIMIT = 64
-_lab_keys: dict[str, tuple[Wallet, float]] = {}
-_lab_key_lock = threading.RLock()
 
 
 def _expire_lab_keys():
     """Caller holds only the lab lock; no session/node/registry lock is needed."""
     now = time.monotonic()
-    for handle, (_, expires) in list(_lab_keys.items()):
+    for handle, (_, expires) in list(current_session().lab_keys.items()):
         if expires <= now:
-            del _lab_keys[handle]
+            del current_session().lab_keys[handle]
 
 
 class LabKeyResponse(BaseModel):
@@ -857,7 +867,6 @@ class LabIssuer(BaseModel):
 # No wallet handle, Network, worker, session lock or registry is needed.
 _BLOCK_LAB_MAX_ATTEMPTS = 200000
 _BLOCK_LAB_MAX_SECONDS = 3.0
-_block_lab_mining_lock = threading.Lock()
 BlockLabHash = Annotated[str, Field(pattern=r'^[0-9a-fA-F]{64}$')]
 
 
@@ -1018,14 +1027,14 @@ def lab_build_block(body: LabBlockBuildRequest):
 def lab_mine_block(body: LabBlockMineRequest):
     block = _restore_lab_block(body.candidate)
     _require_lab_block_integrity(block, body.candidate)
-    if not _block_lab_mining_lock.acquire(blocking=False):
+    if not current_session().block_mining_lock.acquire(blocking=False):
         raise HTTPException(429, detail='Lab Block đang đào một ứng viên. Hãy chờ rồi thử lại.')
     try:
         mining = _mine_lab_block_bounded(block)
         return _lab_block_result(block, 'mined' if mining['completed'] else 'incomplete',
                                  block.compute_hash(), mining)
     finally:
-        _block_lab_mining_lock.release()
+        current_session().block_mining_lock.release()
 
 
 def _mine_lab_block_bounded(block):
@@ -1075,7 +1084,6 @@ def lab_edit_block(body: LabBlockEditRequest):
 # Public snapshots keep this experiment separate from Block and every Network.
 # No retained handle, private key, expiry timer or worker exists to clean up.
 _BLOCKCHAIN_LAB_MAX_BLOCKS = 12  # Excludes genesis.
-_blockchain_lab_mining_lock = threading.Lock()
 
 
 class LabChainHeader(LabBlockHeader):
@@ -1191,7 +1199,7 @@ def lab_add_chain_block(body: LabChainAddRequest):
         raise HTTPException(409, detail=result['validation']['reason'])
     if len(chain.chain) - 1 >= _BLOCKCHAIN_LAB_MAX_BLOCKS:
         raise HTTPException(422, detail='Lab đã đạt giới hạn 12 block ngoài genesis. Đặt lại để thử chuỗi mới.')
-    if not _blockchain_lab_mining_lock.acquire(blocking=False):
+    if not current_session().chain_mining_lock.acquire(blocking=False):
         raise HTTPException(429, detail='Lab Blockchain đang đào. Hãy chờ rồi thử lại.')
     try:
         block = _new_lab_data_block(body.data, len(chain.chain),
@@ -1204,7 +1212,7 @@ def lab_add_chain_block(body: LabChainAddRequest):
             records.append(candidate)
         return _chain_lab_result(chain, records, mining=mining, candidate=candidate)
     finally:
-        _blockchain_lab_mining_lock.release()
+        current_session().chain_mining_lock.release()
 
 
 def _chain_lab_target(body):
@@ -1332,44 +1340,44 @@ def lab_run_consensus(body: LabConsensusRequest):
 # Opaque handles, bounded lifetime/capacity and independent locks match lab keys.
 _LAB_NETWORK_TTL = 900
 _LAB_NETWORK_LIMIT = 8
-_lab_networks = {}
-_lab_network_lock = threading.RLock()
 
 
 def _close_lab_network(handle, kind=None):
     """Caller holds lab lock, no node lock; workers can finish before join."""
-    entry = _lab_networks.get(handle)
+    entry = current_session().lab_networks.get(handle)
     if entry is None:
         return False
     if kind is not None and entry['kind'] != kind:
         raise HTTPException(404, detail="Handle không thuộc loại lab này.")
-    del _lab_networks[handle]
+    del current_session().lab_networks[handle]
     entry['timer'].cancel()
     for node in entry['network'].nodes.values():
         node.stop()
     return True
 
 
-def _expire_lab_network(handle):
-    with _lab_network_lock:
-        entry = _lab_networks.get(handle)
-        if entry and entry['expires'] <= time.monotonic():
-            _close_lab_network(handle)
+def _expire_lab_network(handle, context=None):
+    # Timer threads receive the owning context; they never resolve a cookie.
+    with bind_session(context or current_session()):
+        with current_session().lab_network_lock:
+            entry = current_session().lab_networks.get(handle)
+            if entry and entry['expires'] <= time.monotonic():
+                _close_lab_network(handle)
 
 
 def close_lab_networks():
-    """App shutdown closes only network labs, never journey or signature keys."""
-    with _lab_network_lock:
-        for handle in list(_lab_networks):
+    """Close the bound context's network labs; app shutdown closes all contexts."""
+    with current_session().lab_network_lock:
+        for handle in list(current_session().lab_networks):
             _close_lab_network(handle)
 
 
 def _get_lab_network(handle, kind='network'):
-    entry = _lab_networks.get(handle)
+    entry = current_session().lab_networks.get(handle)
     if entry is not None and entry['kind'] != kind:
         raise HTTPException(404, detail="Handle không thuộc loại lab này.")
     _expire_lab_network(handle)
-    entry = _lab_networks.get(handle)
+    entry = current_session().lab_networks.get(handle)
     if entry is None:
         raise HTTPException(404, detail="Mạng lab đã reset hoặc hết hạn. Khởi tạo lab mới.")
     return entry
@@ -1435,26 +1443,26 @@ def _lab_network_snapshot(handle, entry):
 
 
 def _initialize_lab_network(kind):
-    """Caller holds the shared lab lock. Both retained labs reuse this lifecycle."""
-    for handle in list(_lab_networks):
+    """Caller holds this context's lab lock. Both retained labs reuse this lifecycle."""
+    for handle in list(current_session().lab_networks):
         _expire_lab_network(handle)
-    if len(_lab_networks) >= _LAB_NETWORK_LIMIT:
+    if len(current_session().lab_networks) >= _LAB_NETWORK_LIMIT:
         raise HTTPException(429, detail="Đã đủ mạng lab tạm. Reset lab không dùng hoặc chờ hết hạn.")
     network = Network()
     handle = str(uuid.uuid4())
-    timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle,))
+    timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle, current_session()))
     timer.daemon = True
     entry = {'kind': kind, 'network': network, 'tx': None, 'issuer': None, 'submitted': False,
              'mining': None, 'expires': time.monotonic() + _LAB_NETWORK_TTL, 'timer': timer}
     try:
         for i in range(1, 4):
             network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
-        _lab_networks[handle] = entry
+        current_session().lab_networks[handle] = entry
         timer.start()
         return handle, entry
     except Exception as exc:
         timer.cancel()
-        _lab_networks.pop(handle, None)
+        current_session().lab_networks.pop(handle, None)
         for node in network.nodes.values():
             node.stop()
         raise HTTPException(500, detail="Không khởi tạo được mạng lab; worker tạm đã được dọn.") from exc
@@ -1463,26 +1471,26 @@ def _initialize_lab_network(kind):
 @app.post('/api/labs/network', status_code=201, response_model=LabNetworkSnapshot)
 def lab_initialize_network():
     # ponytail: serialize at most eight lab sessions; per-handle locks if throughput matters.
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         handle, entry = _initialize_lab_network('network')
         return _lab_network_snapshot(handle, entry)
 
 
 @app.get('/api/labs/network/{handle}', response_model=LabNetworkSnapshot)
 def lab_read_network(handle: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         return _lab_network_snapshot(handle, _get_lab_network(handle))
 
 
 @app.post('/api/labs/network/{handle}/reset')
 def lab_reset_network(handle: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         return {'cleared': _close_lab_network(handle, 'network')}
 
 
 @app.post('/api/labs/network/{handle}/nodes/{node_id}/status')
 def lab_node_status(handle: str, node_id: str, body: NodeStatusRequest):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         entry = _get_lab_network(handle)
         if node_id != 'Node-3':
             raise HTTPException(404, detail="Lab này chỉ điều khiển trạng thái Node-3.")
@@ -1525,7 +1533,7 @@ def _mine_lab_sample(entry):
 
 @app.post('/api/labs/network/{handle}/mine')
 def lab_network_mine(handle: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         entry = _get_lab_network(handle)
         if entry['mining'] is not None:
             raise HTTPException(409, detail="Lab đã tạo block mẫu. Reset riêng lab để thử lại từ đầu.")
@@ -1537,7 +1545,7 @@ def lab_network_mine(handle: str):
 
 @app.post('/api/labs/network/{handle}/sync')
 def lab_sync_network(handle: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         entry = _get_lab_network(handle)
         try:
             entry['network'].sync_all_nodes(online_only=True)
@@ -1605,7 +1613,7 @@ def _tamper_lab_snapshot(handle, entry):
 
 @app.post('/api/labs/tamper', status_code=201, response_model=LabTamperSnapshot)
 def lab_prepare_tamper():
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         handle, entry = _initialize_lab_network('tamper')
         try:
             block, reason = _mine_lab_sample(entry)
@@ -1619,13 +1627,13 @@ def lab_prepare_tamper():
 
 @app.get('/api/labs/tamper/{lab_id}', response_model=LabTamperSnapshot)
 def lab_observe_tamper(lab_id: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         return _tamper_lab_snapshot(lab_id, _get_lab_network(lab_id, 'tamper'))
 
 
 @app.post('/api/labs/tamper/{lab_id}/edit', response_model=LabTamperSnapshot)
 def lab_edit_tamper(lab_id: str, body: LabTamperEditRequest):
-    with _lab_network_lock, ExitStack() as locks:
+    with current_session().lab_network_lock, ExitStack() as locks:
         entry = _get_lab_network(lab_id, 'tamper')
         # Same sorted lock order as sync; workers hold only their own node lock.
         for peer in sorted(entry['network'].nodes.values(), key=lambda n:n.node_id):
@@ -1652,7 +1660,7 @@ def lab_edit_tamper(lab_id: str, body: LabTamperEditRequest):
 
 @app.post('/api/labs/tamper/{lab_id}/sync', response_model=LabTamperSnapshot)
 def lab_recover_tamper(lab_id: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         entry = _get_lab_network(lab_id, 'tamper')
         if entry.get('edited_title') is None:
             raise HTTPException(409, detail="Lab chưa sửa dữ liệu. Hãy quan sát bản gốc rồi sửa Node-2 trước.")
@@ -1666,20 +1674,20 @@ def lab_recover_tamper(lab_id: str):
 
 @app.delete('/api/labs/tamper/{lab_id}')
 def lab_close_tamper(lab_id: str):
-    with _lab_network_lock:
+    with current_session().lab_network_lock:
         return {'cleared': _close_lab_network(lab_id, 'tamper')}
 
 
 @app.post("/api/labs/signatures/keys", status_code=201, response_model=LabKeyResponse)
 def lab_create_key():
     """Generate disposable secp256k1 keys; private keys stay in this process."""
-    with _lab_key_lock:
+    with current_session().lab_key_lock:
         _expire_lab_keys()
-        if len(_lab_keys) >= _LAB_KEY_LIMIT:
+        if len(current_session().lab_keys) >= _LAB_KEY_LIMIT:
             raise HTTPException(429, detail="Lab đã đủ khóa tạm. Reset khóa không dùng hoặc chờ hết hạn.")
         wallet = generate_wallet()
         handle = str(uuid.uuid4())
-        _lab_keys[handle] = (wallet, time.monotonic() + _LAB_KEY_TTL)
+        current_session().lab_keys[handle] = (wallet, time.monotonic() + _LAB_KEY_TTL)
         return {"key_handle": handle, "public_key_hex": wallet.public_key_hex,
                 "address": wallet.address, "expires_in_seconds": _LAB_KEY_TTL}
 
@@ -1687,17 +1695,17 @@ def lab_create_key():
 @app.post("/api/labs/signatures/keys/{key_handle}/reset")
 def lab_reset_key(key_handle: str):
     """Idempotently delete this key only; never reset journey/session state."""
-    with _lab_key_lock:
+    with current_session().lab_key_lock:
         _expire_lab_keys()
-        return {"cleared": _lab_keys.pop(key_handle, None) is not None}
+        return {"cleared": current_session().lab_keys.pop(key_handle, None) is not None}
 
 
 @app.post("/api/labs/signatures/sign", response_model=LabSignResponse)
 def lab_sign(body: LabSignRequest):
     """Existing Wallet signing: ECDSA(SHA-256(UTF-8 message)), DER signature hex."""
-    with _lab_key_lock:
+    with current_session().lab_key_lock:
         _expire_lab_keys()
-        entry = _lab_keys.get(body.key_handle)
+        entry = current_session().lab_keys.get(body.key_handle)
         if entry is None:
             raise HTTPException(404, detail="Khóa lab không tồn tại hoặc đã hết hạn. Tạo khóa tạm mới.")
         wallet, expires = entry

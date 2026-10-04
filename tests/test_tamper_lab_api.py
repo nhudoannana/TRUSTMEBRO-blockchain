@@ -1,4 +1,6 @@
 """Actual local corruption/recovery; no guided-session tampering endpoint."""
+from api.session_store import current_session
+
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -9,7 +11,7 @@ import pytest
 
 from api import wallet_api, network_store
 from blockchain.blockchain import Blockchain
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 from tests.test_mempool_api import client
 
 
@@ -52,7 +54,7 @@ def test_prepare_independent_corruption_and_real_sync(client, monkeypatch):
     monkeypatch.setattr(Blockchain, 'verify_credential', capture)
     data = ready(client, create(client))
     handle = data['lab_id']
-    entry = wallet_api._lab_networks[handle]
+    entry = current_session().lab_networks[handle]
     network = entry['network']
     assert data['prepared'] and not data['tampered'] and not data['restored']
     assert all(n['chain_valid'] and n['verification']['status'] == 'VERIFIED' for n in data['nodes'])
@@ -98,7 +100,7 @@ def test_prepare_independent_corruption_and_real_sync(client, monkeypatch):
     assert read(client,handle)['nodes'][1]['verification']['status'] == 'INVALID'
     restored = client.post(path(handle,'/sync')).json()
     assert restored['ready'] and restored['restored'] and not restored['tampered']
-    assert wallet_api._lab_networks[handle]['network'] is network
+    assert current_session().lab_networks[handle]['network'] is network
     assert all(n['local_title'] == data['original_title'] and n['chain_valid']
                and n['verification']['status'] == 'VERIFIED' for n in restored['nodes'])
     assert len({n['stored_tip_hash'] for n in restored['nodes']}) == 1
@@ -153,7 +155,7 @@ def test_pending_preparation_cannot_be_edited(client,monkeypatch):
 def test_failed_sync_never_fabricates_recovery(client,monkeypatch):
     data = ready(client,create(client));handle = data['lab_id']
     assert edit(client,handle).status_code == 200
-    network = wallet_api._lab_networks[handle]['network']
+    network = current_session().lab_networks[handle]['network']
     monkeypatch.setattr(network,'sync_all_nodes',lambda **kwargs:None)
     response = client.post(path(handle,'/sync'))
     assert response.status_code == 200
@@ -173,7 +175,7 @@ def test_prepare_backend_rejection_preserves_pending_and_reason(client, monkeypa
     data = create(client)
     assert not data['prepared'] and not data['ready']
     assert data['reason'] == 'fixture: actual backend block rejection'
-    entry = wallet_api._lab_networks[data['lab_id']]
+    entry = current_session().lab_networks[data['lab_id']]
     assert len(entry['network'].nodes['Node-1'].mempool.get_transactions()) == 1
     assert read(client, data['lab_id'])['transaction']['tx_id'] == entry['tx'].tx_id
     assert edit(client, data['lab_id']).status_code == 409
@@ -182,7 +184,7 @@ def test_prepare_backend_rejection_preserves_pending_and_reason(client, monkeypa
 def test_reset_serializes_with_sync(client, monkeypatch):
     data = ready(client, create(client)); handle = data['lab_id']
     assert edit(client, handle).status_code == 200
-    network = wallet_api._lab_networks[handle]['network']
+    network = current_session().lab_networks[handle]['network']
     entered, release, resetting = threading.Event(), threading.Event(), threading.Event()
     sync = network.sync_all_nodes
     def paused_sync(**kwargs):
@@ -209,39 +211,39 @@ def test_expiry_timer_stops_workers_without_another_request(client, monkeypatch)
     # A short test TTL, not a change to the app's 15-minute lifetime.
     monkeypatch.setattr(wallet_api, '_LAB_NETWORK_TTL', 2)
     data = create(client); handle = data['lab_id']
-    entry = wallet_api._lab_networks[handle]
+    entry = current_session().lab_networks[handle]
     entry['timer'].join(timeout=4)
     assert not entry['timer'].is_alive()
-    assert handle not in wallet_api._lab_networks
+    assert handle not in current_session().lab_networks
     assert all(not n._worker.is_alive() for n in entry['network'].nodes.values())
     assert edit(client, handle).status_code == 404
 
 
 def test_isolation_capacity_expiry_reset_and_shutdown(client,monkeypatch):
     network_handle = client.post('/api/labs/network').json()['lab_handle']
-    other = wallet_api._lab_networks[network_handle]['network']
+    other = current_session().lab_networks[network_handle]['network']
     key = client.post('/api/labs/signatures/keys').json()
-    baseline = (client.get('/api/network').json(),client.get('/api/session').json(),client.get('/api/wallets').json(),dict(network_store.signed_credentials))
+    baseline = (client.get('/api/network').json(),client.get('/api/session').json(),client.get('/api/wallets').json(),dict(current_session().signed_credentials))
     for _ in range(3):
         data = ready(client,create(client));handle = data['lab_id']
-        entry = wallet_api._lab_networks[handle]
+        entry = current_session().lab_networks[handle]
         assert edit(client,handle).status_code == 200
         assert client.post(path(handle,'/sync')).json()['restored']
         assert client.delete(path(handle)).json()['cleared']
         entry['timer'].join(timeout=1)
         assert not entry['timer'].is_alive()
         assert all(not n._worker.is_alive() for n in entry['network'].nodes.values())
-    assert baseline == (client.get('/api/network').json(),client.get('/api/session').json(),client.get('/api/wallets').json(),dict(network_store.signed_credentials))
-    assert wallet_api._lab_networks[network_handle]['network'] is other
+    assert baseline == (client.get('/api/network').json(),client.get('/api/session').json(),client.get('/api/wallets').json(),dict(current_session().signed_credentials))
+    assert current_session().lab_networks[network_handle]['network'] is other
     assert all(n['height']==0 for n in client.get('/api/labs/network/'+network_handle).json()['nodes'])
     assert client.post('/api/labs/signatures/sign',json={'key_handle':key['key_handle'],'message':'kept'}).status_code == 200
     monkeypatch.setattr(wallet_api,'_LAB_NETWORK_LIMIT',2)
-    data=create(client);entry=wallet_api._lab_networks[data['lab_id']]
+    data=create(client);entry=current_session().lab_networks[data['lab_id']]
     assert client.post(path()).status_code == 429
     assert client.post('/api/labs/network').status_code == 429
     entry['expires']=time.monotonic()-1
     assert edit(client,data['lab_id']).status_code == 404
-    assert data['lab_id'] not in wallet_api._lab_networks
+    assert data['lab_id'] not in current_session().lab_networks
     assert all(not n._worker.is_alive() for n in entry['network'].nodes.values())
 
 
@@ -254,11 +256,11 @@ def test_shutdown_and_unexpected_prepare_failure_stop_workers(monkeypatch):
     with TestClient(wallet_api.app) as local:
         create(local)
     assert all(not n._worker.is_alive() for n in captured)
-    assert not wallet_api._lab_networks
+    assert not current_session().lab_networks
     from blockchain.node import Node
     def fail(node):raise RuntimeError('fixture mining failure')
     monkeypatch.setattr(Node,'mine_pending',fail)
     with TestClient(wallet_api.app) as local:
         assert local.post(path()).status_code == 500
-        assert not wallet_api._lab_networks
+        assert not current_session().lab_networks
     assert all(not n._worker.is_alive() for n in captured)

@@ -1,4 +1,6 @@
 """Independent text chains use the production models and validation rules."""
+from api.session_store import current_session
+
 from copy import deepcopy
 import json
 import threading
@@ -167,11 +169,11 @@ def test_length_limit_busy_and_recompute_noop(client):
     response = client.post('/api/labs/blockchain/add', json={'chain': state['chain'], 'data': '13th'})
     assert response.status_code == 422
     assert client.post('/api/labs/blockchain/recompute', json={'chain': state['chain'], 'height': 1}).status_code == 409
-    wallet_api._blockchain_lab_mining_lock.acquire()
+    current_session().chain_mining_lock.acquire()
     try:
         assert client.post('/api/labs/blockchain/add', json={'chain': init(client)['chain'], 'data': 'busy'}).status_code == 429
     finally:
-        wallet_api._blockchain_lab_mining_lock.release()
+        current_session().chain_mining_lock.release()
 
 
 def test_isolation_reset_repeat_no_workers_and_guided_validation(client, monkeypatch):
@@ -185,9 +187,9 @@ def test_isolation_reset_repeat_no_workers_and_guided_validation(client, monkeyp
         network = network_store.get_network()
         return deepcopy(([[b.to_dict() for b in n.blockchain.chain] for n in network.nodes.values()],
                          [[t.to_dict() for t in n.mempool.get_transactions()] for n in network.nodes.values()],
-                         wallet_store._store, list(network_store.signed_credentials),
+                         current_session().wallets._store, list(current_session().signed_credentials),
                          network_store.get_reset_count(), client.get(f'/api/labs/network/{lab}').json()['nodes'],
-                         dict(wallet_api._lab_keys)))
+                         dict(current_session().lab_keys)))
     baseline, workers = capture(), set(threading.enumerate())
     def forbidden(*args, **kwargs):
         raise AssertionError('No Network is needed by this experiment')

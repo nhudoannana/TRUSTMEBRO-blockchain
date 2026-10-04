@@ -6,7 +6,8 @@ import pytest
 
 
 @pytest.mark.parametrize('case', ['pow', 'pos', 'reset', 'restart', 'failure',
-                                  'stale', 'blocked_storage', 'verification'])
+                                  'stale', 'blocked_storage', 'verification', 'context_restart',
+                                  'network_only_expiry', 'old_checkpoint', 'live_expiry', 'wallet_checkpoint'])
 def test_journey_explorer_return(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -23,23 +24,37 @@ context=vm.createContext({document,record,wallet,result,sessionStorage:{getItem:
   if(testCase==='stale'&&url.includes('/wallets/'))await new Promise(r=>held=r);
   if(testCase==='failure')throw Error('offline API');
   if(url==='/api/wallets/issuer-id')return {ok:true,json:async()=>({...wallet,public_key_hex:testCase==='restart'?'new-key':wallet.public_key_hex})};
-  assert.equal(url,'/api/mempool');return {ok:true,json:async()=>({reset_count:testCase==='reset'?4:3,nodes:[]})};
+  assert.equal(url,'/api/mempool');return {ok:true,json:async()=>({context_generation:['context_restart','network_only_expiry','live_expiry'].includes(testCase)?'context-after':'context-before',reset_count:testCase==='reset'?4:3,nodes:[]})};
  }});
 vm.runInContext(source.slice(0,source.indexOf('(function initTheme()')),context);
 const run=s=>vm.runInContext(s,context);
 (async()=>{
- run('state.step=3;state.max=3;state.selectedWalletId=wallet.id;state.selectedWallet=wallet;state.record=record;state.block=result.block;miningState().result=result;miningState().mode=result.forged?"pos":"pow";mempoolState().generation=3;mempoolState().submission={accepted:true};showMining(miningState(),mempoolState())');
+ run('state.contextGeneration="context-before";state.step=3;state.max=3;state.selectedWalletId=wallet.id;state.selectedWallet=wallet;state.record=record;state.block=result.block;miningState().result=result;miningState().mode=result.forged?"pos":"pow";mempoolState().generation=3;mempoolState().submission={accepted:true};showMining(miningState(),mempoolState())');
  const html=document.getElementById('p-result').innerHTML;
  const href=html.match(/href="([^"]*explorer[^\"]*)"/)[1].replaceAll('&amp;','&');
  const url=new URL(href,'http://localhost');assert.equal(url.searchParams.get('node_id'),'Node-2');assert.equal(url.searchParams.get('height'),'7');
  if(testCase==='verification')run('state.step=5;verificationState().copy={title:"Edited presentation"};verificationState().nodeId="Node-3"');
+ if(testCase==='wallet_checkpoint')run('selectWallet({...wallet,id:"another-wallet"})');
+ if(testCase==='network_only_expiry')run('state.selectedWalletId=null;state.selectedWallet=null;state.record=null;state.block=null;state.network={snapshot:{reset_count:3}}');
  run('saveJourney()');
  if(testCase==='blocked_storage'){assert.equal(storage.size,0);return;}
  assert.equal(storage.size,1);assert.ok(![...storage.values()][0].includes('DO NOT SAVE'));
+ if(testCase==='wallet_checkpoint'){
+  const saved=JSON.parse([...storage.values()][0]);assert.equal(saved.contextGeneration,'context-before');
+  assert.equal(saved.wallet.id,'another-wallet');assert.equal(saved.record,null);return;
+ }
+ if(testCase==='old_checkpoint'){
+  const [key,value]=[...storage.entries()][0],saved=JSON.parse(value);saved.version=1;delete saved.contextGeneration;storage.set(key,JSON.stringify(saved));
+ }
+ if(testCase==='live_expiry'){
+  await assert.rejects(run('journeyFetch("/api/mempool").then(r=>r.json())'));
+  assert.equal(run('state.record'),null);assert.equal(run('state.block'),null);assert.equal(storage.size,0);
+  assert.equal(run('state.contextGeneration'),'context-after');assert.equal(run('state.step'),0);return;
+ }
  run('state=freshState()');const pending=run('restoreJourney()');
  if(testCase==='stale'){await new Promise(r=>setImmediate(r));run('state=freshState();state.holder="New workflow"');held();}
  const restored=await pending;
- if(['reset','restart','failure','stale'].includes(testCase)){
+ if(['reset','restart','failure','stale','context_restart','network_only_expiry','old_checkpoint'].includes(testCase)){
   assert.equal(restored,false);assert.equal(run('state.record'),null);assert.equal(storage.size,0);
   if(testCase==='stale')assert.equal(run('state.holder'),'New workflow');return;
  }

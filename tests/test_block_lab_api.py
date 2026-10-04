@@ -1,4 +1,6 @@
 """One-block calculations reuse real models and never create a lab Network."""
+from api.session_store import current_session
+
 from copy import deepcopy
 import json
 
@@ -131,9 +133,9 @@ def test_block_lab_does_not_touch_guided_or_other_labs(client, monkeypatch):
         network = network_store.get_network()
         return deepcopy(([[b.to_dict() for b in n.blockchain.chain] for n in network.nodes.values()],
                          [[t.to_dict() for t in n.mempool.get_transactions()] for n in network.nodes.values()],
-                         wallet_store._store, {k: (c.to_onchain_payload(), tx.to_dict()) for k, (c, tx) in network_store.signed_credentials.items()},
+                         current_session().wallets._store, {k: (c.to_onchain_payload(), tx.to_dict()) for k, (c, tx) in current_session().signed_credentials.items()},
                          [(v.address, v.public_key_hex, v.stake) for v in network.pos_registry.validators.values()], network_store.get_reset_count(),
-                         client.get(f'/api/labs/network/{lab}').json()['nodes'], dict(wallet_api._lab_keys)))
+                         client.get(f'/api/labs/network/{lab}').json()['nodes'], dict(current_session().lab_keys)))
     baseline = capture()
     def forbidden(*args, **kwargs):
         raise AssertionError('A single block must not create a Network')
@@ -154,11 +156,11 @@ def test_mining_time_limit_busy_and_failure_release(client, monkeypatch):
     assert data['stage'] == 'incomplete' and data['mining']['attempts'] == 0
     assert data['candidate']['header']['nonce'] == candidate['header']['nonce']
     monkeypatch.setattr(wallet_api, '_BLOCK_LAB_MAX_SECONDS', 3)
-    wallet_api._block_lab_mining_lock.acquire()
+    current_session().block_mining_lock.acquire()
     try:
         assert client.post('/api/labs/block/mine', json={'candidate': candidate}).status_code == 429
     finally:
-        wallet_api._block_lab_mining_lock.release()
+        current_session().block_mining_lock.release()
     backend_mine = wallet_api.mine_block
     def failure(block):
         raise RuntimeError('fixture backend failure')

@@ -1,71 +1,69 @@
-"""One in-process demo network; use a single Uvicorn worker.
+"""One guided network per cookie context; use a single Uvicorn worker.
 
 Host/ports label queue-based nodes, without opening sockets.
-API handlers hold session_lock across wallet access and reset.
+API handlers hold current_session().lock across wallet access and reset.
 No Streamlit dependency.
 """
 
-import threading
+import secrets
+from api.session_store import current_session
 from contextlib import ExitStack
 
 from api import wallet_store
 from blockchain.node import Network
 
-session_lock = threading.RLock()
-_network = None
-_reset_count = 0
-# Credential ID -> (Credential, signed Transaction), awaiting step D only.
-# Access under session_lock, including lookup and signing in the API handler.
-signed_credentials = {}
-
-
 def _build_network() -> Network:
     network = Network()
-    for i in range(1, 4):
-        network.create_node(f"Node-{i}", "127.0.0.1", 5000 + i)
+    try:
+        for i in range(1, 4):
+            network.create_node(f"Node-{i}", "127.0.0.1", 5000 + i)
+    except Exception:
+        for node in network.nodes.values():
+            node.stop()
+        raise
     return network
 
 
 def get_network() -> Network:
-    global _network
-    with session_lock:
-        if _network is None:
-            _network = _build_network()
-        return _network
+    with current_session().lock:
+        if current_session().network is None:
+            current_session().network = _build_network()
+        return current_session().network
 
 
 def reset_network() -> Network:
-    global _network, _reset_count
-    with session_lock:
-        if _network is not None:
-            for node in _network.nodes.values():
+    with current_session().lock:
+        if current_session().network is not None:
+            for node in current_session().network.nodes.values():
                 node.stop()
-        _network = _build_network()
+        current_session().network = None
+        current_session().network = _build_network()
         wallet_store.reset_wallets()
-        signed_credentials.clear()
-        _reset_count += 1
-        return _network
+        current_session().signed_credentials.clear()
+        current_session().reset_count += 1
+        current_session().generation = secrets.token_urlsafe(32)
+        return current_session().network
 
 
 def get_session_info() -> dict:
-    with session_lock:
+    with current_session().lock:
         network = get_network()
         return {
-            "shared_session": True,
+            "shared_session": False,
             "nodes": [{"id": n.node_id, "status": n.status} for n in network.nodes.values()],
             "wallet_count": len(wallet_store.list_wallets()),
-            "reset_count": _reset_count,
+            "reset_count": current_session().reset_count, "context_generation": current_session().generation,
         }
 
 
 def get_reset_count() -> int:
     """Read the session generation without seeding or accessing wallets."""
-    with session_lock:
-        return _reset_count
+    with current_session().lock:
+        return current_session().reset_count
 
 
 def submit_signed_transaction(network, node, tx) -> tuple[bool, str, str]:
-    """Caller holds session_lock; workers use node locks, not session_lock.
+    """Caller holds current_session().lock; workers use node locks, not current_session().lock.
 
     Hold all node locks in ID order through duplicate scan and admission.
     Node.submit_transaction re-enters its RLock and broadcasts once via queues;
@@ -96,19 +94,19 @@ def submit_signed_transaction(network, node, tx) -> tuple[bool, str, str]:
 
 def get_mempool_snapshots() -> dict:
     """Each node is read under its worker lock; propagation is asynchronous."""
-    with session_lock:
+    with current_session().lock:
         rows = []
         for node in get_network().nodes.values():
             with node._state_lock:
                 transactions = [tx.to_dict() for tx in node.mempool.get_transactions()]
                 rows.append({"node_id": node.node_id, "status": node.status,
                              "pending_count": len(transactions), "transactions": transactions})
-        return {"nodes": rows, "reset_count": _reset_count}
+        return {"nodes": rows, "reset_count": current_session().reset_count, "context_generation": current_session().generation}
 
 
 def get_network_snapshots() -> dict:
     """Per-node consistent reads; different nodes are not a globally atomic view."""
-    with session_lock:
+    with current_session().lock:
         network = get_network()
         rows = []
         for node in network.nodes.values():
@@ -127,7 +125,7 @@ def get_network_snapshots() -> dict:
         online = [row for row in rows if row["status"] == "ONLINE"]
         agree = bool(online) and len({(row["height"], row["tip_hash"]) for row in online}) == 1
         valid = bool(online) and all(row["chain_valid"] for row in online)
-        return {"nodes": rows, "reset_count": _reset_count,
+        return {"nodes": rows, "reset_count": current_session().reset_count, "context_generation": current_session().generation,
                 "online_nodes_agree": agree, "online_nodes_valid": valid,
                 "online_nodes_synchronized": agree and valid,
                 "all_nodes_synchronized": agree and valid and len(online) == len(rows),

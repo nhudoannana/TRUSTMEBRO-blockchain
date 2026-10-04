@@ -1,4 +1,6 @@
 """Disposable keys and exact backend Merkle conventions, isolated from the journey."""
+from api.session_store import current_session
+
 import json
 
 import pytest
@@ -12,11 +14,9 @@ from tests.test_merkle import SAMPLE_LEAVES
 
 @pytest.fixture(autouse=True)
 def clear_lab_keys():
-    if hasattr(wallet_api, '_lab_keys'):
-        wallet_api._lab_keys.clear()
+    current_session().lab_keys.clear()
     yield
-    if hasattr(wallet_api, '_lab_keys'):
-        wallet_api._lab_keys.clear()
+    current_session().lab_keys.clear()
 
 
 def key(client):
@@ -80,7 +80,7 @@ def test_key_expiry_and_capacity_are_bounded(client, monkeypatch):
     monkeypatch.setattr(wallet_api.time, 'monotonic', lambda: future)
     assert client.post('/api/labs/signatures/sign', json={
         'key_handle': k['key_handle'], 'message': 'text'}).status_code == 404
-    assert len(wallet_api._lab_keys) == 0
+    assert len(current_session().lab_keys) == 0
     assert key(client)['key_handle'] != k['key_handle']
 
 
@@ -88,13 +88,13 @@ def test_labs_do_not_mutate_journey_and_shared_reset_does_not_reset_lab(client):
     net = network_store.get_network()
     registry = net.pos_registry
     before = (wallet_store.list_wallets(), client.get('/api/network').json(),
-              client.get('/api/mempool').json(), dict(network_store.signed_credentials))
+              client.get('/api/mempool').json(), dict(current_session().signed_credentials))
     k = key(client)
     sign(client, k)
     client.post('/api/labs/merkle', json={'leaves': ['a', 'b', 'c'], 'proof_index': 2})
     client.post(f"/api/labs/signatures/keys/{k['key_handle']}/reset")
     after = (wallet_store.list_wallets(), client.get('/api/network').json(),
-             client.get('/api/mempool').json(), dict(network_store.signed_credentials))
+             client.get('/api/mempool').json(), dict(current_session().signed_credentials))
     assert before == after
     assert network_store.get_network() is net and net.pos_registry is registry
     other = key(client)

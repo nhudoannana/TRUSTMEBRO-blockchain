@@ -1,4 +1,6 @@
 """Step E: actual Node PoW through the existing adapter."""
+from api.session_store import current_session
+
 
 import threading
 import time
@@ -121,7 +123,7 @@ def test_reset_after_mining_recreates_chain(client, low_difficulty):
     assert result['mined']
     client.post('/api/session/reset')
     assert network_store.get_network() is not old
-    assert not network_store.signed_credentials
+    assert not current_session().signed_credentials
     assert all(node.height == 0 for node in network_store.get_network().nodes.values())
     assert client.get('/api/mempool').json()['reset_count'] == result['reset_count'] + 1
     assert all(row['pending_count'] == 0 for row in client.get('/api/mempool').json()['nodes'])
@@ -133,7 +135,7 @@ def test_reset_waits_for_mining_session_lock(client, low_difficulty, monkeypatch
     entered, release, reset_requested = threading.Event(), threading.Event(), threading.Event()
     original = low_difficulty.mine_pending
     def paused():
-        assert network_store.session_lock._is_owned()
+        assert current_session().lock._is_owned()
         entered.set()
         assert release.wait(2)
         return original()

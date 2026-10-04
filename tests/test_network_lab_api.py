@@ -1,4 +1,6 @@
 """Disposable queue-network lab, including real catch-up and worker cleanup."""
+from api.session_store import current_session
+
 import json
 import time
 from copy import deepcopy
@@ -11,7 +13,7 @@ from api import wallet_api, network_store
 from blockchain.block import Block
 from blockchain.blockchain import Blockchain
 from blockchain.mining import mine_block
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 from tests.test_mempool_api import client
 
 
@@ -48,7 +50,7 @@ def node3(client, handle, online):
 def test_offline_peer_and_automatic_catchup(client, monkeypatch):
     data = initialize(client)
     handle = data['lab_handle']
-    entry = wallet_api._lab_networks[handle]
+    entry = current_session().lab_networks[handle]
     network = entry['network']
     assert data['all_nodes_synchronized'] and all(n['height'] == 0 for n in data['nodes'])
     assert all(n['verification'] is None for n in data['nodes'])
@@ -95,13 +97,13 @@ def test_offline_peer_and_automatic_catchup(client, monkeypatch):
 def test_lab_and_other_state_isolation_and_repeated_cleanup(client):
     shared = network_store.get_network()
     shared_wallets = client.get('/api/wallets').json()
-    before = client.get('/api/network').json(), client.get('/api/session').json(), dict(network_store.signed_credentials)
+    before = client.get('/api/network').json(), client.get('/api/session').json(), dict(current_session().signed_credentials)
     key = client.post('/api/labs/signatures/keys').json()
     other = initialize(client)['lab_handle']
     for _ in range(3):
         data = initialize(client)
         handle = data['lab_handle']
-        network = wallet_api._lab_networks[handle]['network']
+        network = current_session().lab_networks[handle]['network']
         assert node3(client, handle, False).status_code == 200
         assert client.post(path(handle, '/mine')).json()['mined']
         assert client.post(path(handle, '/reset')).json()['cleared']
@@ -111,10 +113,10 @@ def test_lab_and_other_state_isolation_and_repeated_cleanup(client):
         assert client.post(path(handle, '/mine')).status_code == 404
     assert network_store.get_network() is shared
     assert client.get('/api/wallets').json() == shared_wallets
-    assert before == (client.get('/api/network').json(), client.get('/api/session').json(), dict(network_store.signed_credentials))
+    assert before == (client.get('/api/network').json(), client.get('/api/session').json(), dict(current_session().signed_credentials))
     assert client.post('/api/labs/signatures/sign', json={'key_handle': key['key_handle'], 'message': 'still usable'}).status_code == 200
     assert all(n['height'] == 0 for n in read(client, other)['nodes'])
-    assert len(wallet_api._lab_networks) == 1
+    assert len(current_session().lab_networks) == 1
     comparison = client.post('/api/labs/consensus/run', json={'mode': 'pos'})
     assert comparison.status_code == 200 and comparison.json()['created']
     assert all(n['height'] == 0 for n in read(client, other)['nodes'])
@@ -126,33 +128,33 @@ def test_expiry_capacity_and_shutdown_cleanup(client, monkeypatch):
     monkeypatch.setattr(wallet_api, '_LAB_NETWORK_LIMIT', 1)
     data = initialize(client)
     handle = data['lab_handle']
-    network = wallet_api._lab_networks[handle]['network']
+    network = current_session().lab_networks[handle]['network']
     assert client.post('/api/labs/network').status_code == 429
     # Exercise the real expiry callback without a long sleep.
-    entry = wallet_api._lab_networks[handle]
+    entry = current_session().lab_networks[handle]
     entry['expires'] = time.monotonic() - 1
     wallet_api._expire_lab_network(handle)
-    assert handle not in wallet_api._lab_networks
+    assert handle not in current_session().lab_networks
     assert all(not n._worker.is_alive() for n in network.nodes.values())
     new = initialize(client)['lab_handle']
-    node = wallet_api._lab_networks[new]['network'].nodes['Node-1']
+    node = current_session().lab_networks[new]['network'].nodes['Node-1']
     wallet_api.close_lab_networks()
-    assert not wallet_api._lab_networks and not node._worker.is_alive()
+    assert not current_session().lab_networks and not node._worker.is_alive()
 
 
 def test_lifespan_shutdown_stops_workers_and_timer():
     with TestClient(wallet_api.app) as local:
         handle = initialize(local)['lab_handle']
-        entry = wallet_api._lab_networks[handle]
+        entry = current_session().lab_networks[handle]
     entry['timer'].join(timeout=1)
     assert not entry['timer'].is_alive()
     assert all(not node._worker.is_alive() for node in entry['network'].nodes.values())
-    assert not wallet_api._lab_networks
+    assert not current_session().lab_networks
 
 
 def test_reset_waits_for_mining_and_new_handle_starts_fresh(client, monkeypatch):
     handle = initialize(client)['lab_handle']
-    old = wallet_api._lab_networks[handle]['network']
+    old = current_session().lab_networks[handle]['network']
     node = old.nodes['Node-1']
     mining_started, release_mining, resetting = threading.Event(), threading.Event(), threading.Event()
     mine = node.mine_pending
@@ -184,7 +186,7 @@ def test_divergence_and_invalid_chain_never_label_complete(client):
     handle = initialize(client)['lab_handle']
     mined = client.post(path(handle, '/mine')).json()
     data = wait_for(client, handle, lambda d: d['all_nodes_synchronized'] and d['nodes'][0]['height'] == 1)
-    network = wallet_api._lab_networks[handle]['network']
+    network = current_session().lab_networks[handle]['network']
     node = network.nodes['Node-2']
     with node._state_lock:
         original = node.blockchain.chain[-1]
@@ -209,7 +211,7 @@ def test_divergence_and_invalid_chain_never_label_complete(client):
 
 def test_backend_rejection_and_failure_preserve_lab_for_retry(client, monkeypatch):
     handle = initialize(client)['lab_handle']
-    node = wallet_api._lab_networks[handle]['network'].nodes['Node-1']
+    node = current_session().lab_networks[handle]['network'].nodes['Node-1']
     original = node._validate_candidate
     monkeypatch.setattr(node, '_validate_candidate', lambda b: (False, 'fixture: backend rejected block'))
     rejected = client.post(path(handle, '/mine')).json()

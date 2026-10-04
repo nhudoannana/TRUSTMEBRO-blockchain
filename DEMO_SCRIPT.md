@@ -15,9 +15,12 @@ python -m uvicorn api.wallet_api:app --host 127.0.0.1 --port 8000
 
 Open `http://127.0.0.1:8000`. Use a **single Uvicorn worker** (default).
 Do not use `--reload` on demo day because it wipes in-memory state on every
-file save. This frontend supports the completed A–G journey in one shared demo
-session. Confirm “Bắt đầu lại”
-to clear the shared network and user wallets and re-seed demo wallets for everyone.
+file save. This frontend supports the completed A–G journey in a cookie-scoped
+browser simulation. Tabs in one browser profile share it; another profile or
+incognito cookie context has its own network and wallets. Confirm “Bắt đầu lại”
+to clear only this browser's guided network/wallets and re-seed its demo wallets.
+Its retained labs stay independent. Idle expiry (30 minutes) or server restart
+clears RAM state; old guided checkpoints are rejected by an opaque generation.
 
 For A–G: choose wallet → issue/sign → submit → PoW mine → sync → verify original
 → edit presentation title → mismatch → restore → submit REVOKE → explicitly

@@ -13,9 +13,11 @@ Tests:
 
 Uses FastAPI TestClient (synchronous, no real server needed).
 """
+from api.session_store import current_session
+
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 
 # Reset module-level store between test sessions
 import importlib
@@ -25,11 +27,11 @@ import api.wallet_store as ws
 @pytest.fixture(autouse=True)
 def reset_store():
     """Reset the in-memory wallet store before each test."""
-    ws._store.clear()
-    ws._seeded = False
+    current_session().wallets._store.clear()
+    current_session().wallets._seeded = False
     yield
-    ws._store.clear()
-    ws._seeded = False
+    current_session().wallets._store.clear()
+    current_session().wallets._seeded = False
 
 
 @pytest.fixture

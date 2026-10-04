@@ -1,10 +1,12 @@
 """Step C checks through TestClient; no browser or live server."""
+from api.session_store import current_session
+
 
 from copy import deepcopy
 from uuid import UUID
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 
 from api import network_store, wallet_store
 from api.wallet_api import app
@@ -34,8 +36,8 @@ def test_signed_issuance_and_no_network_submission(client):
     a, b = [r.json() for r in responses]
     assert a['credential_id'] != b['credential_id']
     assert str(UUID(a['credential_id'])) == a['credential_id']
-    with network_store.session_lock:
-        credential, tx = network_store.signed_credentials[a['credential_id']]
+    with current_session().lock:
+        credential, tx = current_session().signed_credentials[a['credential_id']]
         assert verify_transaction(tx)[0]
         assert a['transaction'] == tx.to_dict()
         assert a['credential'] == credential.to_onchain_payload() == tx.payload
@@ -63,7 +65,7 @@ def test_unknown_and_reset_wallet(client):
     assert client.post('/api/credentials', json={**request, 'issuer_wallet_id': 'unknown'}).status_code == 404
     assert client.post('/api/credentials', json=request).status_code == 201
     client.post('/api/session/reset')
-    assert not network_store.signed_credentials
+    assert not current_session().signed_credentials
     assert client.post('/api/credentials', json=request).status_code == 404
 
 

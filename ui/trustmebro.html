@@ -254,7 +254,7 @@ html[data-theme="light"] {
     </div>
   </section>
 
-  <p class="info-strip">Mô phỏng học tập trong một server, dùng chung phiên demo. Đặt lại sẽ xóa ví và dữ liệu mạng; không phải mạng nhiều máy độc lập.</p>
+  <p class="info-strip">Trình duyệt này có phiên mô phỏng riêng; các tab cùng trình duyệt dùng chung phiên. Đặt lại chỉ xóa dữ liệu phiên này. Server khởi động lại hoặc phiên hết hạn có thể xóa dữ liệu; đây không phải mạng nhiều máy độc lập.</p>
   <p id="reset-error" class="status-error" role="alert" hidden></p>
 
   <!-- Journey nav -->
@@ -342,8 +342,9 @@ const EXPLANATIONS = [
 ];
 
 // Application state — never stores private keys.
-function freshState() {
+function freshState(contextGeneration = null) {
   return {
+    contextGeneration,
     step: 0,
     max: 0,
     selectedWalletId: null,   // ID of selected wallet (used to pass to credential step)
@@ -365,6 +366,28 @@ function freshState() {
 }
 
 let state = freshState();
+
+// Cookies are sent by same-origin fetch. The opaque marker is public context
+// identity, never a cookie ID or a private key, and is never sent as selection.
+async function journeyFetch(url, options) {
+  const owner = state, response = await fetch(url, options);
+  const readJSON = response.json.bind(response);
+  response.json = async () => {
+    const data = await readJSON();
+    if (state !== owner) throw new Error('Phản hồi của hành trình cũ đã được bỏ qua.');
+    const marker = data?.context_generation || response.headers?.get('X-Simulation-Generation');
+    if (marker && owner.contextGeneration && marker !== owner.contextGeneration) {
+      state = freshState(); state.contextGeneration = marker;
+      try { sessionStorage.removeItem(JOURNEY_STORAGE); } catch {}
+      await render();
+      showError('reset-error', 'Phiên đã đổi, hết hạn hoặc được đặt lại ở tab khác. Hãy chọn ví ở bước 1.');
+      throw new Error('Phiên đã đổi; dữ liệu hành trình cũ đã được xóa.');
+    }
+    if (marker) owner.contextGeneration = marker;
+    return data;
+  };
+  return response;
+}
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -433,7 +456,7 @@ function publicIdentityHtml(key, address) {
  * Throws Error on network failure or non-2xx response.
  */
 async function apiFetchWallets() {
-  const r = await fetch(`${API_BASE}/wallets`);
+  const r = await journeyFetch(`${API_BASE}/wallets`);
   if (!r.ok) {
     const detail = await r.json().catch(() => ({}));
     throw new Error(`Server trả lỗi ${r.status}: ${detail.detail || r.statusText}`);
@@ -456,7 +479,7 @@ async function apiCreateWallet(name) {
   if (!name) throw new Error('Tên ví không được để trống.');
   if (name.length > 80) throw new Error('Tên ví không được vượt quá 80 ký tự.');
 
-  const r = await fetch(`${API_BASE}/wallets`, {
+  const r = await journeyFetch(`${API_BASE}/wallets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
@@ -479,7 +502,7 @@ async function apiCreateWallet(name) {
  * Returns wallet object or null if not found.
  */
 async function apiGetWallet(id) {
-  const r = await fetch(`${API_BASE}/wallets/${encodeURIComponent(id)}`);
+  const r = await journeyFetch(`${API_BASE}/wallets/${encodeURIComponent(id)}`);
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`Lỗi ${r.status}`);
   const data = await r.json();
@@ -566,7 +589,7 @@ async function loadWalletList() {
     renderJourneyNav();
     renderRail();
     clearWalletSelection();
-    showError('w-error', 'Ví đã chọn không còn tồn tại. Phiên dùng chung có thể đã được đặt lại; hãy chọn ví khác.');
+    showError('w-error', 'Ví đã chọn không còn tồn tại. Phiên trình duyệt này có thể đã hết hạn hoặc được đặt lại; hãy chọn ví khác.');
   }
 
   if (wallets.length === 0) {
@@ -596,7 +619,7 @@ async function loadWalletList() {
 
 function selectWallet(w) {
   if (state.selectedWalletId !== w.id) {
-    state = freshState();
+    state = freshState(state.contextGeneration);
     renderJourneyNav();
     renderRail();
   }
@@ -691,7 +714,7 @@ async function handleWalletNext() {
       state = freshState();
       await render();
       clearWalletSelection();
-      showError('w-error', 'Ví đã chọn không còn tồn tại. Phiên dùng chung có thể đã được đặt lại; hãy chọn ví khác.');
+      showError('w-error', 'Ví đã chọn không còn tồn tại. Phiên trình duyệt này có thể đã hết hạn hoặc được đặt lại; hãy chọn ví khác.');
       return;
     }
     advance();
@@ -771,7 +794,7 @@ async function handleCredentialCreate(event) {
   btn.textContent = 'Đang ký…';
   $('c-error').hidden = true;
   try {
-    const response = await fetch(`${API_BASE}/credentials`, {
+    const response = await journeyFetch(`${API_BASE}/credentials`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ issuer_wallet_id: current.selectedWalletId,
         holder_name: current.holder, title: current.credential, issue_date: current.date }),
@@ -840,7 +863,7 @@ async function enableJourneyNode(prefix) {
   try {
     if (!await refresh()) return;
     if (state !== current || state.record !== record || state.step !== step) return;
-    const response = await fetch(`${API_BASE}/network/nodes/${encodeURIComponent(nodeId)}/status`, {
+    const response = await journeyFetch(`${API_BASE}/network/nodes/${encodeURIComponent(nodeId)}/status`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ online:true }),
     });
     const data = await response.json();
@@ -926,7 +949,7 @@ async function refreshMempool(current, record, m, poll) {
   try {
     for (let attempt = 0; attempt < (poll ? 6 : 1); attempt++) {
       if (state !== current || state.record !== record || state.step !== 2 || token !== m.refreshToken) return;
-      const response = await fetch(`${API_BASE}/mempool`);
+      const response = await journeyFetch(`${API_BASE}/mempool`);
       const data = await response.json();
       if (state !== current || state.record !== record || state.step !== 2 || token !== m.refreshToken) return;
       if (!response.ok) throw new Error(data.detail?.message || data.detail || `Lỗi ${response.status}`);
@@ -968,7 +991,7 @@ async function handleMempoolSubmit(event) {
   $('m-error').hidden = true;
   showMempool(m);
   try {
-    const response = await fetch(`${API_BASE}/mempool`, {
+    const response = await journeyFetch(`${API_BASE}/mempool`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential_id: record.credential_id, node_id: nodeId }),
     });
@@ -1123,7 +1146,7 @@ async function refreshPos(current, record, p, m) {
   p.pos = null; showMining(p, m);
   try {
     for (const path of [`/consensus/pos?node_id=${encodeURIComponent(nodeId)}`, '/network']) {
-      const response = await fetch(`${API_BASE}${path}`), data = await response.json();
+      const response = await journeyFetch(`${API_BASE}${path}`), data = await response.json();
       if (state !== current || state.record !== record || state.step !== 3 || p.mode !== 'pos' || token !== p.posToken || $('p-node').value !== nodeId) return false;
       if (!response.ok) throw new Error(data.detail?.message || data.detail || `Lỗi ${response.status}`);
       if (data.reset_count !== m.generation) { await staleMempoolCredential(current, record); return false; }
@@ -1143,7 +1166,7 @@ async function refreshPos(current, record, p, m) {
 async function refreshMiningMempool(current, record, p, m) {
   const token = ++p.refreshToken;
   try {
-    const response = await fetch(`${API_BASE}/mempool`);
+    const response = await journeyFetch(`${API_BASE}/mempool`);
     const data = await response.json();
     if (state !== current || state.record !== record || state.step !== 3 || token !== p.refreshToken) return false;
     if (!response.ok) throw new Error(data.detail?.message || data.detail || `Lỗi ${response.status}`);
@@ -1162,7 +1185,7 @@ async function refreshMiningMempool(current, record, p, m) {
 }
 
 async function refreshMiningNetwork(current, record, m) {
-  const response = await fetch(`${API_BASE}/network`), data = await response.json();
+  const response = await journeyFetch(`${API_BASE}/network`), data = await response.json();
   if (state !== current || state.record !== record || state.step !== 3) return false;
   if (!response.ok) throw new Error(data.detail?.message || `Lỗi ${response.status}`);
   if (data.reset_count !== m.generation) { await staleMempoolCredential(current, record); return false; }
@@ -1187,7 +1210,7 @@ async function handlePowMining(event) {
     // Check generation before requesting; the endpoint still serializes with reset.
     if (!await refreshMiningMempool(current, record, p, m)) return;
     if (!m.nodes.some(n => n.node_id === nodeId && n.status === 'ONLINE' && n.pending_count > 0)) return;
-    const response = await fetch(`${API_BASE}/mining/${mode}`, {
+    const response = await journeyFetch(`${API_BASE}/mining/${mode}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ node_id: nodeId }),
     });
@@ -1298,7 +1321,7 @@ async function loadNetwork(current, v, poll) {
   try {
     for (let attempt = 0; attempt < (poll ? 10 : 1); attempt++) {
       if (state !== current || state.step !== 4 || token !== v.token) return false;
-      const response = await fetch(`${API_BASE}/network`);
+      const response = await journeyFetch(`${API_BASE}/network`);
       const data = await response.json();
       if (state !== current || state.step !== 4 || token !== v.token) return false;
       if (!response.ok) throw new Error(data.detail?.message || data.detail || `Lỗi ${response.status}`);
@@ -1325,7 +1348,7 @@ async function networkOperation(path, body) {
   const token = ++v.token;
   showNetwork(v);
   try {
-    const response = await fetch(path, {
+    const response = await journeyFetch(path, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       ...(body === null ? {} : { body: JSON.stringify(body) }),
     });
@@ -1396,7 +1419,7 @@ async function renderStep5() {
   $('v-mine').onclick = () => verificationOperation('mine');
   showVerification(v);
   try {
-    const response = await fetch(`${API_BASE}/network`);
+    const response = await journeyFetch(`${API_BASE}/network`);
     const data = await response.json();
     if (state !== current || state.step !== 5 || token !== v.token) return;
     if (!response.ok) throw new Error(data.detail?.message || `Lỗi ${response.status}`);
@@ -1456,7 +1479,7 @@ async function verificationOperation(action, presented = false) {
     const body = action === 'verify' ? { credential_id: v.credentialId, node_id: v.nodeId,
       ...(presented ? { presented_credential: { ...v.copy } } : (v.credentialId === v.originalId ? { presented_credential: { ...v.original } } : {})) }
       : action === 'mine' ? { node_id: v.nodeId } : { node_id: v.nodeId, reason: $('v-reason').value };
-    const response = await fetch(`${API_BASE}${url}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const response = await journeyFetch(`${API_BASE}${url}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const data = await response.json();
     if (state !== current || state.step !== 5 || token !== v.token) return;
     if (!response.ok) throw new Error(data.detail?.message || data.detail?.[0]?.msg || data.detail || `Lỗi ${response.status}`);
@@ -1480,7 +1503,7 @@ async function verificationOperation(action, presented = false) {
         if (v.revocation && data.transaction_ids.includes(v.revocation.tx_id)) v.revocation.pending = false;
         $('v-status').textContent = `Đã mine block ${data.block.height}: ${data.block.hash}. Hãy sync và xác minh lại.`;
       }
-      const snapshots = await fetch(`${API_BASE}/network`);
+      const snapshots = await journeyFetch(`${API_BASE}/network`);
       const network = await snapshots.json();
       if (state !== current || state.step !== 5 || token !== v.token) return;
       if (!snapshots.ok) throw new Error(network.detail?.message || `Lỗi ${snapshots.status}`);
@@ -1598,12 +1621,13 @@ let journeyRestoreMessage = '';
 
 function saveJourney() {
   try {
-    if (!state.selectedWalletId && !state.network?.snapshot) {
+    if (!state.contextGeneration || (!state.selectedWalletId && !state.network?.snapshot)) {
       sessionStorage.removeItem(JOURNEY_STORAGE); return;
     }
     const pick = (object, keys) => object && Object.fromEntries(keys.filter(key => key in object).map(key => [key, object[key]]));
     const saved = {
-      version: 1, generation: state.mempool?.generation ?? state.network?.snapshot?.reset_count ?? state.verification?.generation ?? null,
+      version: 2, contextGeneration: state.contextGeneration,
+      generation: state.mempool?.generation ?? state.network?.snapshot?.reset_count ?? state.verification?.generation ?? null,
       step: state.step, max: state.max, holder: state.holder, credential: state.credential, date: state.date,
       wallet: pick(state.selectedWallet, ['id','name','address','public_key_hex','source']),
       record: pick(state.record, ['credential_id','credential','issuer_wallet_id','issuer_address','transaction']),
@@ -1622,18 +1646,21 @@ async function restoreJourney() {
     const raw = sessionStorage.getItem(JOURNEY_STORAGE);
     if (!raw) return false;
     const saved = JSON.parse(raw);
-    if (saved.version !== 1 || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 5
+    if (saved.version !== 2 || typeof saved.contextGeneration !== 'string' || !saved.contextGeneration
+        || !Number.isInteger(saved.step) || saved.step < 0 || saved.step > 5
         || !Number.isInteger(saved.max) || saved.max < 0 || saved.max > 5) throw new Error('Trạng thái lưu không hợp lệ.');
     const wallet = saved.wallet ? await apiGetWallet(saved.wallet.id) : null;
     if (saved.wallet && (!wallet || wallet.public_key_hex !== saved.wallet.public_key_hex || wallet.address !== saved.wallet.address))
       throw new Error('Ví của phiên trước không còn tồn tại.');
     if (saved.record && (!wallet || saved.record.issuer_wallet_id !== wallet.id || saved.record.transaction?.sender_public_key !== wallet.public_key_hex))
       throw new Error('Hồ sơ lưu không khớp ví phát hành.');
-    const response = await fetch(`${API_BASE}/mempool`), snapshot = await response.json();
+    const response = await journeyFetch(`${API_BASE}/mempool`), snapshot = await response.json();
     if (!response.ok) throw new Error(`Lỗi ${response.status}`);
+    if (saved.contextGeneration !== state.contextGeneration) throw new Error('Phiên đã hết hạn hoặc server đã khởi động lại.');
     if (saved.generation !== null && saved.generation !== snapshot.reset_count) throw new Error('Phiên đã reset.');
     if (state !== current) { sessionStorage.removeItem(JOURNEY_STORAGE); return false; }
     const restored = freshState();
+    restored.contextGeneration = state.contextGeneration;
     for (const key of ['step','max','holder','credential','date','record','block']) if (saved[key] !== undefined) restored[key] = saved[key];
     restored.selectedWallet = wallet;
     restored.selectedWalletId = wallet?.id || null;
@@ -1682,12 +1709,12 @@ async function enterJourney() {
 // ═══════════════════════════════════════════════════════════════
 
 $('reset').onclick = async () => {
-  if (!confirm('Đặt lại phiên demo dùng chung cho mọi người? Ví mới tạo và dữ liệu mạng sẽ bị xóa.')) return;
+  if (!confirm('Đặt lại phiên mô phỏng của trình duyệt này? Các tab của bạn dùng chung phiên; dữ liệu của trình duyệt khác không đổi.')) return;
   const btn = $('reset');
   btn.disabled = true;
   $('reset-error').hidden = true;
   try {
-    const r = await fetch(`${API_BASE}/session/reset`, { method: 'POST' });
+    const r = await journeyFetch(`${API_BASE}/session/reset`, { method: 'POST' });
     if (!r.ok) {
       const detail = await r.json().catch(() => ({}));
       throw new Error(detail.detail || `Lỗi ${r.status}`);

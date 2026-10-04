@@ -338,7 +338,37 @@ và validator hiển thị riêng; tên validator chỉ lấy từ registry khi 
 GET `/api/explorer/blocks?node_id=Node-1` trả snapshot và các block mới nhất trước;
 GET `/api/explorer/blocks/{height}?node_id=Node-1` trả header/giao dịch public.
 Hash hiển thị không thay thế việc xác minh chuỗi. Đây là trạng thái trong bộ nhớ
-của tiến trình FastAPI; restart/reset tạo phiên mới.
+của phiên trình duyệt trong tiến trình FastAPI; reset chỉ đổi dữ liệu phiên này,
+không đổi cookie. Restart hoặc hết hạn tạo cookie và generation mới.
+
+### Phiên mô phỏng riêng cho trình duyệt
+
+Hành trình có hướng dẫn và Explorer dùng cookie opaque do server sinh ngẫu nhiên
+(`trustmebro_session`, HttpOnly, SameSite=Lax, Path=/; Secure khi ASGI chạy HTTPS).
+HTTP localhost vẫn được hỗ trợ; không thay cấu hình tin cậy proxy. Không chọn
+phiên bằng query, JSON hay header tự đặt. Đây là phạm vi mô phỏng, không phải login.
+Các tab cùng cookie dùng chung ví/network; profile hoặc incognito có cookie khác
+thì tách biệt. Reset chỉ đổi network, ví, hồ sơ đã ký, reset_count và generation
+của cookie hiện tại. Nó không reset lab riêng, cũng không ảnh hưởng trình duyệt khác.
+
+RAM có tối đa **16 phiên**, hết hạn sau **30 phút không có request**. Request đang
+chạy giữ lease nên không bị dọn giữa lượt đào; lock registry chỉ bảo vệ membership,
+không giữ khi ký/đào/sync. Cleanup khi truy cập và mỗi 60 giây dừng node worker,
+hủy timer lab và xóa khóa/ví; shutdown cũng dọn, chờ request đang chạy giải phóng lease.
+Hết capacity sau cleanup trả 503 với `detail.code=session_capacity` và Retry-After,
+không xóa phiên đang dùng. Cookie thiếu/giả/hết hạn nhận ID mới do server sinh.
+
+`shared_session` nay là false. Response guided có `context_generation` bổ sung;
+header `X-Simulation-Generation` hỗ trợ các response ví; đây không phải cookie ID.
+Frontend loại checkpoint cũ/khác generation kể cả reset_count trùng sau restart.
+Response không cache; khóa riêng không gửi về hoặc lưu vào trình duyệt.
+API cookie-less script cần giữ cookie jar giữa các request. Chạy **một Uvicorn
+worker**; không có DB/persistence và không hỗ trợ nhiều process dùng chung session.
+
+Handle chữ ký/network/tamper lab thuộc cookie hiện tại. Giới hạn hiện có
+(64 khóa, 8 mạng lab, TTL 15 phút) áp dụng riêng trong phiên; lab reset/expiry
+chỉ dọn lab đó. Khối & Chuỗi khối vẫn giữ dữ liệu public trên trang, không thêm
+Network hay handle server. Không tích hợp Attack Simulator trong thay đổi này.
 
 See [the project review](docs/REVIEW_2026-09-26.md) for confirmed fixes, validation and remaining scope.
 The network starts with three validator wallets. Reset Stake keeps their existing keys;

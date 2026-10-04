@@ -9,7 +9,7 @@ Scope and assumptions:
 
 Limitations (known, not hidden):
 - In-memory only; restart loses data.
-- No user auth; any API client can list/create wallets.
+- No user auth; the cookie scopes a temporary simulation, not a login.
 """
 
 import threading
@@ -34,99 +34,125 @@ class WalletEntry:
     _private_key_pem: str = field(repr=False)  # underscore = intentionally not serialized
 
 
-_lock = threading.Lock()
-_store: dict[str, WalletEntry] = {}
-_seeded = False
+class WalletStore:
+    """Private/public wallet state belonging to one browser simulation."""
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._store = {}
+        self._seeded = False
+
+    def _seed_demo_wallets(self) -> None:
+        """Pre-seed two demo issuer wallets.
+
+        These are labeled 'demo' in source field. Keys are generated fresh each
+        session initialization/reset, so they are not real institutional keys.
+        Called once under self._lock the first time the store is accessed.
+        """
+        for name in ["Trường Đại học A", "Trung tâm Đào tạo B"]:
+            w: Wallet = generate_wallet()
+            entry = WalletEntry(
+                id=f"WALLET-DEMO-{str(uuid.uuid4())[:8].upper()}",
+                name=name,
+                public_key_hex=w.public_key_hex,
+                address=w.address,
+                source="demo",
+                _private_key_pem=w.private_key_pem,
+            )
+            self._store[entry.id] = entry
 
 
-def _seed_demo_wallets() -> None:
-    """Pre-seed two demo issuer wallets.
+    def _ensure_seeded(self) -> None:
+        with self._lock:
+            if not self._seeded:
+                self._seed_demo_wallets()
+                self._seeded = True
 
-    These are labeled 'demo' in source field. Keys are generated fresh each
-    process start, so they are not real institutional keys.
-    Called once under _lock the first time the store is accessed.
-    """
-    for name in ["Trường Đại học A", "Trung tâm Đào tạo B"]:
+
+    def reset_wallets(self) -> None:
+        """Clear all wallets and allow fresh demo keys on next access."""
+        with self._lock:
+            self._store.clear()
+            self._seeded = False
+
+
+    def list_wallets(self) -> list[dict]:
+        """Return all wallets as safe public dicts (no private key)."""
+        self._ensure_seeded()
+        with self._lock:
+            return [_public(e) for e in self._store.values()]
+
+
+    def get_wallet(self, wallet_id: str) -> Optional[dict]:
+        """Return one wallet by ID (no private key), or None if not found."""
+        self._ensure_seeded()
+        with self._lock:
+            entry = self._store.get(wallet_id)
+            return _public(entry) if entry else None
+
+
+    def create_wallet(self, name: str) -> dict:
+        """Generate a real ECDSA wallet and store it.
+
+        Returns the public representation (no private key).
+        Raises ValueError if name is empty.
+        """
+        name = name.strip()
+        if not name:
+            raise ValueError("Tên ví không được để trống.")
+        if len(name) > 80:
+            raise ValueError("Tên ví không được vượt quá 80 ký tự.")
+
+        self._ensure_seeded()
+
         w: Wallet = generate_wallet()
         entry = WalletEntry(
-            id=f"WALLET-DEMO-{str(uuid.uuid4())[:8].upper()}",
+            id=f"WALLET-{str(uuid.uuid4())[:8].upper()}",
             name=name,
             public_key_hex=w.public_key_hex,
             address=w.address,
-            source="demo",
+            source="user",
             _private_key_pem=w.private_key_pem,
         )
-        _store[entry.id] = entry
+        with self._lock:
+            self._store[entry.id] = entry
+
+        return _public(entry)
 
 
-def _ensure_seeded() -> None:
-    global _seeded
-    with _lock:
-        if not _seeded:
-            _seed_demo_wallets()
-            _seeded = True
+    def get_private_key_pem(self, wallet_id: str) -> Optional[str]:
+        """Internal use only — retrieve private key for signing.
+
+        Call under the owning session lock; never include this value in an API response.
+        """
+        with self._lock:
+            entry = self._store.get(wallet_id)
+            return entry._private_key_pem if entry else None
 
 
-def reset_wallets() -> None:
-    """Clear all wallets and allow fresh demo keys on next access."""
-    global _seeded
-    with _lock:
-        _store.clear()
-        _seeded = False
+
+def _wallets():
+    from api.session_store import current_session
+    return current_session().wallets
 
 
-def list_wallets() -> list[dict]:
-    """Return all wallets as safe public dicts (no private key)."""
-    _ensure_seeded()
-    with _lock:
-        return [_public(e) for e in _store.values()]
+def reset_wallets():
+    return _wallets().reset_wallets()
 
 
-def get_wallet(wallet_id: str) -> Optional[dict]:
-    """Return one wallet by ID (no private key), or None if not found."""
-    _ensure_seeded()
-    with _lock:
-        entry = _store.get(wallet_id)
-        return _public(entry) if entry else None
+def list_wallets():
+    return _wallets().list_wallets()
 
 
-def create_wallet(name: str) -> dict:
-    """Generate a real ECDSA wallet and store it.
-
-    Returns the public representation (no private key).
-    Raises ValueError if name is empty.
-    """
-    name = name.strip()
-    if not name:
-        raise ValueError("Tên ví không được để trống.")
-    if len(name) > 80:
-        raise ValueError("Tên ví không được vượt quá 80 ký tự.")
-
-    _ensure_seeded()
-
-    w: Wallet = generate_wallet()
-    entry = WalletEntry(
-        id=f"WALLET-{str(uuid.uuid4())[:8].upper()}",
-        name=name,
-        public_key_hex=w.public_key_hex,
-        address=w.address,
-        source="user",
-        _private_key_pem=w.private_key_pem,
-    )
-    with _lock:
-        _store[entry.id] = entry
-
-    return _public(entry)
+def get_wallet(wallet_id):
+    return _wallets().get_wallet(wallet_id)
 
 
-def get_private_key_pem(wallet_id: str) -> Optional[str]:
-    """Internal use only — retrieve private key for signing.
+def create_wallet(name):
+    return _wallets().create_wallet(name)
 
-    Call under session_lock; never include this value in an API response.
-    """
-    with _lock:
-        entry = _store.get(wallet_id)
-        return entry._private_key_pem if entry else None
+
+def get_private_key_pem(wallet_id):
+    return _wallets().get_private_key_pem(wallet_id)
 
 
 def _public(entry: WalletEntry) -> dict:

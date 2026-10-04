@@ -7,7 +7,7 @@ import pytest
 
 @pytest.mark.parametrize('case', ['loading','genesis','pow','pos','offline','errors',
                                   'reset','stale_list','stale_detail','pagehide','timeout',
-                                  'deep_link','missing_link','invalid_link','stale_entry'])
+                                  'deep_link','missing_link','invalid_link','stale_entry','context_restart'])
 def test_explorer_handlers(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -24,9 +24,9 @@ const document={documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!
 document.getElementById('explorer-node').value='Node-1';
 const text=e=>e.textContent+' '+e.children.map(text).join(' '),tip='a'.repeat(64),genesis='0'.repeat(64);
 function block(height,consensus='PoW'){return {height,hash:height?tip:genesis,previous_hash:genesis,merkle_root:'m'.repeat(64),timestamp:'2026-10-04T00:00:00Z',consensus_type:consensus,transaction_count:height?1:0,difficulty:consensus==='PoS'?0:3,nonce:consensus==='PoS'?0:42};}
-let consensus=testCase==='pos'?'PoS':'PoW',onlyGenesis=['genesis','loading','offline','stale_list','pagehide','missing_link'].includes(testCase),generation=0,errorCode=0,held=null,holding=['loading','stale_list','pagehide','stale_entry'].includes(testCase),holdDetail=false;
+let consensus=testCase==='pos'?'PoS':'PoW',onlyGenesis=['genesis','loading','offline','stale_list','pagehide','missing_link'].includes(testCase),generation=0,contextMarker='context-before',errorCode=0,held=null,holding=['loading','stale_list','pagehide','stale_entry'].includes(testCase),holdDetail=false;
 const signed={tx_type:'ISSUE',tx_id:'t'.repeat(64),sender_public_key:'issuer-public-key-full-value',payload:{issuer_name:'Same name',title:'<img src=x onerror=alert(1)>'},signature:'real-signature-from-fixture'};
-function list(node){return {node_id:node,status:node==='Node-3'?'OFFLINE':'ONLINE',tip_height:onlyGenesis?0:1,tip_hash:onlyGenesis?genesis:tip,reset_count:generation,local_chain_warning:node==='Node-3'?'Offline local copy <safe>':null,blocks:onlyGenesis?[block(0)]:[block(0),block(1,consensus)]};}
+function list(node){return {context_generation:contextMarker,node_id:node,status:node==='Node-3'?'OFFLINE':'ONLINE',tip_height:onlyGenesis?0:1,tip_hash:onlyGenesis?genesis:tip,reset_count:generation,local_chain_warning:node==='Node-3'?'Offline local copy <safe>':null,blocks:onlyGenesis?[block(0)]:[block(0),block(1,consensus)]};}
 function detail(node,height){const data=list(node),b=block(height,consensus);return {...data,block:b,header:{...b,validator_address:consensus==='PoS'?'validator-address':''},transactions:height?[signed]:[],validator:height&&consensus==='PoS'?{name:'Same name',public_key_hex:'validator-public-key-full-value',address:'validator-address'}:null};}
 const ok=data=>({ok:true,json:async()=>structuredClone(data)});
 const search=['deep_link','missing_link','stale_entry'].includes(testCase)?'?node_id=Node-2&height=1':testCase==='invalid_link'?'?node_id=unknown&height=-1':'';
@@ -92,6 +92,11 @@ const $=id=>document.getElementById(id),run=s=>vm.runInContext(s,context),tick=(
   assert.equal(calls.length,2);return;
  }
  assert.equal($('explorer-blocks').children[0].dataset.height,'1');
+ if(testCase==='context_restart'){
+  contextMarker='context-after';await run('loadExplorerBlock(1)');
+  assert.equal(generation,0);assert.equal($('explorer-detail').children.length,0);
+  assert.equal(run('explorerSnapshot'),null);assert.equal($('explorer-error').hidden,false);return;
+ }
  if(testCase==='stale_detail'){
   holdDetail=true;const pending=run('loadExplorerBlock(1)');await tick();
   $('explorer-node').value='Node-3';await $('explorer-node').onchange();held();await pending;

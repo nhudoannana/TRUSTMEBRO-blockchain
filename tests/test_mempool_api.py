@@ -1,11 +1,13 @@
 """Step D API checks; real queue workers, no mining or browser."""
+from api.session_store import current_session
+
 
 import time
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from fastapi.testclient import TestClient
+from tests.session_helpers import SessionTestClient as TestClient
 
 from api import network_store, wallet_store
 from api.wallet_api import app
@@ -60,7 +62,7 @@ def test_accept_exact_transaction_broadcast_once_and_no_height_change(client, mo
         broadcasts.append((sender, message.payload))
         original(sender, message)
     monkeypatch.setattr(net, 'broadcast', broadcast)
-    stored = network_store.signed_credentials[credential['credential_id']][1]
+    stored = current_session().signed_credentials[credential['credential_id']][1]
     result = submit(client, credential)
     assert result.status_code == 200
     data = result.json()
@@ -88,14 +90,14 @@ def test_resubmit_has_no_second_copy(client):
 
 def replacement(credential):
     """Fixture only: alternate signed tx_id for the SAME credential_id."""
-    with network_store.session_lock:
-        cred, original = network_store.signed_credentials[credential['credential_id']]
+    with current_session().lock:
+        cred, original = current_session().signed_credentials[credential['credential_id']]
         tx = deepcopy(original)
         tx.nonce += '-alternate'
         wallet = wallet_store.get_wallet(credential['issuer_wallet_id'])
         tx.sign(Wallet(wallet_store.get_private_key_pem(wallet['id']), wallet['public_key_hex'], wallet['address']))
         assert tx.tx_id != original.tx_id
-        network_store.signed_credentials[credential['credential_id']] = (cred, tx)
+        current_session().signed_credentials[credential['credential_id']] = (cred, tx)
         return tx
 
 
@@ -114,7 +116,7 @@ def test_different_tx_id_same_credential_blocked_across_nodes(client):
 def test_existing_peer_chain_blocks_issue(client):
     credential = issue(client)
     net = network_store.get_network()
-    tx = network_store.signed_credentials[credential['credential_id']][1]
+    tx = current_session().signed_credentials[credential['credential_id']][1]
     peer = net.nodes['Node-3']
     with peer._state_lock:
         # Fixture represents already-recorded ISSUE; no mining API is invoked.
@@ -129,7 +131,7 @@ def test_existing_peer_chain_blocks_issue(client):
 def test_invalid_signature_preserves_backend_reason(client):
     credential = issue(client)
     net = network_store.get_network()
-    tx = network_store.signed_credentials[credential['credential_id']][1]
+    tx = current_session().signed_credentials[credential['credential_id']][1]
     tx.signature = '00'
     expected_ok, expected_reason = net.nodes['Node-1'].submit_transaction(tx)
     assert not expected_ok
@@ -167,7 +169,7 @@ def test_reset_clears_pending_and_signed_store(client):
     old = network_store.get_network()
     generation = client.get('/api/mempool').json()['reset_count']
     client.post('/api/session/reset')
-    assert not network_store.signed_credentials
+    assert not current_session().signed_credentials
     assert client.get('/api/mempool').json()['reset_count'] == generation + 1
     assert all(row['pending_count'] == 0 for row in snapshots(client))
     assert submit(client, credential).status_code == 404

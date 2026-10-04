@@ -1,4 +1,6 @@
 """Read-only snapshots of the guided network, never disposable lab chains."""
+from api.session_store import current_session
+
 from copy import deepcopy
 from dataclasses import asdict
 
@@ -24,9 +26,9 @@ def detail(client, height, node='Node-1'):
 
 def test_genesis_and_no_wallet_seeding(client):
     # The reset endpoint seeds wallets in its response; model an unseeded store explicitly.
-    with network_store.session_lock:
+    with current_session().lock:
         wallet_store.reset_wallets()
-    assert not wallet_store._seeded and not wallet_store._store
+    assert not current_session().wallets._seeded and not current_session().wallets._store
     data = blocks(client)
     assert data['node_id'] == 'Node-1' and data['status'] == 'ONLINE'
     assert data['tip_height'] == 0 and data['local_chain_warning'] is None
@@ -37,7 +39,7 @@ def test_genesis_and_no_wallet_seeding(client):
     assert result['header'] == asdict(genesis.header)
     assert result['transactions'] == [] and result['validator'] is None
     assert result['tip_hash'] == data['tip_hash'] == genesis.compute_hash()
-    assert not wallet_store._seeded and not wallet_store._store
+    assert not current_session().wallets._seeded and not current_session().wallets._store
 
 
 def test_pow_issue_revoke_and_reset(client, low_difficulty):
@@ -119,8 +121,8 @@ def test_reads_are_detached_and_do_not_mutate_any_session_state(client, low_diff
         return deepcopy(([([b.to_dict() for b in n.blockchain.chain],
                            [[tx.to_dict() for tx in b.transactions] for b in n.blockchain.chain],
                            [tx.to_dict() for tx in n.mempool.get_transactions()]) for n in network.nodes.values()],
-                         wallet_store._store,
-                         {k:(c.__dict__, tx.to_dict()) for k,(c,tx) in network_store.signed_credentials.items()},
+                         current_session().wallets._store,
+                         {k:(c.__dict__, tx.to_dict()) for k,(c,tx) in current_session().signed_credentials.items()},
                          [(v.address,v.public_key_hex,v.stake,v.is_active) for v in network.pos_registry.validators.values()],
                          network_store.get_reset_count()))
     baseline = capture()

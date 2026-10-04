@@ -407,8 +407,8 @@ lab intentionally corrupts one isolated local blockchain copy. Both use
 existing backend verification semantics. Three queue workers on one server
 are not three independently secured physical machines or production consensus.
 
-Lifecycle reuses the retained-network store and shared **eight-network**
-capacity, fixed **15-minute** expiry timers and application-shutdown cleanup.
+Lifecycle reuses the retained-network store and **eight-network capacity per
+browser cookie session**, fixed **15-minute** expiry timers and application-shutdown cleanup.
 No duplicate store or adapter is introduced. Reset is idempotent and joins
 workers without holding node locks. Page exit performs DELETE best effort;
 expiry is the fallback if the request is interrupted. Handles and live state
@@ -422,3 +422,21 @@ types, rejected inputs/lifecycle actions, pending failure preservation,
 reset/sync serialization, isolation, expiry and worker shutdown. Node-VM
 tests cover controls, safe rendering, explicit recovery, polling/timeouts,
 errors, navigation and stale replies; these are not browser verification.
+
+## Browser-session ownership
+
+Guided wallets/network/credentials and Explorer now belong to the server-issued
+cookie session. Tabs with that cookie share only that browser's simulation;
+separate profiles/incognito contexts have independent state. Retained signature,
+network and tamper handles can be used only by their owning cookie session.
+Limits remain 64 disposable keys and 8 retained lab networks, TTL 15 minutes,
+within that session. Guided reset does not delete those labs; their own reset,
+expiry, browser-session idle expiry or server shutdown cleans up their resources.
+The combined Khối & Chuỗi khối workspace still owns public browser-held data;
+it does not become a retained server network or a shared sandbox.
+
+Sessions expire after 30 idle minutes, with a 16-session bound. In-flight
+requests are pinned. A controlled 503 reports full session capacity; no active
+session is silently evicted. Public generation markers reject old guided
+checkpoints after restart/expiry/reset, even when reset_count repeats. One
+Uvicorn process keeps RAM state; cookie isolation is not login or persistence.
