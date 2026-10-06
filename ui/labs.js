@@ -26,11 +26,13 @@ function labError(id, message = '') { $(id).textContent = message; $(id).hidden 
 function formBusy(id, busy) { $(id).querySelectorAll('input,textarea,select,button').forEach(e => { e.disabled = busy; }); }
 const shortHash = value => value.slice(0, 12) + '…' + value.slice(-8);
 
-function resultMetric(parent, label, value, unit, decimals) {
+function resultMetric(parent, label, value, unit, decimals, counterKey) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return;
   const metric = document.createElement('div'); metric.className = 'result-metric';
   chainText(metric, 'span', label).className = 'metric-label';
-  chainText(metric, 'strong', decimals == null ? String(value) : value.toFixed(decimals)).className = 'metric-number';
+  const number = chainText(metric, 'strong', decimals == null ? String(value) : value.toFixed(decimals));
+  number.className = 'metric-number';
+  if (counterKey) globalThis.TrustCounter?.render(number, value, { key: counterKey, decimals: decimals || 0 });
   chainText(metric, 'span', unit).className = 'metric-unit'; parent.append(metric);
 }
 function powHash(parent, hash, difficulty) {
@@ -39,7 +41,8 @@ function powHash(parent, hash, difficulty) {
   code.className = 'digest'; line.append(code);
   const zeros = Number.isInteger(difficulty) && difficulty > 0 && difficulty <= hash.length && hash.startsWith('0'.repeat(difficulty)) ? difficulty : 0;
   if (zeros) chainText(code, 'mark', hash.slice(0, zeros));
-  chainText(code, 'span', hash.slice(zeros));
+  chainText(code, 'span', hash.length > 24 ? hash.slice(zeros, 12) + '…' + hash.slice(-8) : hash.slice(zeros));
+  code.title = hash;
   if (zeros) chainText(parent, 'p', `${zeros} ký tự 0 đầu tiên đáp ứng độ khó; các ký tự 0 khác không được tô thêm.`).className = 'hint';
 }
 
@@ -152,8 +155,8 @@ async function compareHashes(event) {
     $('hash-original').textContent = a; $('hash-edited').textContent = b;
     const bits = changedHashBits(a, b);
     const metrics = $('hash-metrics'); metrics.replaceChildren();
-    resultMetric(metrics, 'Tỷ lệ bit thay đổi', bits / 256 * 100, '%', 2);
-    resultMetric(metrics, 'Số bit thay đổi', bits, '/ 256 bit');
+    resultMetric(metrics, 'Tỷ lệ bit thay đổi', bits / 256 * 100, '%', 2, 'sha-percent');
+    resultMetric(metrics, 'Số bit thay đổi', bits, '/ 256 bit', undefined, 'sha-bits');
     $('hash-result-context').textContent = 'Kết quả cho hai văn bản tại thời điểm bấm tính.';
     $('hash-difference').textContent = `${bits}/256 bit khác nhau (${(bits / 256 * 100).toFixed(2)}%). ` +
       (original === edited ? 'Hai đầu vào giống nhau tạo cùng hash SHA-256, vì vậy chênh lệch là 0%.'
@@ -164,6 +167,7 @@ async function compareHashes(event) {
   finally { if (token === hashToken) { hashBusy = false; formBusy('hash-form', false); } }
 }
 function resetHash() {
+  globalThis.TrustCounter?.clear('sha-');
   hashToken++; hashBusy = false; formBusy('hash-form', false);
   $('hash-a').value = ''; $('hash-b').value = '';
   ['hash-original', 'hash-edited', 'hash-difference'].forEach(id => { $(id).textContent = ''; });
@@ -474,7 +478,7 @@ function showChainLab() {
     const metrics = document.createElement('div'); metrics.className = 'result-metrics'; summary.append(metrics);
     const candidate = data.mining.completed ? data.chain.at(-1) : data.candidate;
     resultMetric(metrics, data.mining.completed ? 'Nonce tìm được' : 'Nonce ứng viên — chưa đạt', candidate?.header.nonce, 'nonce');
-    resultMetric(metrics, 'Số lần thử', data.mining.attempts, 'lần băm');
+    resultMetric(metrics, 'Số lần thử', data.mining.attempts, 'lần băm', undefined, 'chain-attempts');
     resultMetric(metrics, 'Thời gian', data.mining.seconds, 'giây', 3);
     powHash(summary, candidate?.stored_hash, candidate?.header.difficulty);
   }
@@ -601,6 +605,7 @@ async function chainLabAction(action, event) {
 }
 
 function resetChainLab(initialize = true) {
+  globalThis.TrustCounter?.clear('chain-');
   chainLab = freshChainLab(); $('chain-data').value = ''; $('chain-difficulty').value = '2';
   $('chain-version').value = '1'; $('chain-timestamp').value = '';
   labError('chain-error'); showChainLab();
@@ -638,11 +643,11 @@ function showComparison() {
   showComparisonSummary();
   formBusy('comparison-form', c.busy);
   $('comparison-pow').checked = c.mode === 'pow'; $('comparison-pos').checked = c.mode === 'pos';
-  $('comparison-submit').textContent = c.busy ? 'Đang tạo block thật trên backend…' : `Chạy ${c.mode === 'pow' ? 'PoW' : 'PoS'} trên mạng lab riêng`;
+  $('comparison-submit').textContent = c.busy ? 'Đang tạo block…' : `Chạy ${c.mode === 'pow' ? 'PoW' : 'PoS'} trên mạng lab riêng`;
   $('comparison-method').textContent = c.mode === 'pow' ? 'PoW: tìm hash đạt mục tiêu' : 'PoS: chọn validator để ký block';
   $('comparison-method-note').textContent = c.mode === 'pow'
-    ? 'Backend tăng nonce cho đến khi hash đạt độ khó. Không có mining giả trong trình duyệt.'
-    : 'Backend chọn validator đủ điều kiện theo trọng số stake. Người dùng không chọn validator thủ công.';
+    ? 'Thử các nonce để tìm hash đạt độ khó. Xem nonce và số lần thử thực sự được đo trong kết quả.'
+    : 'Validator đủ điều kiện được chọn theo trọng số stake. Bạn quan sát người ký thực tế, không chọn thủ công.';
   for (const mode of ['pow', 'pos']) {
     const data = c.results[mode], panel = $('comparison-result-' + mode);
     panel.hidden = !data; panel.replaceChildren();
@@ -653,12 +658,12 @@ function showComparison() {
     panel.append(heading);
     function line(text) { const p = document.createElement('p'); p.textContent = text; panel.append(p); }
     line(`${data.node_id} · ${data.node_status} · ${data.transaction_ids.length} giao dịch trong block · ${data.pending_count} giao dịch còn chờ trước khi dọn mạng lab.`);
-    if (!data.created) line(`Backend từ chối ở ${data.stage === 'submission' ? 'bước gửi giao dịch' : 'bước tạo block'}: ${data.reason}`);
+    if (!data.created) line(`Bị từ chối ở ${data.stage === 'submission' ? 'bước gửi giao dịch' : 'bước tạo block'}: ${data.reason}`);
     const metrics = document.createElement('div'); metrics.className = 'result-metrics'; panel.append(metrics);
     resultMetric(metrics, mode === 'pos' ? 'Thời gian tạo block' : 'Thời gian', data.seconds, 'giây', 4);
     if (data.created && mode === 'pow') {
       resultMetric(metrics, 'Nonce tìm được', data.block.nonce, 'nonce');
-      resultMetric(metrics, 'Số lần thử', data.attempts, 'lần băm');
+      resultMetric(metrics, 'Số lần thử', data.attempts, 'lần băm', undefined, 'comparison-attempts');
       line(`Độ khó: ${data.block.difficulty}`);
       powHash(panel, data.block.hash, data.block.difficulty);
     }
@@ -696,6 +701,7 @@ async function runComparison(event) {
 }
 
 function resetComparison() {
+  globalThis.TrustCounter?.clear('comparison-');
   comparison = freshComparison();
   $('comparison-holder').value = 'Người học DEMO-001'; $('comparison-title').value = 'Chứng chỉ Phân tích dữ liệu';
   $('comparison-date').value = '2026-01-01'; $('comparison-online').checked = $('comparison-sample').checked = true;
@@ -715,10 +721,11 @@ function showNetworkLab() {
   $('network-transport').value = s.transport;
   $('network-transport').disabled = s.busy || !!s.handle;
   $('network-transport-note').textContent = s.transport === 'http'
-    ? 'HTTP: ba node riêng lắng nghe trên loopback trong một server. Bật Node-3 chỉ nối lại; bấm Đồng bộ để bắt kịp. Một mạng HTTP mỗi phiên, tối đa bốn mạng HTTP trên server. Đặt lại để đổi chế độ.'
-    : 'Queue: ba node trao đổi qua hàng đợi trong một server. Bật Node-3 tự yêu cầu bắt kịp. Đặt lại để đổi chế độ.';
-  $('network-online').textContent = s.transport === 'http' ? '4. Bật Node-3 (chưa đồng bộ)' : '4. Bật Node-3 và catch-up';
-  $('network-transport-result').textContent = data ? `Kết nối thực tế: ${data.transport === 'http' ? 'HTTP qua loopback' : 'Queue trong process'}` : '';
+    ? 'HTTP: bật Node-3 chỉ nối lại; cần bấm Đồng bộ để bắt kịp. Đặt lại để đổi chế độ.'
+    : 'Queue: bật Node-3 tự yêu cầu bắt kịp. Đặt lại để đổi chế độ.';
+  $('network-online').textContent = s.transport === 'http' ? '4. Bật Node-3 (chưa đồng bộ)' : '4. Bật Node-3 và bắt kịp';
+  $('network-sync').textContent = '5. Đồng bộ các node đang bật';
+  $('network-transport-result').textContent = data ? `Kết nối thực tế: ${data.transport === 'http' ? 'HTTP' : 'Queue'}` : '';
   $('network-init').disabled = s.busy || !!s.handle;
   $('network-reset').disabled = s.mutating || !s.handle;
   ['refresh', 'sync'].forEach(action => { $('network-' + action).disabled = s.busy || !s.handle; });
@@ -726,6 +733,22 @@ function showNetworkLab() {
   $('network-offline').disabled = s.busy || !node3 || node3.status === 'OFFLINE';
   $('network-online').disabled = s.busy || !node3 || node3.status === 'ONLINE';
   $('network-mine').disabled = s.busy || !s.handle || !!data?.mining;
+  const next = !s.handle ? 'init' : !data?.mining
+    ? node3?.status === 'OFFLINE' ? 'mine' : 'offline'
+    : node3?.status === 'OFFLINE' ? 'online'
+    : !data.all_nodes_synchronized || s.pollFailed ? 'sync' : null;
+  const guidance = {
+    init: 'Khởi tạo để xem ba bản sao ở genesis.',
+    offline: 'Tắt Node-3 để quan sát điều gì xảy ra khi node bỏ lỡ block.',
+    mine: 'Tạo block mẫu trên Node-1, rồi so sánh chiều cao của ba node.',
+    online: 'Bật Node-3 để nối lại. ' + (s.transport === 'http' ? 'Sau đó bấm Đồng bộ ở bước 5.' : 'Queue sẽ tự yêu cầu bắt kịp.'),
+    sync: 'Bấm Đồng bộ để yêu cầu các node đang bật đọc chuỗi từ peer; chỉ kết quả thực mới xác nhận bắt kịp.'
+  };
+  $('network-guidance').dataset.action = s.busy ? '' : next || '';
+  $('network-guidance').textContent = s.busy ? 'Đang chờ kết quả. Các điều khiển sẽ mở lại khi thao tác kết thúc.'
+    : next ? 'Tiếp theo: ' + guidance[next] : 'Đã quan sát các bản sao khớp nhau. Có thể tắt Node-3 để thử lại kết nối, hoặc đặt lại mẫu.';
+  for (const action of ['init', 'offline', 'mine', 'online', 'sync'])
+    $('network-' + action).className = !s.busy && action === next ? 'primary' : 'secondary';
   $('network-control-note').textContent = s.busy ? 'Đang chờ kết quả thực; các thao tác mạng tạm khóa.'
     : !s.handle ? 'Khởi tạo mạng trước để mở các nút điều khiển Node-3 và tạo block.'
     : data?.mining ? 'Mẫu này đã có một block. Thử bật/tắt Node-3, làm mới hoặc đồng bộ; đặt lại lab để tạo mẫu mới.'
@@ -734,18 +757,57 @@ function showNetworkLab() {
   summary.className = 'result';
   summary.textContent = !data ? 'Chưa có mạng lab. Khởi tạo để xem ba node ở block genesis.'
     : s.pollFailed ? 'Chưa xác nhận hoàn tất trong thời hạn. Các thẻ bên dưới là trạng thái cuối đã đọc; hãy làm mới.'
-    : data.all_nodes_synchronized ? '✓ Cả ba node ONLINE: cùng chiều cao và tip hash, các chuỗi hợp lệ.'
-    : data.online_nodes_synchronized ? 'Các node ONLINE đồng thuận về chiều cao và tip hash, chuỗi hợp lệ. Chưa đồng bộ cả ba node.'
-    : !data.online_nodes_valid ? 'Có chuỗi ONLINE không hợp lệ. Xem lý do backend trong chi tiết.'
-    : 'Các node ONLINE chưa có cùng chiều cao và tip hash; đang quan sát trạng thái thực.';
+    : data.all_nodes_synchronized ? '✓ Cả ba node đang bật: cùng chiều cao và hash khối cuối, các chuỗi hợp lệ.'
+    : data.online_nodes_synchronized ? 'Các node đang bật có cùng chiều cao và hash khối cuối, chuỗi hợp lệ. Chưa đồng bộ cả ba node.'
+    : !data.online_nodes_valid ? 'Có chuỗi đang hoạt động không hợp lệ. Xem lý do kiểm tra trong chi tiết.'
+    : 'Các node đang bật chưa có cùng chiều cao và hash khối cuối.';
   if (data?.all_nodes_synchronized && !s.pollFailed) summary.className += ' valid';
-  showLabNodes('network-nodes', data?.nodes || []);
+  showNetworkNodes(data);
   $('network-technical').textContent = data ? JSON.stringify({ ...data,
     ...(s.syncResults ? { sync_results: s.syncResults } : {}) }, null, 2) : '';
   $('network-credential').textContent = data?.mining
-    ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}; hồ sơ ${data.credential_id}.`
+    ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}.`
     : data?.transaction ? 'Hồ sơ mẫu đã ký; chưa tạo được block. Giao dịch được giữ để thử lại.'
-    : 'Thử: tắt Node-3 → tạo block → quan sát NOT_FOUND trên node offline → bật lại Node-3.';
+    : 'Mẫu cố định: một hồ sơ và một block. Ba node chạy trong một server, không phải ba máy tính vật lý.';
+}
+
+function showNetworkNodes(data) {
+  const nodes = data?.nodes || [], container = $('network-nodes'), connections = $('network-connections');
+  container.replaceChildren(); connections.replaceChildren();
+  const highest = nodes.length ? Math.max(...nodes.map(n => n.height)) : null;
+  for (const [i, node] of nodes.entries()) {
+    if (i) {
+      const connected = nodes[i - 1].status === 'ONLINE' && node.status === 'ONLINE';
+      const link = chainText(connections, 'span', `${nodes[i - 1].node_id} ${connected ? '↔' : '╳'} ${node.node_id} · ${connected ? 'Đang kết nối' : 'Ngắt kết nối'}`);
+      link.className = 'network-connection' + (connected ? '' : ' disconnected');
+    }
+    const lag = highest - node.height;
+    const card = document.createElement('article');
+    card.className = 'network-node' + (node.status === 'OFFLINE' ? ' offline' : '') + (lag > 0 ? ' lagging' : '');
+    chainText(card, 'h3', node.node_id);
+    chainText(card, 'p', node.status === 'ONLINE' ? '● Đang bật' : '○ Ngắt kết nối — bản sao cục bộ có thể cũ');
+    const height = chainText(card, 'strong', String(node.height)); height.className = 'metric-number';
+    globalThis.TrustCounter?.render(height, node.height, { key: `network-${networkLab.handle}-${node.node_id}` });
+    chainText(card, 'span', ' chiều cao').className = 'metric-unit';
+    chainText(card, 'p', `Giao dịch chờ: ${node.pending_count}`);
+    chainText(card, 'p', lag > 0 ? `Thiếu ${lag} khối so với node cao nhất đang quan sát.` : 'Chiều cao bằng node cao nhất đang quan sát.');
+    const block = chainText(card, 'p', node.height === 0 ? 'Genesis · #0' : `Genesis → Khối #${node.height}`);
+    block.className = 'network-block';
+    chainText(card, 'p', `Tip: ${shortHash(node.tip_hash)}`).title = node.tip_hash;
+    const others = nodes.filter(n => n !== node && n.status === 'ONLINE');
+    chainText(card, 'p', node.status === 'OFFLINE' ? 'Không tính node ngắt kết nối vào đồng bộ.'
+      : others.length === 0 ? 'Chưa có peer đang bật để so sánh.'
+      : others.every(n => n.height === node.height && n.tip_hash === node.tip_hash)
+        ? '✓ Cùng chiều cao và tip với các peer đang bật.' : '↔ Khác tip hoặc chiều cao với peer đang bật.');
+    chainText(card, 'p', node.chain_valid ? '✓ Chuỗi riêng hợp lệ' : '✗ Chuỗi riêng không hợp lệ');
+    const status = node.verification?.status;
+    const labels = { VERIFIED: '✓ Đã xác minh hồ sơ', NOT_FOUND: 'Chưa tìm thấy tại node này',
+      INVALID: '✗ Xác minh thất bại', REVOKED: 'Hồ sơ đã bị thu hồi' };
+    chainText(card, 'p', status ? labels[status] || 'Xem kết quả xác minh trong chi tiết.' : 'Chưa có hồ sơ mẫu để xác minh.');
+    const details = document.createElement('details');
+    chainText(details, 'summary', 'Chi tiết kỹ thuật'); chainText(details, 'pre', JSON.stringify(node, null, 2));
+    card.append(details); container.append(card);
+  }
 }
 
 function showLabNodes(id, nodes) {
@@ -800,9 +862,10 @@ async function pollNetworkLab(s, complete, {
 async function networkLabAction(action) {
   const s = networkLab;
   if (s.busy || (action === 'init' ? s.handle : !s.handle)) return;
+  if (action === 'init') globalThis.TrustCounter?.clear('network-');
   s.busy = true; s.mutating = action !== 'refresh'; s.pollFailed = false;
   showNetworkLab(); labError('network-error');
-  $('network-status').textContent = action === 'mine' ? 'Đang ký/gửi hồ sơ mẫu và mining PoW thật trên Node-1…' : 'Đang chờ backend…';
+  $('network-status').textContent = action === 'mine' ? 'Đang ký/gửi hồ sơ mẫu và tìm nonce trên Node-1…' : 'Đang thực hiện thao tác…';
   try {
     let data;
     if (action === 'init') data = await labPost('/network', { transport: s.transport });
@@ -857,6 +920,7 @@ async function networkLabAction(action) {
 async function resetNetworkLab() {
   const old = networkLab;
   if (old.mutating || !old.handle) return;
+  globalThis.TrustCounter?.clear('network-');
   old.abort?.abort(); networkLab = freshNetworkLab(old.transport);
   const s = networkLab; s.busy = s.mutating = true;
   showNetworkLab(); labError('network-error'); $('network-status').textContent = 'Đang dừng worker và reset riêng mạng lab…';
@@ -968,7 +1032,7 @@ async function resetTamperLab() {
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateMerkleScrollHint).observe($('merkle-tree'));
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
-    $('theme-toggle').textContent = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    $('theme-toggle').title = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     $('theme-toggle').setAttribute('aria-pressed', String(theme === 'light'));
     try { localStorage.setItem('trustmebro-theme', theme); } catch {}
   }

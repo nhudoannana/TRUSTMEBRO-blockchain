@@ -1,12 +1,44 @@
 """Behavioral Node-VM checks; these do not constitute browser verification."""
 import subprocess
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
 
+def test_network_layout_preserves_single_controls_and_theory_navigation():
+    class Layout(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.ids = []
+            self.stack = []
+            self.parents = {}
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if 'id' in attrs:
+                self.ids.append(attrs['id'])
+                self.parents[attrs['id']] = tuple(self.stack)
+            if tag not in {'input', 'meta', 'link', 'br', 'hr'}:
+                self.stack.append((tag, attrs.get('id'), attrs.get('class', '')))
+
+        def handle_endtag(self, tag):
+            for i in range(len(self.stack) - 1, -1, -1):
+                if self.stack[i][0] == tag:
+                    self.stack = self.stack[:i]
+                    break
+
+    parser = Layout()
+    parser.feed(Path('ui/labs.html').read_text(encoding='utf-8'))
+    assert len(parser.ids) == len(set(parser.ids)), 'Duplicate IDs can redirect working theory/practice handlers'
+    assert any(parent[1] == 'network-theory' for parent in parser.parents['network-next'])
+    for control in ['network-guidance', 'network-nodes', 'network-connections']:
+        assert any(parent[2] == 'network-observation' for parent in parser.parents[control])
+    assert any(parent[2] == 'panel network-controls' for parent in parser.parents['network-mine'])
+
+
 @pytest.mark.parametrize('case', ['controls', 'propagation', 'reconnect', 'timeout',
-                                  'errors', 'stale_reset', 'page_exit', 'read_timeout', 'http_mode', 'http_reconnect'])
+                                  'errors', 'stale_reset', 'page_exit', 'read_timeout', 'http_mode', 'http_reconnect', 'http_hierarchy'])
 def test_network_lab_handlers(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -90,6 +122,30 @@ const posts=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix));
  }else await run('networkLabAction("init")');
  assert.equal(run('networkLab.handle'),'handle-1');assert.equal($('network-offline').disabled,false);assert.equal($('network-online').disabled,true);
  assert.equal($('network-mine').disabled,false);assert.equal($('network-reset').disabled,false);
+ if(testCase==='http_hierarchy'){
+  const initialCalls=calls.length;
+  assert.equal($('network-guidance').dataset.action,'offline');
+  assert.equal($('network-offline').className,'primary');
+  await run('networkLabAction("offline")');
+  let card=$('network-nodes').children[2];
+  assert.ok(card.className.includes('offline'));assert.ok(!card.className.includes('lagging'));
+  assert.ok(text($('network-connections')).includes('Ngắt kết nối'));
+  assert.equal($('network-guidance').dataset.action,'mine');
+  await run('networkLabAction("mine")');
+  card=$('network-nodes').children[2];assert.ok(card.className.includes('lagging'));
+  assert.ok(text(card).includes('Chưa tìm thấy tại node này'));
+  assert.equal($('network-guidance').dataset.action,'online');
+  await run('networkLabAction("online")');assert.equal($('network-guidance').dataset.action,'sync');
+  assert.equal($('network-sync').className,'primary');
+  assert.equal(posts('/sync').length,0);
+  await run('networkLabAction("sync")');
+  assert.ok(!$('network-nodes').children[2].className.includes('lagging'));
+  const count=calls.length;run('showNetworkLab()');run('showNetworkLab()');assert.equal(calls.length,count);
+  run('networkLab.snapshot.nodes[2].tip_hash="b".repeat(64);networkLab.snapshot.all_nodes_synchronized=false;networkLab.snapshot.online_nodes_synchronized=false;showNetworkLab()');
+  assert.equal($('network-guidance').dataset.action,'sync');assert.ok(!$('network-summary').className.includes('valid'));
+  assert.ok(text($('network-nodes').children[2]).includes('Khác tip'));
+  assert.ok(calls.length>initialCalls);return;
+ }
  if(testCase==='http_mode'){
   assert.equal(JSON.parse(calls[0].body).transport,'http');assert.equal($('network-transport').disabled,true);
   assert.ok($('network-transport-note').textContent.includes('HTTP'));
@@ -106,7 +162,7 @@ const posts=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix));
   assert.equal(run('networkLab.snapshot.nodes[2].height'),0);
   assert.equal(run('networkLab.snapshot.all_nodes_synchronized'),false);
   assert.ok($('network-status').textContent.includes('Đồng bộ'));
-  assert.ok(!text($('network-summary')).includes('Cả ba node ONLINE'));
+  assert.ok(!$('network-summary').className.includes('valid'));
   await run('networkLabAction("sync")');assert.equal(posts('/sync').length,1);
   assert.equal(run('networkLab.snapshot.all_nodes_synchronized'),true);return;
  }

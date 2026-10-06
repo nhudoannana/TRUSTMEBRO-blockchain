@@ -300,7 +300,29 @@ html[data-theme="light"] .hero-copy h1 span{color:#876338}
 .start-button{display:inline-flex;align-items:center;gap:24px;background:#faf7f8;color:#171216;padding:17px 24px;min-height:54px;border-radius:14px;text-decoration:none;font-size:15px;font-weight:600;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease,box-shadow 160ms ease;box-shadow:0 8px 30px rgba(0,0,0,0.3)}.start-button:active{transform:scale(.97)}.start-button:hover{background:#fff;transform:translateY(-2px);box-shadow:0 12px 35px rgba(212,168,85,0.25)}.start-button span{font-size:20px;color:#607995}
 html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light"] .landing-hero::before{background:linear-gradient(180deg,#bfcee5 0%,#d6e0ee 28%,#e5d6b8 58%,#e8c587 75%,#f6f5f7 100%)}html[data-theme="light"] .landing-hero::after{background:linear-gradient(180deg,#ffffff18,#ffffff20 45%,#f6f5f780)}html[data-theme="light"] .letter-glitch{opacity:.28}html[data-theme="light"] .glitch-center-vignette{background:radial-gradient(ellipse at 50% 40%,rgba(231,235,243,.91) 0%,rgba(235,235,234,.52) 36%,transparent 75%)}html[data-theme="light"] .new-nav{background:#f9fbfde0;border-color:#839ab442}html[data-theme="light"] .wordmark>span:last-child{color:#7c6040}html[data-theme="light"] .hero-copy .eyebrow{color:#476487}html[data-theme="light"] .hero-copy h1{color:#20354f;text-shadow:none}html[data-theme="light"] .hero-copy h1 span{color:#876338}html[data-theme="light"] .hero-description{color:#465b74}html[data-theme="light"] .simulation-note{color:#576c85}html[data-theme="light"] .process-link{color:#435c7b;border-color:#6b7f9540}html[data-theme="light"] .start-button{background:#294463;color:white;box-shadow:0 8px 24px rgba(41,68,99,0.25)}html[data-theme="light"] .start-button:hover{background:#35567d;box-shadow:0 12px 30px rgba(41,68,99,0.35)}html[data-theme="light"] .start-button span{color:#e1ebf7}html[data-theme="light"] .chain-heading{color:#546883}html[data-theme="light"] .preview-block{background:#f8fbfce6;border-color:#7990af40}html[data-theme="light"] .preview-block strong{color:#33475f}html[data-theme="light"] .preview-block code,html[data-theme="light"] .block-top{color:#5a7090}html[data-theme="light"] .block-glyph{color:#8b6840}html[data-theme="light"] .hero-bottom,html[data-theme="light"] .hero-bottom a{color:#54677f;border-color:#7f90a536}html[data-theme="light"] .glitch-toggle{color:#425d7f;border-color:#7d90ae4d;background:#ffffff6b}
 @media(max-width:600px){.hero-bottom{gap:14px}.hero-bottom>a{display:none}.letter-glitch{opacity:.25}.glitch-toggle{font-size:10px}.hero-copy h1{font-size:clamp(2.8rem,10.8vw,4.2rem)}}
-</style></head>
+.about-section{--about-text:#f0f4fa;--about-secondary:#a3b3c9;--about-rule:#ccd9ee28}
+.about-project{display:grid;grid-template-columns:220px minmax(0,1fr);align-items:center;gap:32px;margin:34px 0}
+.about-project-logo{display:block;width:220px;height:auto;max-width:100%;background:#fff}
+.about-project-text .about-university{font-size:20px;line-height:1.5;color:var(--about-text);margin:0 0 12px}
+.about-project-text h3{font-size:28px;margin:0 0 12px}.about-supervisor{font-size:15px;color:var(--about-secondary);line-height:1.6;margin:0}
+.about-section .members-heading{margin:34px 0 16px}
+.team-table{width:100%;table-layout:fixed;border-collapse:collapse;color:var(--about-text);font-size:14px;line-height:1.6}
+.team-table col:nth-child(1){width:48px}.team-table col:nth-child(2){width:26%}.team-table col:nth-child(3){width:156px}.team-table col:nth-child(4){width:132px}
+.team-table th,.team-table td{padding:14px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--about-rule);overflow-wrap:anywhere}
+.team-table thead th{color:var(--about-secondary);font-size:12px;font-weight:500}.team-table tbody th{font-weight:500}
+.team-table .student-id{white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums}
+.member-label{display:none}.about-section .member-repository{margin:18px 0 0}
+html[data-theme="light"] .about-section{--about-text:#20354f;--about-secondary:#465b74;--about-rule:#839ab430}
+@media(max-width:800px){
+ .about-project{grid-template-columns:1fr;gap:20px}.about-project-logo{width:220px}
+ .team-table,.team-table tbody{display:block;width:100%}.team-table colgroup{display:none}
+ .team-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+ .team-table tbody tr{display:block;padding:14px 0;border-bottom:1px solid var(--about-rule)}
+ .team-table tbody th,.team-table tbody td{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:4px 0;border:0}
+ .member-label{display:block;color:var(--about-secondary);font-weight:400;font-size:12px}
+}
+</style><link rel="stylesheet" href="/ui/theme-toggle.css">
+</head>
 <body>
 
     <a class="skip-link" href="#features">Bỏ qua phần giới thiệu</a>
@@ -309,7 +331,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
         <header class="new-nav">
             <a class="wordmark" href="#top" aria-label="TrustMeBro — Trang chủ"><span class="brand-symbol" aria-hidden="true">⌘</span>TrustMe<span>Bro</span></a>
             <nav aria-label="Điều hướng chính"><a href="#features">Khám phá</a><a href="#howtworks">Quy trình</a><a href="#stats">Công nghệ</a><a href="#about">Về nhóm</a></nav>
-            <div class="nav-utilities"><a class="nav-source" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">GitHub <span class="external-label" aria-hidden="true">↗</span></a><button class="theme-switch" id="theme-toggle" aria-pressed="false">Chế độ sáng</button></div>
+            <div class="nav-utilities"><a class="nav-source" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">GitHub <span class="external-label" aria-hidden="true">↗</span></a><button class="theme-switch theme-toggle" id="theme-toggle" aria-pressed="false" type="button" aria-label="Chế độ sáng"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg></button></div>
         </header>
         <main class="hero-copy">
             <p class="eyebrow">TRUSTMEBRO / BLOCKCHAIN LAB</p>
@@ -460,6 +482,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                     </div>
                     <div style="padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.9; min-height: 340px;">
                         <pre id="codeTyping" style="margin: 0; white-space: pre-wrap; color: rgba(255,255,255,0.5);"></pre>
+                        <p style="font-family: Inter, sans-serif; font-size: 12px; line-height: 1.6; margin: 18px 0 0;">Dữ liệu minh họa giả định; không khẳng định trường chính thức phát hành hồ sơ qua ứng dụng này.</p>
                     </div>
                 </div>
             </div>
@@ -518,7 +541,28 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
 
 
 
-<section id="about" class="about-section" aria-labelledby="about-title"><div class="about-container"><p class="about-eyebrow">ABOUT US / NHÓM THỰC HIỆN</p><h2 id="about-title">Cùng xây dựng.<br>Cùng hiểu blockchain.</h2><p class="about-intro">TrustMeBro là đồ án môn học mô phỏng quy trình phát hành, ghi nhận và kiểm tra tính toàn vẹn của hồ sơ bằng blockchain. Nhóm sử dụng dữ liệu giả lập để giúp người học tự thử các khái niệm qua từng thao tác.</p><div class="about-grid"><div><h3>Dự án TrustMeBro</h3><p class="about-muted">Mã nguồn, tài liệu và quá trình phát triển của nhóm được lưu trên GitHub.</p><a class="project-link" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">Xem repository của dự án <span aria-hidden="true">↗</span></a></div><div><h3>Nhóm thực hiện</h3><div id="team-members"><p class="team-placeholder">Thông tin thành viên và GitHub cá nhân đang được cập nhật.</p></div></div></div><h3 class="tools-heading">Công cụ đồng hành</h3><div class="tool-grid"><article class="tool-card"><span>01 / TRỢ LÝ AI</span><a href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claude ↗</a><p>Hỗ trợ phân tích và phát triển nội dung, mã nguồn.</p></article><article class="tool-card"><span>02 / TRỢ LÝ LẬP TRÌNH</span><a href="https://openai.com/codex/" target="_blank" rel="noopener noreferrer">Codex ↗</a><p>Hỗ trợ viết, rà soát mã nguồn và xây dựng giao diện.</p></article><article class="tool-card"><span>03 / MÔI TRƯỜNG PHÁT TRIỂN</span><a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer">Antigravity ↗</a><p>Môi trường nhóm sử dụng để chỉnh sửa và chạy dự án.</p></article></div><p class="about-note">Nhóm chịu trách nhiệm kiểm tra, hiểu và hoàn thiện kết quả. TrustMeBro là mô phỏng phục vụ học tập, không xác minh pháp lý ngoài thực tế.</p></div></section>
+<section id="about" class="about-section" aria-labelledby="about-title"><div class="about-container">
+<p class="about-eyebrow">ABOUT US / NHÓM THỰC HIỆN</p><h2 id="about-title">Cùng xây dựng.<br>Cùng hiểu blockchain.</h2>
+<div class="about-project">
+  <img class="about-project-logo" src="/ui/assets/logo-hub.png" width="220" height="220" alt="Logo Trường Đại học Ngân hàng TP. Hồ Chí Minh (HUB)" loading="lazy">
+  <div class="about-project-text"><p class="about-university">Trường Đại học Ngân hàng TP. Hồ Chí Minh</p><h3>Dự án nhóm 5</h3><p class="about-supervisor">Giảng viên hướng dẫn: TS. Nguyễn Hoài Đức</p></div>
+</div>
+<p class="about-intro">TrustMeBro là đồ án môn học mô phỏng quy trình phát hành, ghi nhận và kiểm tra tính toàn vẹn của hồ sơ bằng blockchain. Nhóm sử dụng dữ liệu giả lập để giúp người học tự thử các khái niệm qua từng thao tác.</p>
+<h3 id="members-title" class="members-heading">Nhóm thực hiện</h3>
+<table id="team-members" class="team-table" aria-labelledby="members-title">
+<colgroup><col><col><col><col><col></colgroup>
+<thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">MSSV</th><th scope="col">Vai trò</th><th scope="col">Phân công</th></tr></thead>
+<tbody>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">1</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Đoàn Nguyễn Quỳnh Như</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240021</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Trưởng nhóm</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Cấu trúc khối, block header, PoW; điều phối kho mã nguồn.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">2</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Nguyễn Lê Phạm Lộc</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240015</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Kiểm thử, kịch bản demo, chuẩn bị video và Attack Simulator.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">3</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Huỳnh Thị Tuyết Mai</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240016</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Báo cáo dự án và tài liệu kỹ thuật.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">4</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Cai Thị Thảo Nguyên</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240019</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Mạng P2P và mô phỏng nhiều node.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">5</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Kiều Thị Yến Nhi</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240020</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Xác thực giao dịch, mempool; khai thác và đồng thuận phân tán.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">6</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Trần Quỳnh Ngọc Thảo</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240026</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Rà soát tài liệu và hỗ trợ thuyết trình.</span></td></tr>
+<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">7</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Phạm Thị Hồng Thắm</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240027</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">SHA-256, chữ ký số ECDSA, cây Merkle và Merkle proof.</span></td></tr>
+</tbody></table>
+<p class="member-repository"><a class="project-link" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">Xem mã nguồn dự án <span aria-hidden="true">↗</span></a></p>
+<h3 class="tools-heading">Công cụ đồng hành</h3><div class="tool-grid"><article class="tool-card"><span>01 / TRỢ LÝ AI</span><a href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claude ↗</a><p>Hỗ trợ phân tích và phát triển nội dung, mã nguồn.</p></article><article class="tool-card"><span>02 / TRỢ LÝ LẬP TRÌNH</span><a href="https://openai.com/codex/" target="_blank" rel="noopener noreferrer">Codex ↗</a><p>Hỗ trợ viết, rà soát mã nguồn và xây dựng giao diện.</p></article><article class="tool-card"><span>03 / MÔI TRƯỜNG PHÁT TRIỂN</span><a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer">Antigravity ↗</a><p>Môi trường nhóm sử dụng để chỉnh sửa và chạy dự án.</p></article></div><p class="about-note">Nhóm chịu trách nhiệm kiểm tra, hiểu và hoàn thiện kết quả. TrustMeBro là mô phỏng phục vụ học tập, không xác minh pháp lý ngoài thực tế.</p></div></section>
 
     <!-- ===== FOOTER ===== -->
     <footer style="background: #060a10; border-top: 1px solid rgba(255,255,255,0.06); padding: 40px;">
@@ -589,7 +633,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
             { text: '"Nguyễn Văn An"', color: '#c3e88d' },
             { text: ',\n', color: '#fff' },
             { text: '  issuer: ', color: '#fff' },
-            { text: '"ĐH Bách Khoa"', color: '#c3e88d' },
+            { text: '"ĐH Ngân hàng"', color: '#c3e88d' },
             { text: '\n};\n\n', color: '#fff' },
             { text: 'const ', color: '#d2ddf0' },
             { text: 'hash', color: '#82aaff' },
@@ -741,23 +785,14 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
 
     </script>
 
-<script id="team-data" type="application/json">[]</script>
-<script>
-(function(){
-const members=JSON.parse(document.getElementById('team-data').textContent);
-if(!members.length)return;
-const ul=document.createElement('ul');ul.className='member-list';
-for(const m of members){const li=document.createElement('li');const name=document.createElement('span');name.textContent=m.name;li.appendChild(name);try{const url=new URL(m.github);if(url.protocol==='https:'&&url.hostname==='github.com'){const a=document.createElement('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent='GitHub ↗';li.appendChild(a);}}catch{}ul.appendChild(li);}
-document.getElementById('team-members').replaceChildren(ul);
-})();
-</script>
+
 
 <script>
 (function(){
   const toggle=document.getElementById('theme-toggle');
   function apply(theme){
     document.documentElement.dataset.theme=theme;
-    toggle.textContent=theme==='light'?'Chế độ tối':'Chế độ sáng';
+    toggle.title=theme==='light'?'Chế độ tối':'Chế độ sáng';
     toggle.setAttribute('aria-pressed',String(theme==='light'));
     try{localStorage.setItem('trustmebro-theme',theme);}catch{}
   }

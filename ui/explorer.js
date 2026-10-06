@@ -164,7 +164,7 @@ async function enterExplorer() {
 (function setupExplorer() {
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
-    $('theme-toggle').textContent = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    $('theme-toggle').title = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     $('theme-toggle').setAttribute('aria-pressed', String(theme === 'light'));
     try { localStorage.setItem('trustmebro-theme', theme); } catch {}
   }

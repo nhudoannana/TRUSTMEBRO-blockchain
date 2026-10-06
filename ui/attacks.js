@@ -102,7 +102,7 @@ function resetAttack() {
 (function setupAttack() {
   function theme(value) {
     document.documentElement.dataset.theme = value;
-    attackElement('attack-theme').textContent = value === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    attackElement('attack-theme').title = value === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     attackElement('attack-theme').setAttribute('aria-pressed', String(value === 'light'));
     try { localStorage.setItem('trustmebro-theme', value); } catch {}
   }

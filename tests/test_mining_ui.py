@@ -65,7 +65,7 @@ vm.runInContext('state.record=record;state.step=3;render=async()=>{};',context);
         assert.doesNotMatch(html,/metric-label">Số lần thử|NaN|metric-label">Thời gian/);
         assert.match(html,/Không được trả về/);
       }else{
-        assert.match(html,/metric-number">11</);
+            assert.match(html,/metric-number" id="p-attempts">11</);
         assert.match(html,/metric-number">10</);
         assert.match(html,/0.012/);
       }

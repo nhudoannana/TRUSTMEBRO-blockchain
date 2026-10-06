@@ -1,0 +1,32 @@
+/* The existing native buttons keep the saved theme mechanism on every page. */
+button.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  width: 80px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #60799566);
+  border-radius: 24px;
+  background: var(--surface, #101726);
+  color: var(--text, #e7eef8);
+  cursor: pointer;
+}
+button.theme-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 5px auto 5px 5px;
+  width: 32px;
+  border-radius: 50%;
+  background: var(--surface-raised, var(--raised, #294463));
+  transform: translateX(36px);
+  transition: transform 180ms ease;
+}
+button.theme-toggle svg { position: relative; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+html[data-theme="light"] button.theme-toggle { background: var(--surface, #fff); color: var(--text, #20354f); }
+html[data-theme="light"] button.theme-toggle::before { background: var(--surface-raised, var(--raised, #e3eaf3)); transform: translateX(0); }
+button.theme-toggle:focus-visible { outline: 2px solid var(--focus, #607995); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { button.theme-toggle::before { transition: none; } }
