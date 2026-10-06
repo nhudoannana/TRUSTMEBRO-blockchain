@@ -1,7 +1,7 @@
 """Module net_node — Full Node giao tiếp qua HTTP thật.
 
-Mục đích: chạy mỗi node trong một tiến trình riêng, lắng nghe trên
-một cổng TCP thật. Giao tiếp bằng HTTP POST với payload JSON.
+Mục đích: chạy node trên một cổng TCP thật (CLI riêng hoặc thread thuộc
+web lab). Giao tiếp bằng HTTP POST với payload JSON.
 Giữ nguyên chế độ queue hiện có cho mô phỏng trong Streamlit.
 
 Không dùng pickle, không chia sẻ private key qua mạng,
@@ -113,13 +113,13 @@ def chain_from_json(blocks_json: list[dict]) -> Blockchain:
 class NetNode:
     """Full node giao tiếp qua HTTP thật.
 
-    Mỗi instance chạy trong 1 tiến trình riêng, lắng nghe trên 1 port.
+    Mỗi instance có HTTP server riêng; có thể chạy trong cùng process của lab.
     Tự xác minh mọi TX, Block và quy tắc ledger.
     """
 
     def __init__(self, node_id: str, host: str, port: int,
                  peers: list[tuple[str, str, int]],
-                 authorized_issuers: set[str] | None = None):
+                 authorized_issuers: set[str] | None = None, *, miner=mine_block):
         self.node_id = node_id
         self.host = host
         self.port = port
@@ -128,6 +128,7 @@ class NetNode:
         self.blockchain = Blockchain()
         self.mempool = Mempool(authorized_issuers)
         self.status = "ONLINE"
+        self._miner = miner
 
         self._seen_msg_ids: set[str] = set()
         self._seen_tx_ids: set[str] = set()
@@ -189,7 +190,18 @@ class NetNode:
                     return
 
                 try:
-                    if self.path == "/message":
+                    if self.path == "/status":
+                        if type(data.get('online')) is not bool:
+                            self._safe_response(422, {'error': 'online must be boolean'})
+                            return
+                        with node._lock:
+                            changed = (node.status == 'ONLINE') != data['online']
+                            node.status = 'ONLINE' if data['online'] else 'OFFLINE'
+                        node.log(f"HTTP status: {node.status}")
+                        result = {'ok': True, 'changed': changed, 'catch_up_requested': False}
+                    elif node.status != 'ONLINE':
+                        result = {'ok': False, 'reason': 'Node OFFLINE'}
+                    elif self.path == "/message":
                         result = node._handle_message(data)
                     elif self.path == "/submit_tx":
                         result = node._api_submit_tx(data)
@@ -209,6 +221,10 @@ class NetNode:
                 try:
                     if self.path == "/status":
                         result = node._api_status()
+                    elif self.path.startswith('/snapshot?'):
+                        from urllib.parse import parse_qs, urlsplit
+                        credential_id = parse_qs(urlsplit(self.path).query).get('credential_id', [None])[0]
+                        result = node._api_snapshot(credential_id)
                     elif self.path == "/log":
                         result = {"log": node.get_log()}
                     else:
@@ -223,6 +239,7 @@ class NetNode:
                 pass  # Tắt log HTTP mặc định
 
         self._server = HTTPServer((self.host, self.port), Handler)
+        self.port = self._server.server_address[1]  # port=0 reserves an OS-owned ephemeral port.
         self._server_thread = threading.Thread(
             target=self._server.serve_forever, daemon=True,
             name=f"http-{self.node_id}",
@@ -233,7 +250,10 @@ class NetNode:
     def stop(self):
         """Dừng HTTP server."""
         if self._server:
-            self._server.shutdown()
+            if self._server_thread and self._server_thread.is_alive():
+                self._server.shutdown()
+                self._server_thread.join(timeout=5)
+            self._server.server_close()
             self.log("HTTP server stopped")
 
     # ── Gửi message cho peer ──
@@ -308,7 +328,9 @@ class NetNode:
             self.log(f"⛏️ Mining: {len(txs)} TXs, difficulty={difficulty}")
 
         # Mine ngoài lock
-        result = mine_block(block)
+        result = self._miner(block)
+        if result.get('completed') is False:
+            return {'ok': False, 'reason': result['reason'], 'mining': result}
 
         with self._lock:
             # Verify sau khi mine
@@ -316,6 +338,11 @@ class NetNode:
             if block.header.previous_hash != current_tip:
                 return {"ok": False, "reason": "Chain đã thay đổi trong lúc mine"}
 
+            candidate = copy.deepcopy(self.blockchain)
+            candidate.add_block(block)
+            valid, _, reason = candidate.is_chain_valid(authorized_issuers=self.mempool.authorized_issuers)
+            if not valid:
+                return {'ok': False, 'reason': reason}
             self.blockchain.add_block(block)
             tx_ids = [tx.tx_id for tx in txs]
             self.mempool.remove_transactions(tx_ids)
@@ -343,6 +370,7 @@ class NetNode:
             "attempts": result["attempts"],
             "seconds": result["seconds"],
             "block_hash": result["block_hash"],
+            "block": block_to_json(block),
         }
 
     def _api_sync(self) -> dict:
@@ -364,7 +392,7 @@ class NetNode:
             if resp and resp.get("chain"):
                 try:
                     peer_bc = chain_from_json(resp["chain"])
-                    ok, _, reason = peer_bc.is_chain_valid()
+                    ok, _, reason = peer_bc.is_chain_valid(authorized_issuers=self.mempool.authorized_issuers)
                     if ok:
                         pw = peer_bc.total_work()
                         if pw > best_work:
@@ -418,6 +446,25 @@ class NetNode:
                 "mempool_size": len(self.mempool.get_transactions()),
                 "chain_work": self.blockchain.total_work(),
             }
+
+    def _api_snapshot(self, credential_id):
+        """Public local-chain observation, also available while disconnected."""
+        with self._lock:
+            valid, invalid_height, reason = self.blockchain.is_chain_valid(
+                pos_registry=None, authorized_issuers=self.mempool.authorized_issuers)
+            verification = None
+            if credential_id:
+                checks, status, info = self.blockchain.verify_credential(credential_id,
+                    pos_registry=None, authorized_issuers=self.mempool.authorized_issuers)
+                verification = {'status': status, 'checks': checks, 'info': info,
+                    'reason': info.get('reason') or next((c[2] for c in checks if not c[1]), status)}
+            status = self._api_status()
+            return {'node_id': self.node_id, 'status': self.status, 'height': status['height'],
+                    'block_count': len(self.blockchain.chain), 'tip_hash': status['tip_hash'],
+                    'pending_count': status['mempool_size'], 'chain_valid': valid,
+                    'invalid_height': invalid_height, 'validity_reason': reason, 'verification': verification,
+                    'local_chain_warning': 'Node OFFLINE đọc chuỗi cục bộ có thể cũ. NOT_FOUND không chứng minh hồ sơ vô hiệu.'
+                    if self.status != 'ONLINE' else None, 'host': self.host, 'port': self.port}
 
     # ── Message handler (nhận từ peer qua HTTP) ──
 
@@ -507,6 +554,12 @@ class NetNode:
                     self.log(f"❌ BLOCK REJECTED from {sender_id}: ledger: {reason}")
                     return {"ok": False, "reason": f"ledger: {reason}"}
 
+            # Reuse full chain validation too (including consensus and intra-block ledger order).
+            candidate = copy.deepcopy(self.blockchain)
+            candidate.add_block(block)
+            valid, _, reason = candidate.is_chain_valid(authorized_issuers=self.mempool.authorized_issuers)
+            if not valid:
+                return {'ok': False, 'reason': reason}
             # Accept
             self.blockchain.add_block(block)
             tx_ids = [tx.tx_id for tx in block.transactions]

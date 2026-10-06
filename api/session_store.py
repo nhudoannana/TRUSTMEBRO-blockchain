@@ -64,8 +64,11 @@ class SimulationSession:
             if self.network is not None:
                 networks.append(self.network)
             for network in networks:
-                for node in network.nodes.values():
-                    node.stop()
+                if hasattr(network, 'close'):
+                    network.close()
+                else:
+                    for node in network.nodes.values():
+                        node.stop()
             self.network = None
             self.lab_networks.clear()
             self.lab_keys.clear()

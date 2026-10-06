@@ -704,14 +704,21 @@ function resetComparison() {
 }
 
 // A handle belongs only to this lab. Reset/page exit invalidates late responses.
-function freshNetworkLab() {
-  return { handle: null, snapshot: null, busy: false, mutating: false, abort: null, pollFailed: false };
+function freshNetworkLab(transport = 'queue') {
+  return { transport, handle: null, snapshot: null, busy: false, mutating: false, abort: null, pollFailed: false };
 }
 let networkLab = freshNetworkLab();
 const networkPath = s => `/network/${encodeURIComponent(s.handle)}`;
 
 function showNetworkLab() {
   const s = networkLab, data = s.snapshot;
+  $('network-transport').value = s.transport;
+  $('network-transport').disabled = s.busy || !!s.handle;
+  $('network-transport-note').textContent = s.transport === 'http'
+    ? 'HTTP: ba node riêng lắng nghe trên loopback trong một server. Bật Node-3 chỉ nối lại; bấm Đồng bộ để bắt kịp. Một mạng HTTP mỗi phiên, tối đa bốn mạng HTTP trên server. Đặt lại để đổi chế độ.'
+    : 'Queue: ba node trao đổi qua hàng đợi trong một server. Bật Node-3 tự yêu cầu bắt kịp. Đặt lại để đổi chế độ.';
+  $('network-online').textContent = s.transport === 'http' ? '4. Bật Node-3 (chưa đồng bộ)' : '4. Bật Node-3 và catch-up';
+  $('network-transport-result').textContent = data ? `Kết nối thực tế: ${data.transport === 'http' ? 'HTTP qua loopback' : 'Queue trong process'}` : '';
   $('network-init').disabled = s.busy || !!s.handle;
   $('network-reset').disabled = s.mutating || !s.handle;
   ['refresh', 'sync'].forEach(action => { $('network-' + action).disabled = s.busy || !s.handle; });
@@ -733,7 +740,8 @@ function showNetworkLab() {
     : 'Các node ONLINE chưa có cùng chiều cao và tip hash; đang quan sát trạng thái thực.';
   if (data?.all_nodes_synchronized && !s.pollFailed) summary.className += ' valid';
   showLabNodes('network-nodes', data?.nodes || []);
-  $('network-technical').textContent = data ? JSON.stringify(data, null, 2) : '';
+  $('network-technical').textContent = data ? JSON.stringify({ ...data,
+    ...(s.syncResults ? { sync_results: s.syncResults } : {}) }, null, 2) : '';
   $('network-credential').textContent = data?.mining
     ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}; hồ sơ ${data.credential_id}.`
     : data?.transaction ? 'Hồ sơ mẫu đã ký; chưa tạo được block. Giao dịch được giữ để thử lại.'
@@ -797,7 +805,7 @@ async function networkLabAction(action) {
   $('network-status').textContent = action === 'mine' ? 'Đang ký/gửi hồ sơ mẫu và mining PoW thật trên Node-1…' : 'Đang chờ backend…';
   try {
     let data;
-    if (action === 'init') data = await labPost('/network');
+    if (action === 'init') data = await labPost('/network', { transport: s.transport });
     else if (action === 'refresh') data = await readNetworkLab(s);
     else if (action === 'offline' || action === 'online') data = await labPost(networkPath(s) + '/nodes/Node-3/status', { online: action === 'online' });
     else data = await labPost(networkPath(s) + '/' + action);
@@ -806,6 +814,7 @@ async function networkLabAction(action) {
       return;
     }
     s.handle = action === 'init' ? data.lab_handle : s.handle;
+    if (data.node_results) s.syncResults = data.node_results;
     s.snapshot = data.snapshot || data; s.mutating = false;
     if (action === 'mine') {
       if (!data.mined) throw new Error(data.reason);
@@ -814,6 +823,9 @@ async function networkLabAction(action) {
       await pollNetworkLab(s, snapshot => ['Node-1', 'Node-2'].every(id => snapshot.nodes.some(n =>
         n.node_id === id && n.status === 'ONLINE' && n.height === block.height && n.tip_hash === block.hash
         && n.chain_valid && n.verification?.status === 'VERIFIED')));
+    } else if (action === 'online' && s.snapshot.transport === 'http') {
+      $('network-status').textContent = 'Node-3 đã ONLINE; chưa yêu cầu bắt kịp. Bấm Đồng bộ để đọc chuỗi từ peer HTTP.';
+      return;
     } else if (action === 'online' || action === 'sync') {
       if (action === 'sync' && !data.completed && !s.snapshot.online_nodes_valid) {
         s.pollFailed = true;
@@ -845,7 +857,7 @@ async function networkLabAction(action) {
 async function resetNetworkLab() {
   const old = networkLab;
   if (old.mutating || !old.handle) return;
-  old.abort?.abort(); networkLab = freshNetworkLab();
+  old.abort?.abort(); networkLab = freshNetworkLab(old.transport);
   const s = networkLab; s.busy = s.mutating = true;
   showNetworkLab(); labError('network-error'); $('network-status').textContent = 'Đang dừng worker và reset riêng mạng lab…';
   try {
@@ -1040,6 +1052,10 @@ async function resetTamperLab() {
     $('network-' + action).onclick = () => networkLabAction(action);
   });
   $('network-reset').onclick = resetNetworkLab; showNetworkLab();
+  $('network-transport').onchange = () => {
+    if (!networkLab.busy && !networkLab.handle) networkLab.transport = $('network-transport').value === 'http' ? 'http' : 'queue';
+    showNetworkLab();
+  };
   ['create', 'refresh', 'sync'].forEach(action => {
     $('tamper-' + action).onclick = () => tamperLabAction(action);
   });

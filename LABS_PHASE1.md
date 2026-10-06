@@ -425,6 +425,50 @@ errors, navigation and stale replies; these are not browser verification.
 
 ## Browser-session ownership
 
+### HTTP transport in the independent Network lab
+
+Choose Queue (default) or HTTP in the existing practice panel at
+`/ui/labs.html#network`; choosing a mode or reading theory creates no network.
+`POST /api/labs/network` accepts an optional `{"transport":"queue"|"http"}`;
+all existing read/status/mine/sync/reset routes retain their handles and
+cookie-session ownership. Responses add the actual transport and generation.
+Clients cannot supply node URLs, ports, peers or mining settings.
+
+HTTP uses the existing NetNode, standard-library HTTPServer and urllib:
+browser → same-origin FastAPI lab gateway → loopback node `/submit_tx`,
+`/mine`, `/status`, `/snapshot`, `/sync`; node propagation and catch-up send
+real HTTP POST `/message` between server-owned peers. Each node binds
+127.0.0.1 with port 0, reserving an available OS port atomically. The browser
+uses only the application's public port; internal port details are secondary.
+Three HTTP servers in one hosted process are not three physical computers.
+
+Queue keeps automatic catch-up on reconnect. HTTP reconnect only changes
+online status; users explicitly request Sync to invoke NetNode's existing
+valid-peer, accumulated-work chain selection. Offline nodes reject incoming
+mutations/messages and keep their local chain; snapshots remain readable.
+Completion requires observed valid matching height/tip and online status.
+Raw per-node sync outcomes remain in technical details, including an already
+current node's `No better chain found` result.
+
+The fixed sample reuses credential signing and existing validators. HTTP
+PoW uses difficulty 3 and the existing lab bounded mine_block wrapper:
+200,000 attempts / 3 seconds. Incomplete mining never appends or clears the
+pending transaction. HTTP supports this PoW scenario, not PoS forging.
+
+Limits: one HTTP network per cookie session, four HTTP networks (12 listening
+sockets) per process, within the existing eight retained labs / session and
+15-minute lifetime. Full HTTP capacity returns controlled 503/http_capacity
+with Retry-After; a second HTTP lab in one session returns 429. Reset, lab
+expiry, session expiry and shutdown close/join node servers and release
+capacity. Partial startup rolls back acquired sockets/threads. Active requests
+retain existing session leases; public page/theory access needs no session.
+Guided reset does not delete the lab. Page exit cleanup is best effort with
+expiry as fallback. Use the existing single-worker startup command:
+`python -m uvicorn api.wallet_api:app --host 127.0.0.1 --port 8000`.
+RAM ownership and capacity are per process: multi-worker/replica deployment
+requires a different state architecture. The host must allow loopback sockets;
+no additional public ports or dependencies are required.
+
 Guided wallets/network/credentials and Explorer now belong to the server-issued
 cookie session. Tabs with that cookie share only that browser's simulation;
 separate profiles/incognito contexts have independent state. Retained signature,
