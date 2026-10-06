@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only', 'outcome_mapping', 'dirty_edit', 'dirty_restore', 'dirty_inflight', 'dirty_recheck'])
+@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only', 'outcome_mapping', 'dirty_edit', 'dirty_restore', 'dirty_inflight', 'dirty_recheck', 'presentation_acceptance'])
 def test_verification_ui(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -49,6 +49,22 @@ vm.runInContext(source.slice(0,source.indexOf('(function initTheme()')),context)
 vm.runInContext('state.record=record;state.step=5;state.mempool={generation:0};render=async()=>{}',context);
 (async()=>{
  await vm.runInContext('renderStep5()',context);
+ if(mode==='presentation_acceptance'){
+  for(const status of ['VERIFIED','REVOKED','NOT_FOUND','INVALID']){
+   for(const match of [true,false,null])for(const success of [true,false,undefined]){
+    context.result={chain_status:{status,reason:'Actual status',checks:[],info:metadata},node_id:'Node-1',node_status:'ONLINE',presentation_match:match,success,mismatched_fields:[]};
+    vm.runInContext('state.verification.result=result;showVerification(state.verification)',context);
+    const html=document.getElementById('v-result').innerHTML;
+    const presentation=html.split('<h4>Bản xuất trình hiện tại</h4>')[1]?.split('<details')[0];
+    assert.ok(presentation,'Presentation result must be separate from the chain result');
+    assert.equal(/Được chấp nhận: <strong>Có<\/strong>/.test(presentation),status==='VERIFIED'&&match===true&&success===true);
+    assert.doesNotMatch(presentation,/true|false|Presentation match/);
+   }
+  }
+  vm.runInContext('state.verification.comparisonDirty=true;showVerification(state.verification)',context);
+  assert.doesNotMatch(document.getElementById('v-result').innerHTML.split('<details')[0],/Được chấp nhận: <strong>Có<\/strong>/);
+  assert.equal(calls,0);return;
+ }
  if(mode==='outcome_mapping'){
   for(const status of ['VERIFIED','REVOKED','NOT_FOUND','INVALID']){
    for(const match of [true,false,null]){

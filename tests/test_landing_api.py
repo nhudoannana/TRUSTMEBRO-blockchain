@@ -1,7 +1,31 @@
 """Phase 1 entry routes lead to the existing journey, with no repository mount."""
 from html.parser import HTMLParser
+import subprocess
+from pathlib import Path
 
 from tests.test_mempool_api import client
+
+
+def test_reduced_motion_finishes_code_and_counts_without_animation():
+    script = r"""
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('landing.html','utf8');
+const source=html.slice(html.indexOf('// ========== 4.'),html.indexOf('// ========== 6.'));
+const code={children:[],replaceChildren(){this.children=[];},appendChild(e){this.children.push(e);},querySelector(){return this.children.at(-1);}};
+const numbers=[6,256,3,12].map(n=>({dataset:{count:String(n)},textContent:'0'}));
+const stats={querySelectorAll:()=>numbers};
+const observers=[];
+const context=vm.createContext({document:{getElementById:()=>code,querySelectorAll:()=>[stats],createElement:()=>({style:{},dataset:{},textContent:''})},
+ matchMedia:()=>({matches:true}),IntersectionObserver:class{constructor(callback){this.callback=callback;observers.push(this);}observe(target){this.callback([{isIntersecting:true,target}]);}unobserve(){}},
+ setTimeout(){throw Error('Reduced motion must not schedule typing');},requestAnimationFrame(){throw Error('Reduced motion must not schedule counting');},performance:{now:()=>0}});
+vm.runInContext(source,context);
+assert.deepEqual(numbers.map(e=>e.textContent),['6','256','3','12']);
+assert.equal(code.children.map(e=>e.textContent).join(''),vm.runInContext('codeLines.map(e=>e.text).join("")',context));
+assert.ok(code.children.length>1);
+"""
+    result = subprocess.run(['node', '-e', script], cwd=Path(__file__).resolve().parents[1],
+                            capture_output=True, text=True, encoding='utf-8', timeout=15)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 class Links(HTMLParser):

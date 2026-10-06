@@ -9,7 +9,7 @@ import pytest
                                   'signature_reset', 'merkle', 'merkle_reset', 'errors',
                                   'comparison', 'comparison_reset', 'example_safety',
                                   'result_guidance', 'sha_navigation', 'sha_preservation',
-                                  'lab_learning', 'merkle_svg', 'merkle_previews', 'metric_mapping', 'merkle_selection_stale', 'public_learning'])
+                                  'lab_learning', 'merkle_svg', 'merkle_previews', 'metric_mapping', 'merkle_selection_stale', 'public_learning', 'comparison_summary'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
@@ -61,7 +61,26 @@ vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),context);
 const $=id=>document.getElementById(id),run=s=>vm.runInContext(s,context),event={preventDefault(){}};
 context.event=event;
 (async()=>{
-if(testCase==='public_learning'){
+if(testCase==='comparison_summary'){
+ const rows=()=>$('comparison-summary').children.map(e=>e.children.map(c=>c.textContent));
+ const text=()=>rows().flat().join(' ');
+ assert.match(text(),/Chưa chạy/);assert.doesNotMatch(text(),/NaN|undefined|null/);
+ context.sample={created:false,seconds:0,attempts:7,block:null,reason:'Search incomplete <unsafe>'};
+ run('comparison.results.pow=sample;showComparisonSummary()');
+ assert.match(text(),/Chưa tạo block/);assert.ok(rows().some(r=>r[1]==='0.0000'));
+ assert.ok(rows().some(r=>r[1]==='7'));assert.doesNotMatch(text(),/Đã tạo block/);
+ context.sample={created:true,seconds:.123456,block:{height:1,nonce:0},attempts:1};
+ run('comparison.results.pow=sample;comparison.results.pos={created:true,block:{height:1},signer:{name:"Validator <unsafe>",stake:0}};showComparisonSummary()');
+ assert.ok(rows().some(r=>r[1]==='0.1235'));assert.ok(rows().some(r=>r[1]==='0'));
+ assert.ok(rows().some(r=>r[2]==='Validator <unsafe>'));assert.ok(rows().some(r=>r[2]==='0'));
+ assert.ok(rows().some(r=>r[0].includes('Thời gian')&&r[2]==='Chưa có số liệu'));
+ run('comparison.results={pow:null,pos:null};comparison.busy=true;showComparisonSummary()');
+ assert.match(text(),/Đang chạy/);assert.match(text(),/Chưa chạy/);
+ run('comparison.busy=false;labError("comparison-error","Real failure");showComparisonSummary()');
+ assert.match(text(),/Không nhận được kết quả/);assert.doesNotMatch(text(),/Đã tạo block/);
+ run('resetComparison()');assert.match(text(),/Chưa chạy/);
+ assert.equal(calls.length,0);
+}else if(testCase==='public_learning'){
  context.location.hash='#blocks';events.hashchange();await new Promise(r=>setImmediate(r));
  assert.equal($('blocks-theory').hidden,false);assert.equal(run('chainLab.result'),null);
  for(let i=0;i<4;i++)$('blocks-topic-'+i).onclick();

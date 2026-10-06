@@ -13,7 +13,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const source=[...fs.readFileSync('ui/trustmebro.html','utf8').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const elements=new Map();
 const document={querySelectorAll:()=>[],getElementById(id){
- if(!elements.has(id))elements.set(id,{textContent:'',innerHTML:'',disabled:false,hidden:true,focus(){}});
+ if(!elements.has(id))elements.set(id,{textContent:'',innerHTML:'',disabled:false,hidden:true,focus(){},scrollIntoView(){}});
  return elements.get(id);
 }};
 const mode=process.argv[1];

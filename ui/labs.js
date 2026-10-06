@@ -257,6 +257,10 @@ function updateProofChoices() {
   select.value = Number(previous) < leaves.length ? previous : '';
 }
 let merkleToken = 0, merkleBusy = false, merklePrevious = null;
+function updateMerkleScrollHint() {
+  const diagram = $('merkle-tree').children[0];
+  $('merkle-scroll-hint').hidden = !(diagram?.scrollWidth > diagram?.clientWidth);
+}
 function merkleControls(busy) {
   formBusy('merkle-form', busy);
   ['merkle-one', 'merkle-odd', 'merkle-empty'].forEach(id => { $(id).disabled = busy; });
@@ -367,6 +371,7 @@ function showMerkle(data, previous, count, inputs = []) {
     levels.append(row);
   });
   diagram.append(merkleSvg(data, previous, count, inspections, inputs));
+  updateMerkleScrollHint();
   $('merkle-proof-result').textContent = data.proof
     ? `Lá ${data.proof.index + 1} · Backend kiểm tra proof: ${data.proof.valid ? 'hợp lệ' : 'không hợp lệ'}\n` + JSON.stringify(data.proof.siblings, null, 2)
     : count ? 'Không yêu cầu proof cho lần tính này.' : 'Cây rỗng không có lá để chứng minh.';
@@ -388,6 +393,7 @@ function resetMerkle() {
   merkleToken++; merkleBusy = false; merklePrevious = null; merkleControls(false);
   $('merkle-leaves').value = ''; updateProofChoices(); $('merkle-root').textContent = '';
   $('merkle-tree').replaceChildren(); $('merkle-proof-result').textContent = ''; $('merkle-result').hidden = true;
+  updateMerkleScrollHint();
   labError('merkle-error'); $('merkle-status').textContent = 'Đã reset riêng lab Merkle; không gọi reset phiên demo.';
 }
 
@@ -605,8 +611,31 @@ function resetChainLab(initialize = true) {
 function freshComparison() { return { mode: 'pow', busy: false, results: { pow: null, pos: null } }; }
 let comparison = freshComparison();
 
+function showComparisonSummary() {
+  const c = comparison, modes = ['pow', 'pos'];
+  const number = (value, decimals) => typeof value === 'number' && Number.isFinite(value)
+    ? decimals == null ? String(value) : value.toFixed(decimals) : 'Chưa có số liệu';
+  const rows = [
+    ['Trạng thái', mode => c.busy && c.mode === mode ? 'Đang chạy'
+      : c.results[mode] ? c.results[mode].created ? 'Đã tạo block' : 'Chưa tạo block'
+      : c.mode === mode && !$('comparison-error').hidden ? 'Không nhận được kết quả' : 'Chưa chạy'],
+    ['Thời gian đo (giây)', mode => number(c.results[mode]?.seconds, 4)],
+    ['Nonce tìm được', mode => mode === 'pow' ? number(c.results.pow?.block?.nonce) : 'Không áp dụng'],
+    ['Số lần băm', mode => mode === 'pow' ? number(c.results.pow?.attempts) : 'Không áp dụng'],
+    ['Validator ký block', mode => mode === 'pos' ? c.results.pos?.signer?.name || 'Chưa có dữ liệu' : 'Không áp dụng'],
+    ['Stake của validator', mode => mode === 'pos' ? number(c.results.pos?.signer?.stake) : 'Không áp dụng'],
+  ];
+  const summary = $('comparison-summary'); summary.replaceChildren();
+  for (const [label, value] of rows) {
+    const row = document.createElement('tr'); summary.append(row);
+    chainText(row, 'th', label).setAttribute('scope', 'row');
+    for (const mode of modes) chainText(row, 'td', value(mode));
+  }
+}
+
 function showComparison() {
   const c = comparison;
+  showComparisonSummary();
   formBusy('comparison-form', c.busy);
   $('comparison-pow').checked = c.mode === 'pow'; $('comparison-pos').checked = c.mode === 'pos';
   $('comparison-submit').textContent = c.busy ? 'Đang tạo block thật trên backend…' : `Chạy ${c.mode === 'pow' ? 'PoW' : 'PoS'} trên mạng lab riêng`;
@@ -924,6 +953,7 @@ async function resetTamperLab() {
 }
 
 (function setupLabs() {
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateMerkleScrollHint).observe($('merkle-tree'));
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     $('theme-toggle').textContent = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';

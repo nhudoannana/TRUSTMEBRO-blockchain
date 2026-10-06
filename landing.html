@@ -266,6 +266,14 @@ html[data-theme="light"] section:not(.landing-hero),html[data-theme="light"] foo
 @media(max-width:900px){.new-nav nav{gap:15px}.nav-utilities{gap:12px}}
 @media(max-width:700px){.about-section{padding:65px 24px}.about-grid{grid-template-columns:1fr;gap:35px}.tool-grid{grid-template-columns:1fr;gap:14px}.new-nav .nav-source{display:none}.about-section h2{font-size:34px}}
 </style><style>
+/* The small demos retain their dark surface in both themes. */
+.feature-demo{color:#a3b3c9}
+.feature-demo [style*="color:"]{color:inherit!important}
+.feature-demo .demo-input{color:#60a5fa!important}
+.feature-demo .demo-value{color:#fbbf24!important}
+html[data-theme="light"] #features .feature-demo [style*="color:"]{color:#a3b3c9!important}
+html[data-theme="light"] #features .feature-demo .demo-input{color:#60a5fa!important}
+html[data-theme="light"] #features .feature-demo .demo-value{color:#fbbf24!important}
 /* Alternative hero: retain the original editorial typography, centered hierarchy. */
 .hero-copy{max-width:1100px;margin-top:70px}.hero-copy h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(3.3rem,6.4vw,6.1rem);font-weight:400;line-height:1.08;letter-spacing:-.035em;text-wrap:balance}.hero-copy h1 span{display:inline-block;margin-top:7px;font-size:.81em;font-style:italic;color:#ead9b5}.hero-description{max-width:650px;margin-top:27px}.hero-actions{margin-top:30px}.chain-preview{margin-top:48px}.wordmark{font-family:'DM Serif Display',Georgia,serif;font-size:23px;font-weight:400}.wordmark>span:last-child{font-style:italic}.hero-copy .eyebrow{margin-bottom:24px}
 html[data-theme="light"] .hero-copy h1 span{color:#876338}
@@ -335,11 +343,11 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Băm SHA-256</h3>
                     <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Thay đổi nhỏ ở đầu vào thường làm khoảng một nửa số bit hash thay đổi qua nhiều lần thử; mỗi lần không cần đạt đúng 50%. Đây là hiệu ứng Avalanche của SHA-256.</p>
                     <!-- Mini hash demo -->
-                    <div style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                    <div class="feature-demo" style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
                         <div style="color: rgba(255,255,255,0.35); margin-bottom: 6px;">INPUT:</div>
-                        <div style="color: #60a5fa; margin-bottom: 12px;">"Nguyễn Văn An — Cử nhân KHMT"</div>
+                        <div class="demo-input" style="color: #60a5fa; margin-bottom: 12px;">"Nguyễn Văn An — Cử nhân KHMT"</div>
                         <div style="color: rgba(255,255,255,0.35); margin-bottom: 6px;">SHA-256 OUTPUT:</div>
-                        <div style="color: #fbbf24; word-break: break-all;" id="hashDemo">e3b0c44298fc1c14...loading</div>
+                        <div class="demo-value" style="color: #fbbf24; word-break: break-all;" id="hashDemo">e3b0c44298fc1c14...loading</div>
                     </div>
                 </div>
 
@@ -363,11 +371,11 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Đào khối Proof of Work</h3>
                     <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Thử hàng ngàn nonce để tìm hash bắt đầu bằng "000..." — trải nghiệm trực tiếp cơ chế đồng thuận Nakamoto.</p>
                     <!-- Mini mining animation -->
-                    <div style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                    <div class="feature-demo" style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
                         <div style="color: rgba(255,255,255,0.35);">MINING BLOCK #4...</div>
                         <div style="margin-top: 8px;">
                             <span style="color: rgba(255,255,255,0.45);">Nonce: </span>
-                            <span style="color: #fbbf24;" id="miningNonce">0</span>
+                            <span class="demo-value" style="color: #fbbf24;" id="miningNonce">0</span>
                             <span style="color: rgba(255,255,255,0.3); margin-left: 16px;">Hash: </span>
                             <span style="color: rgba(255,255,255,0.45);" id="miningHash">calculating...</span>
                         </div>
@@ -607,6 +615,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
             { text: ', block.hash);', color: '#fff' },
         ];
 
+        const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         let codeStarted = false;
         const codeObserver = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && !codeStarted) {
@@ -616,14 +625,26 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
         }, { threshold: 0.3 });
 
         const codeEl = document.getElementById('codeTyping');
-        if (codeEl) codeObserver.observe(codeEl);
+        if (codeEl) {
+            if (reducedMotion.matches) typeCode();
+            else codeObserver.observe(codeEl);
+        }
 
         function typeCode() {
             const el = document.getElementById('codeTyping');
-            el.innerHTML = '';
+            el.replaceChildren();
+            if (reducedMotion.matches) {
+                codeLines.forEach(seg => {
+                    const span = document.createElement('span');
+                    span.style.color = seg.color; span.textContent = seg.text;
+                    el.appendChild(span);
+                });
+                return;
+            }
             let segIdx = 0, charIdx = 0;
 
             function typeNext() {
+                if (reducedMotion.matches) { typeCode(); return; }
                 if (segIdx >= codeLines.length) return;
                 const seg = codeLines[segIdx];
                 if (charIdx === 0) {
@@ -655,6 +676,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                         const duration = 1500;
                         const start = performance.now();
                         function update(now) {
+                            if (reducedMotion.matches) { el.textContent = target; return; }
                             const elapsed = now - start;
                             const progress = Math.min(elapsed / duration, 1);
                             const eased = 1 - Math.pow(1 - progress, 3);
@@ -668,7 +690,10 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
             });
         }, { threshold: 0.5 });
 
-        document.querySelectorAll('#stats .section-below').forEach(el => countObserver.observe(el));
+        document.querySelectorAll('#stats .section-below').forEach(el => {
+            if (reducedMotion.matches) el.querySelectorAll('[data-count]').forEach(number => { number.textContent = number.dataset.count; });
+            else countObserver.observe(el);
+        });
 
 
         // ========== 6. HASH DEMO ==========
