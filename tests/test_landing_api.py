@@ -115,29 +115,38 @@ def test_about_roster_maps_assignments_by_name(client):
         def __init__(self, html):
             super().__init__()
             self.rows = []
+            self.headings = []
+            self.in_heading = False
             self.in_body = False
             self.in_value = False
             self.feed(html)
 
         def handle_starttag(self, tag, attrs):
             attrs = dict(attrs)
-            if tag == 'tbody':
+            if tag == 'ol' and attrs.get('id') == 'team-members':
                 self.in_body = True
-            if tag == 'tr' and self.in_body:
+            if tag == 'li' and self.in_body:
                 self.rows.append([])
+            if tag == 'h4' and self.in_body:
+                self.in_heading = True
+                self.headings.append('')
             if tag == 'span' and self.in_body and attrs.get('class') == 'member-value':
                 self.in_value = True
                 self.rows[-1].append('')
 
         def handle_endtag(self, tag):
-            if tag == 'tbody':
+            if tag == 'ol':
                 self.in_body = False
             if tag == 'span':
                 self.in_value = False
+            if tag == 'h4':
+                self.in_heading = False
 
         def handle_data(self, text):
             if self.in_value:
                 self.rows[-1][-1] += text
+            if self.in_heading:
+                self.headings[-1] += text
 
     roster = [
         ('Đoàn Nguyễn Quỳnh Như', '031340240021', 'Trưởng nhóm'),
@@ -158,7 +167,12 @@ def test_about_roster_maps_assignments_by_name(client):
         'Phạm Thị Hồng Thắm': 'SHA-256, chữ ký số ECDSA, cây Merkle và Merkle proof.',
     }
     html = client.get('/landing.html').text
-    rows = Members(html).rows
+    members = Members(html)
+    rows = members.rows
+    assert members.headings == ['Khối & Proof of Work', 'Kiểm thử & Demo',
+                                'Báo cáo & Tài liệu', 'Mạng P2P & Đồng bộ',
+                                'Giao dịch & Đồng thuận', 'Rà soát & Thuyết trình',
+                                'Mã băm & Chữ ký số']
     assert len(rows) == len(roster)
     readme_rows = {}
     for line in Path('README.md').read_text(encoding='utf-8').splitlines():
@@ -186,11 +200,36 @@ def test_about_logo_is_public_static_png(client):
     parser.feed(client.get('/landing.html').text)
     image = parser.logo
     assert image['alt'] == 'Logo Trường Đại học Ngân hàng TP. Hồ Chí Minh (HUB)'
-    assert int(image['width']) == int(image['height']) > 0
+    assert int(image['width']) > 0 and int(image['height']) > 0
     response = client.get(image['src'])
     assert response.status_code == 200
     assert response.headers['content-type'] == 'image/png'
     assert 'set-cookie' not in response.headers
-    assert response.content == Path('ui/assets/logo-hub.png').read_bytes()
+    assert response.content == Path('ui/assets/logo-hub-transparent.png').read_bytes()
     assert response.content[:8] == b'\x89PNG\r\n\x1a\n'
-    assert struct.unpack('>II', response.content[16:24]) == (1200, 1200)
+    assert struct.unpack('>II', response.content[16:24]) == (int(image['width']), int(image['height']))
+
+
+def test_transparent_logo_preserves_original_colors_and_internal_white():
+    import hashlib
+    from PIL import Image
+
+    source = Path('ui/assets/logo-hub.png')
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == '86c28a8960197a3528a68091925e946f8d45340870e6275ed3c21aef94931bfa'
+    original = Image.open(source).convert('RGB')
+    derivative = Image.open('ui/assets/logo-hub-transparent.png')
+    assert derivative.mode == 'RGBA'
+    assert derivative.size == (732, 814)
+    assert derivative.getpixel((0, 0))[3] == 0
+    assert derivative.getpixel((731, 0))[3] == 0
+    # White lettering and circuitry, including an opening to the exterior,
+    # stay opaque: removing every white pixel or a plain flood-fill fails here.
+    for x, y in [(430, 340), (500, 565), (738, 505)]:
+        assert original.getpixel((x, y)) == (255, 255, 255)
+        assert derivative.getpixel((x - 234, y - 193)) == (255, 255, 255, 255)
+    cropped = original.crop((234, 193, 966, 1007))
+    assert derivative.convert('RGB').tobytes() == cropped.tobytes()
+    colors = cropped.tobytes()
+    for index, alpha in enumerate(derivative.getchannel('A').tobytes()):
+        if colors[index * 3:index * 3 + 3] != b'\xff\xff\xff':
+            assert alpha == 255

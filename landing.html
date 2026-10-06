@@ -300,27 +300,35 @@ html[data-theme="light"] .hero-copy h1 span{color:#876338}
 .start-button{display:inline-flex;align-items:center;gap:24px;background:#faf7f8;color:#171216;padding:17px 24px;min-height:54px;border-radius:14px;text-decoration:none;font-size:15px;font-weight:600;transition:transform 160ms cubic-bezier(.23,1,.32,1),background-color 160ms ease,box-shadow 160ms ease;box-shadow:0 8px 30px rgba(0,0,0,0.3)}.start-button:active{transform:scale(.97)}.start-button:hover{background:#fff;transform:translateY(-2px);box-shadow:0 12px 35px rgba(212,168,85,0.25)}.start-button span{font-size:20px;color:#607995}
 html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light"] .landing-hero::before{background:linear-gradient(180deg,#bfcee5 0%,#d6e0ee 28%,#e5d6b8 58%,#e8c587 75%,#f6f5f7 100%)}html[data-theme="light"] .landing-hero::after{background:linear-gradient(180deg,#ffffff18,#ffffff20 45%,#f6f5f780)}html[data-theme="light"] .letter-glitch{opacity:.28}html[data-theme="light"] .glitch-center-vignette{background:radial-gradient(ellipse at 50% 40%,rgba(231,235,243,.91) 0%,rgba(235,235,234,.52) 36%,transparent 75%)}html[data-theme="light"] .new-nav{background:#f9fbfde0;border-color:#839ab442}html[data-theme="light"] .wordmark>span:last-child{color:#7c6040}html[data-theme="light"] .hero-copy .eyebrow{color:#476487}html[data-theme="light"] .hero-copy h1{color:#20354f;text-shadow:none}html[data-theme="light"] .hero-copy h1 span{color:#876338}html[data-theme="light"] .hero-description{color:#465b74}html[data-theme="light"] .simulation-note{color:#576c85}html[data-theme="light"] .process-link{color:#435c7b;border-color:#6b7f9540}html[data-theme="light"] .start-button{background:#294463;color:white;box-shadow:0 8px 24px rgba(41,68,99,0.25)}html[data-theme="light"] .start-button:hover{background:#35567d;box-shadow:0 12px 30px rgba(41,68,99,0.35)}html[data-theme="light"] .start-button span{color:#e1ebf7}html[data-theme="light"] .chain-heading{color:#546883}html[data-theme="light"] .preview-block{background:#f8fbfce6;border-color:#7990af40}html[data-theme="light"] .preview-block strong{color:#33475f}html[data-theme="light"] .preview-block code,html[data-theme="light"] .block-top{color:#5a7090}html[data-theme="light"] .block-glyph{color:#8b6840}html[data-theme="light"] .hero-bottom,html[data-theme="light"] .hero-bottom a{color:#54677f;border-color:#7f90a536}html[data-theme="light"] .glitch-toggle{color:#425d7f;border-color:#7d90ae4d;background:#ffffff6b}
 @media(max-width:600px){.hero-bottom{gap:14px}.hero-bottom>a{display:none}.letter-glitch{opacity:.25}.glitch-toggle{font-size:10px}.hero-copy h1{font-size:clamp(2.8rem,10.8vw,4.2rem)}}
-.about-section{--about-text:#f0f4fa;--about-secondary:#a3b3c9;--about-rule:#ccd9ee28}
+.about-section{--about-text:#f0f4fa;--about-secondary:#a3b3c9;--about-rule:#ccd9ee28;--member-surface:#101d31;--member-surface-alt:#16253c;--logo-backing:#c3d0e2}
 .about-project{display:grid;grid-template-columns:220px minmax(0,1fr);align-items:center;gap:32px;margin:34px 0}
-.about-project-logo{display:block;width:220px;height:auto;max-width:100%;background:#fff}
+.about-logo-frame{width:220px;padding:16px;border-radius:12px;background:var(--logo-backing)}
+.about-project-logo{display:block;width:100%;height:auto}
 .about-project-text .about-university{font-size:20px;line-height:1.5;color:var(--about-text);margin:0 0 12px}
 .about-project-text h3{font-size:28px;margin:0 0 12px}.about-supervisor{font-size:15px;color:var(--about-secondary);line-height:1.6;margin:0}
 .about-section .members-heading{margin:34px 0 16px}
-.team-table{width:100%;table-layout:fixed;border-collapse:collapse;color:var(--about-text);font-size:14px;line-height:1.6}
-.team-table col:nth-child(1){width:48px}.team-table col:nth-child(2){width:26%}.team-table col:nth-child(3){width:156px}.team-table col:nth-child(4){width:132px}
-.team-table th,.team-table td{padding:14px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--about-rule);overflow-wrap:anywhere}
-.team-table thead th{color:var(--about-secondary);font-size:12px;font-weight:500}.team-table tbody th{font-weight:500}
-.team-table .student-id{white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums}
-.member-label{display:none}.about-section .member-repository{margin:18px 0 0}
-html[data-theme="light"] .about-section{--about-text:#20354f;--about-secondary:#465b74;--about-rule:#839ab430}
-@media(max-width:800px){
- .about-project{grid-template-columns:1fr;gap:20px}.about-project-logo{width:220px}
- .team-table,.team-table tbody{display:block;width:100%}.team-table colgroup{display:none}
- .team-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
- .team-table tbody tr{display:block;padding:14px 0;border-bottom:1px solid var(--about-rule)}
- .team-table tbody th,.team-table tbody td{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;padding:4px 0;border:0}
- .member-label{display:block;color:var(--about-secondary);font-weight:400;font-size:12px}
-}
+.members-help{font-size:13px;color:var(--about-secondary);margin:0 0 18px}
+.member-carousel{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 40px)/3);gap:20px;list-style:none;margin:0;padding:4px 0 16px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-color:var(--about-secondary) transparent}
+.responsibility-card{scroll-snap-align:start;min-width:0;padding:24px;border:1px solid var(--about-rule);border-radius:18px;background:var(--member-surface);color:var(--about-text);overflow-wrap:anywhere}
+.responsibility-card:nth-child(3n+2){background:var(--member-surface-alt)}
+.about-section .member-number{font-size:12px;color:var(--about-secondary);margin:0 0 18px;font-variant-numeric:tabular-nums}
+.responsibility-card h4{font-size:22px;line-height:1.3;font-weight:500;margin:0 0 24px}
+.about-section .member-name{font-size:16px;line-height:1.5;font-weight:500;margin:0 0 8px}
+.about-section .student-id{font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;margin:0 0 6px;color:var(--about-secondary)}
+.about-section .member-role{font-size:13px;margin:0 0 18px;color:var(--about-secondary)}
+.about-section .member-assignment{font-size:14px;line-height:1.7;margin:0;color:var(--about-secondary)}
+.members-controls{display:flex;justify-content:flex-end;align-items:center;gap:18px;margin-top:12px}
+.members-controls[hidden]{display:none}
+.members-controls button{font:inherit;font-size:14px;min-height:44px;padding:10px 18px;background:var(--member-surface);color:var(--about-text);border:1px solid var(--about-rule);border-radius:8px;cursor:pointer}
+.members-controls button:hover:not(:disabled){background:var(--member-surface-alt)}
+.members-controls button:disabled{opacity:.45;cursor:default}
+.members-controls button:focus-visible,.member-carousel:focus-visible{outline:2px solid var(--about-secondary);outline-offset:4px}
+#members-position{font-size:13px;color:var(--about-secondary);font-variant-numeric:tabular-nums;min-width:55px;text-align:center}
+.about-section .member-repository{margin:18px 0 0}
+html[data-theme="light"] .about-section{--about-text:#20354f;--about-secondary:#465b74;--about-rule:#839ab430;--member-surface:#edf3fa;--member-surface-alt:#e4edf8;--logo-backing:#e9eff7}
+@media(max-width:1000px){.member-carousel{grid-auto-columns:calc((100% - 20px)/2)}}
+@media(max-width:600px){.about-project{grid-template-columns:1fr;gap:20px}.member-carousel{grid-auto-columns:100%}.responsibility-card{padding:22px}.members-controls{justify-content:space-between;gap:12px}}
+
 </style><link rel="stylesheet" href="/ui/theme-toggle.css">
 </head>
 <body>
@@ -544,23 +552,75 @@ html[data-theme="light"] .about-section{--about-text:#20354f;--about-secondary:#
 <section id="about" class="about-section" aria-labelledby="about-title"><div class="about-container">
 <p class="about-eyebrow">ABOUT US / NHÓM THỰC HIỆN</p><h2 id="about-title">Cùng xây dựng.<br>Cùng hiểu blockchain.</h2>
 <div class="about-project">
-  <img class="about-project-logo" src="/ui/assets/logo-hub.png" width="220" height="220" alt="Logo Trường Đại học Ngân hàng TP. Hồ Chí Minh (HUB)" loading="lazy">
+  <div class="about-logo-frame"><img class="about-project-logo" src="/ui/assets/logo-hub-transparent.png" width="732" height="814" alt="Logo Trường Đại học Ngân hàng TP. Hồ Chí Minh (HUB)" loading="lazy"></div>
   <div class="about-project-text"><p class="about-university">Trường Đại học Ngân hàng TP. Hồ Chí Minh</p><h3>Dự án nhóm 5</h3><p class="about-supervisor">Giảng viên hướng dẫn: TS. Nguyễn Hoài Đức</p></div>
 </div>
 <p class="about-intro">TrustMeBro là đồ án môn học mô phỏng quy trình phát hành, ghi nhận và kiểm tra tính toàn vẹn của hồ sơ bằng blockchain. Nhóm sử dụng dữ liệu giả lập để giúp người học tự thử các khái niệm qua từng thao tác.</p>
 <h3 id="members-title" class="members-heading">Nhóm thực hiện</h3>
-<table id="team-members" class="team-table" aria-labelledby="members-title">
-<colgroup><col><col><col><col><col></colgroup>
-<thead><tr><th scope="col">STT</th><th scope="col">Họ và tên</th><th scope="col">MSSV</th><th scope="col">Vai trò</th><th scope="col">Phân công</th></tr></thead>
-<tbody>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">1</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Đoàn Nguyễn Quỳnh Như</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240021</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Trưởng nhóm</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Cấu trúc khối, block header, PoW; điều phối kho mã nguồn.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">2</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Nguyễn Lê Phạm Lộc</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240015</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Kiểm thử, kịch bản demo, chuẩn bị video và Attack Simulator.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">3</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Huỳnh Thị Tuyết Mai</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240016</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Báo cáo dự án và tài liệu kỹ thuật.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">4</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Cai Thị Thảo Nguyên</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240019</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Mạng P2P và mô phỏng nhiều node.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">5</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Kiều Thị Yến Nhi</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240020</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Xác thực giao dịch, mempool; khai thác và đồng thuận phân tán.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">6</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Trần Quỳnh Ngọc Thảo</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240026</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">Rà soát tài liệu và hỗ trợ thuyết trình.</span></td></tr>
-<tr><td><span class="member-label" aria-hidden="true">STT</span><span class="member-value">7</span></td><th scope="row"><span class="member-label" aria-hidden="true">Họ và tên</span><span class="member-value">Phạm Thị Hồng Thắm</span></th><td class="student-id"><span class="member-label" aria-hidden="true">MSSV</span><span class="member-value">031340240027</span></td><td><span class="member-label" aria-hidden="true">Vai trò</span><span class="member-value">Thành viên</span></td><td><span class="member-label" aria-hidden="true">Phân công</span><span class="member-value">SHA-256, chữ ký số ECDSA, cây Merkle và Merkle proof.</span></td></tr>
-</tbody></table>
+<p id="members-help" class="members-help">Cuộn ngang hoặc dùng phím mũi tên để xem cả bảy thành viên.</p>
+<ol id="team-members" class="member-carousel" aria-labelledby="members-title" aria-describedby="members-help" tabindex="0">
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">1</span> / 07</p>
+<h4>Khối &amp; Proof of Work</h4>
+<p class="member-name"><span class="member-value">Đoàn Nguyễn Quỳnh Như</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240021</span></p>
+<p class="member-role"><span class="member-value">Trưởng nhóm</span></p>
+<p class="member-assignment"><span class="member-value">Cấu trúc khối, block header, PoW; điều phối kho mã nguồn.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">2</span> / 07</p>
+<h4>Kiểm thử &amp; Demo</h4>
+<p class="member-name"><span class="member-value">Nguyễn Lê Phạm Lộc</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240015</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">Kiểm thử, kịch bản demo, chuẩn bị video và Attack Simulator.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">3</span> / 07</p>
+<h4>Báo cáo &amp; Tài liệu</h4>
+<p class="member-name"><span class="member-value">Huỳnh Thị Tuyết Mai</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240016</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">Báo cáo dự án và tài liệu kỹ thuật.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">4</span> / 07</p>
+<h4>Mạng P2P &amp; Đồng bộ</h4>
+<p class="member-name"><span class="member-value">Cai Thị Thảo Nguyên</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240019</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">Mạng P2P và mô phỏng nhiều node.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">5</span> / 07</p>
+<h4>Giao dịch &amp; Đồng thuận</h4>
+<p class="member-name"><span class="member-value">Kiều Thị Yến Nhi</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240020</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">Xác thực giao dịch, mempool; khai thác và đồng thuận phân tán.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">6</span> / 07</p>
+<h4>Rà soát &amp; Thuyết trình</h4>
+<p class="member-name"><span class="member-value">Trần Quỳnh Ngọc Thảo</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240026</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">Rà soát tài liệu và hỗ trợ thuyết trình.</span></p>
+</li>
+<li class="responsibility-card">
+<p class="member-number"><span class="member-value">7</span> / 07</p>
+<h4>Mã băm &amp; Chữ ký số</h4>
+<p class="member-name"><span class="member-value">Phạm Thị Hồng Thắm</span></p>
+<p class="student-id">MSSV <span class="member-value">031340240027</span></p>
+<p class="member-role"><span class="member-value">Thành viên</span></p>
+<p class="member-assignment"><span class="member-value">SHA-256, chữ ký số ECDSA, cây Merkle và Merkle proof.</span></p>
+</li>
+</ol>
+<div id="members-controls" class="members-controls" hidden>
+<button id="members-previous" type="button" aria-controls="team-members" disabled>Trước</button>
+<span id="members-position" role="status" aria-live="polite" aria-atomic="true"></span>
+<button id="members-next" type="button" aria-controls="team-members">Tiếp theo</button>
+</div>
 <p class="member-repository"><a class="project-link" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">Xem mã nguồn dự án <span aria-hidden="true">↗</span></a></p>
 <h3 class="tools-heading">Công cụ đồng hành</h3><div class="tool-grid"><article class="tool-card"><span>01 / TRỢ LÝ AI</span><a href="https://claude.ai/" target="_blank" rel="noopener noreferrer">Claude ↗</a><p>Hỗ trợ phân tích và phát triển nội dung, mã nguồn.</p></article><article class="tool-card"><span>02 / TRỢ LÝ LẬP TRÌNH</span><a href="https://openai.com/codex/" target="_blank" rel="noopener noreferrer">Codex ↗</a><p>Hỗ trợ viết, rà soát mã nguồn và xây dựng giao diện.</p></article><article class="tool-card"><span>03 / MÔI TRƯỜNG PHÁT TRIỂN</span><a href="https://antigravity.google/" target="_blank" rel="noopener noreferrer">Antigravity ↗</a><p>Môi trường nhóm sử dụng để chỉnh sửa và chạy dự án.</p></article></div><p class="about-note">Nhóm chịu trách nhiệm kiểm tra, hiểu và hoàn thiện kết quả. TrustMeBro là mô phỏng phục vụ học tập, không xác minh pháp lý ngoài thực tế.</p></div></section>
 
@@ -834,5 +894,39 @@ html[data-theme="light"] .about-section{--about-text:#20354f;--about-secondary:#
  window.addEventListener('pagehide',()=>{if(raf)cancelAnimationFrame(raf);});window.addEventListener('pageshow',sync);
  resize();sync();
 })();
-</script></body>
+</script>
+<script id="member-carousel-script">
+(() => {
+  const track = document.getElementById('team-members');
+  const previous = document.getElementById('members-previous');
+  const next = document.getElementById('members-next');
+  const position = document.getElementById('members-position');
+  const cards = Array.from(track.children);
+  const left = card => card.offsetLeft - cards[0].offsetLeft;
+  function update() {
+    previous.disabled = track.scrollLeft <= 1;
+    next.disabled = track.scrollLeft >= track.scrollWidth - track.clientWidth - 1;
+    const visible = cards.map((card, i) => left(card) + card.offsetWidth > track.scrollLeft + 1 && left(card) < track.scrollLeft + track.clientWidth - 1 ? i + 1 : null).filter(Boolean);
+    position.textContent = (visible.length > 1 ? `${visible[0]}–${visible[visible.length - 1]}` : `${visible[0]}`) + ` / ${cards.length}`;
+  }
+  function move(direction) {
+    const current = cards.reduce((best, card, i) => Math.abs(left(card) - track.scrollLeft) < Math.abs(left(cards[best]) - track.scrollLeft) ? i : best, 0);
+    const target = Math.max(0, Math.min(cards.length - 1, current + direction));
+    track.scrollTo({left: left(cards[target]), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+  previous.onclick = () => move(-1);
+  next.onclick = () => move(1);
+  track.addEventListener('scroll', update);
+  track.addEventListener('keydown', event => {
+    if (event.target === track && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1);
+    }
+  });
+  new ResizeObserver(update).observe(track);
+  update();
+  document.getElementById('members-controls').hidden = false;
+})();
+</script>
+
+</body>
 </html>
