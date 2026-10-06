@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('outcome', ['mined', 'empty', 'remote_reset', 'local_reset', 'reset_after_result'])
+@pytest.mark.parametrize('outcome', ['mined', 'missing_metrics', 'empty', 'remote_reset', 'local_reset', 'reset_after_result'])
 def test_mining_ui_pending_and_session_guard(outcome):
     script = r"""
 const assert = require('node:assert/strict');
@@ -25,6 +25,7 @@ const record={credential_id:'cred',transaction:{tx_id:'signed-tx'}};
 const result={node_id:'Node-1',mined:outcome!=='empty',reason:outcome==='empty'?'Mempool trống — không có TX để mine':null,
   block:{height:1,hash:'000hash',previous_hash:'parent',merkle_root:'root',difficulty:3,nonce:10,transaction_count:1},
   transaction_ids:['signed-tx'],seconds:0.012,attempts:11,reset_count:outcome==='remote_reset'?1:0};
+if(outcome==='missing_metrics'){result.attempts=null;result.seconds=null;result.block.nonce=0;}
 context=vm.createContext({document,console,record,fetch:async(url,options={})=>{
   if(options.method==='POST'){
     posts++;
@@ -54,11 +55,21 @@ vm.runInContext('state.record=record;state.step=3;render=async()=>{};',context);
     if(outcome!=='local_reset')assert.match(document.getElementById('c-error').textContent,/reset/);
   }else{
     assert.equal(document.getElementById('p-submit').disabled,true); // no pending TXs: prevent an empty repeat
-    assert.equal(document.getElementById('p-next').disabled,outcome!=='mined');
+    assert.equal(document.getElementById('p-next').disabled,!result.mined);
     assert.equal(vm.runInContext('state.mempool.nodes[0].pending_count',context),0);
-    if(outcome==='mined'){
+    if(result.mined){
       assert.equal(vm.runInContext('state.block.hash',context),'000hash');
-      assert.match(document.getElementById('p-result').innerHTML,/0.012/);
+      const html=document.getElementById('p-result').innerHTML;
+      if(outcome==='missing_metrics'){
+        assert.match(html,/metric-number">0</);
+        assert.doesNotMatch(html,/metric-label">Số lần thử|NaN|metric-label">Thời gian/);
+        assert.match(html,/Không được trả về/);
+      }else{
+        assert.match(html,/metric-number">11</);
+        assert.match(html,/metric-number">10</);
+        assert.match(html,/0.012/);
+      }
+      assert.match(html,/<mark>000<\/mark>hash/);
       assert.match(document.getElementById('p-result').innerHTML,/signed-tx/);
     }else{
       assert.match(document.getElementById('p-status').textContent,/Mempool trống/);

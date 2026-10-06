@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only'])
+@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only', 'outcome_mapping'])
 def test_verification_ui(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -45,6 +45,24 @@ vm.runInContext(source.slice(0,source.indexOf('(function initTheme()')),context)
 vm.runInContext('state.record=record;state.step=5;state.mempool={generation:0};render=async()=>{}',context);
 (async()=>{
  await vm.runInContext('renderStep5()',context);
+ if(mode==='outcome_mapping'){
+  for(const status of ['VERIFIED','REVOKED','NOT_FOUND','INVALID']){
+   for(const match of [true,false,null]){
+    context.result={chain_status:{status,reason:'Actual reason <unsafe>',checks:[['actual check',false,'Exact failure <unsafe>']],info:metadata},node_id:'Node-3',node_status:'OFFLINE',presentation_match:match,mismatched_fields:match===false?['title']:[],local_chain_warning:'Actual stale warning'};
+    vm.runInContext('state.verification.result=result;showVerification(state.verification)',context);
+    const html=document.getElementById('v-result').innerHTML;
+    assert.match(html,/Actual reason &lt;unsafe&gt;/);assert.match(html,/Exact failure &lt;unsafe&gt;/);
+    assert.match(html,/Node-3 OFFLINE/);assert.match(html,/<details class="technical">/);
+    const headline=html.match(/<h3>(.*?)<\/h3>/)[1];
+    if(status==='VERIFIED'){
+      if(match===true)assert.match(headline,/xuất trình khớp/);
+      if(match===false)assert.match(headline,/không khớp/);
+      if(match===null){assert.doesNotMatch(headline,/xuất trình khớp/);assert.match(html,/Chưa so sánh/);}
+    }else assert.doesNotMatch(headline,/xuất trình khớp|đã xác minh/);
+   }
+  }
+  assert.equal(calls,0);return;
+ }
  document.getElementById('v-id').value='cred';document.getElementById('v-node').value='Node-1';document.getElementById('v-reason').value='Expired';
  if(mode==='mismatch'){document.getElementById('v-title').value='Edited';document.getElementById('v-title').oninput();}
  if(mode==='mine')vm.runInContext('state.verification.revocation={accepted:true,pending:true,tx_id:"revoke",reason:"accepted"}',context);

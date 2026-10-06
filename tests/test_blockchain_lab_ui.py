@@ -12,7 +12,7 @@ const testCase=process.argv[1],elements=new Map(),events={},calls=[];
 class Element{
  constructor(tag='div'){this.tag=tag;this.value='';this.children=[];this.hidden=false;this.disabled=false;this.textContent='';this.dataset={};}
  set id(value){this._id=value;elements.set(value,this);}get id(){return this._id;}
- append(...v){this.children.push(...v);}replaceChildren(...v){this.children=v;}focus(){}setAttribute(k,v){this[k]=v;}removeAttribute(k){delete this[k];}
+ append(...v){this.children.push(...v);}replaceChildren(...v){this.children=v;}focus(){this.focused=true;}scrollIntoView(options){this.scrolled=options;}setAttribute(k,v){this[k]=v;}removeAttribute(k){delete this[k];}
  querySelectorAll(){return this.id==='chain-form'?['chain-data','chain-difficulty','chain-add','chain-version','chain-timestamp'].map(id=>document.getElementById(id)):[];}
  set innerHTML(v){throw Error('Unsafe HTML rendering');}
 }
@@ -121,9 +121,27 @@ const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(h
  }
  if(testCase==='incomplete'){
   assert.equal(run('chainLab.result.chain.length'),1);assert.ok(text($('chain-summary')).includes('Actual limit <safe>'));
+  assert.ok(text($('chain-summary')).includes('Nonce ứng viên'));
+  assert.ok(!text($('chain-summary')).includes('Nonce tìm được'));
+  const metrics=find($('chain-summary'),e=>e.className==='result-metrics');
+  assert.equal(metrics.children[0].children[1].textContent,'27');
+  assert.equal(metrics.children[1].children[1].textContent,'28');
+  assert.equal(metrics.children[2].children[1].textContent,'0.002');
   assert.ok(text($('chain-evidence')).includes('"completed": false'));assert.equal($('chain-add').disabled,false);return;
  }
  assert.equal($('chain-previous').value,'hash-1');
+ const metrics=find($('chain-summary'),e=>e.className==='result-metrics');
+ assert.equal(metrics.children[0].children[1].textContent,'27');
+ assert.equal(metrics.children[1].children[1].textContent,'28');
+ if(testCase==='added_target'){
+  assert.equal($('chain-show-added').hidden,false);assert.equal(run('chainLab.lastAdded'),1);
+  assert.equal(card(1).scrolled,undefined);assert.equal(card(1).focused,undefined);
+  $('chain-show-added').onclick();assert.ok(card(1).scrolled);assert.equal(card(1).focused,true);
+  $('chain-data').value='Keep my draft';await run('chainLabAction("add")');
+  assert.equal(run('chainLab.lastAdded'),2);assert.equal($('chain-data').value,'Keep my draft');
+  $('chain-show-added').onclick();assert.ok(card(2).scrolled);assert.equal(calls.length,3);
+  $('chain-reset').onclick();await run('chainLab.initialization');assert.equal($('chain-show-added').hidden,true);return;
+ }
  const detail=find(card(1),e=>e.tag==='details');
  const serialized=find(detail,e=>e.tag==='pre'&&e.textContent.startsWith('{'));
  assert.deepEqual(JSON.parse(serialized.textContent).block,JSON.parse(run('JSON.stringify(chainLab.result.chain[1])')));
@@ -215,9 +233,32 @@ const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(h
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_add_form_precedes_chain_without_duplicate_controls():
+    from collections import Counter
+    from html.parser import HTMLParser
+
+    class Controls(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.ids = []
+
+        def handle_starttag(self, tag, attrs):
+            identifier = dict(attrs).get('id')
+            if identifier:
+                self.ids.append(identifier)
+
+    parser = Controls()
+    parser.feed(Path('ui/labs.html').read_text(encoding='utf-8'))
+    counts = Counter(parser.ids)
+    controls = ['chain-form', 'chain-data', 'chain-difficulty', 'chain-add',
+                'chain-add-reason', 'chain-status', 'chain-show-added', 'chain-result']
+    assert all(counts[name] == 1 for name in controls)
+    assert [parser.ids.index(name) for name in controls] == sorted(parser.ids.index(name) for name in controls)
+
+
 @pytest.mark.parametrize('case', ['flow', 'selection', 'inputs', 'error', 'incomplete',
                                   'reset', 'pagehide', 'rejection', 'reset_mining',
                                   'transaction_hashes', 'prefix_warning', 'add_reasons',
-                                  'difficulty_hint', 'edit_reasons', 'link_visualization'])
+                                  'difficulty_hint', 'edit_reasons', 'link_visualization', 'added_target'])
 def test_combined_chain_controls(case):
     run_chain_case(case)

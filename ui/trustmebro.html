@@ -69,16 +69,17 @@ button:active:not(:disabled) { transform:scale(.98); }
 .eyebrow,.mono { font-family:'JetBrains Mono',monospace; }
 
 /* ── Intro ── */
-.intro { position:relative; padding:50px 0 30px; }
+.intro { position:relative; padding:24px 0 16px; }
 .intro::before { content:""; position:absolute; z-index:-1; inset:-120px -40px -60px; background:radial-gradient(ellipse 65% 80% at 80% 0%,var(--glow),transparent 75%); pointer-events:none; }
 .eyebrow { font-size:11px; letter-spacing:.13em; color:var(--accent); margin:0 0 17px; }
-.intro h1 { font:500 clamp(32px,4vw,51px)/1.13 Inter,system-ui,sans-serif; letter-spacing:-.05em; margin:0 0 18px; }
+.intro h1 { font:500 clamp(24px,3vw,32px)/1.2 Inter,system-ui,sans-serif; letter-spacing:-.04em; margin:0 0 10px; }
 .intro-row { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; }
 .intro p.lead { font-size:16px; line-height:1.75; color:var(--muted); max-width:680px; margin:0; }
 .demo-label { color:var(--brand); border:1px solid var(--line-strong); padding:7px 12px; border-radius:8px; font-size:12px; white-space:nowrap; margin-bottom:5px; }
 
 /* ── Journey steps nav ── */
-.journey { margin:0 0 40px; padding:0; display:grid; grid-template-columns:repeat(6,1fr); gap:12px; list-style:none; }
+.journey { margin:0 0 20px; padding:0; display:grid; grid-template-columns:repeat(6,1fr); gap:12px; list-style:none; }
+.journey-nav { position:sticky; top:0; z-index:10; background:var(--bg); padding-top:8px; }
 .step { position:relative; border:0; border-top:2px solid var(--line-strong); background:none; color:var(--soft); text-align:left; width:100%; padding:18px 0 0; min-height:82px; display:flex; gap:10px; align-items:flex-start; border-radius:0; }
 .step .n { font:11px 'JetBrains Mono',monospace; margin-top:3px; }
 .step .step-name { font-size:13px; line-height:1.45; }
@@ -89,7 +90,10 @@ button:active:not(:disabled) { transform:scale(.98); }
 
 /* ── Workspace ── */
 .workspace { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(260px,.85fr); gap:68px; align-items:start; padding-bottom:60px; }
-.stage-heading { margin-bottom:28px; }
+.stage-heading { margin-bottom:20px; }
+.stage-heading #journey-summary { margin:12px 0 0; padding:12px 16px; background:var(--surface); border-radius:12px; }
+#journey-summary p { margin:0 0 6px; }#journey-summary p:last-child { margin:0; }
+.session-notice { font-size:13px; color:var(--muted); margin:12px 0; }.session-details { margin:8px 0 16px; color:var(--muted); font-size:13px; }
 .stage-heading .eyebrow { font-size:11px; margin-bottom:10px; color:var(--soft); }
 h2 { font-size:30px; line-height:1.2; letter-spacing:-.04em; font-weight:500; margin:0 0 12px; }
 p { margin:0 0 16px; }
@@ -210,10 +214,10 @@ html[data-theme="light"] {
   .shell { padding:12px 20px 0; }
   .masthead { padding:14px; border-radius:16px; gap:10px; flex-wrap:wrap; }
   .brand { font-size:18px; }
-  .intro { padding:44px 0 28px; }
+  .intro { padding:20px 0 12px; }
   .intro::before { left:-20px; right:-20px; }
   .intro-row { display:block; }
-  .intro h1 { font-size:35px; }
+  .intro h1 { font-size:26px; }
   .journey { grid-template-columns:repeat(3,1fr); gap:14px 12px; margin-bottom:30px; }
   .step { padding:12px 0 0; min-height:64px; }
   .workspace { grid-template-columns:1fr; gap:38px; padding-bottom:38px; }
@@ -224,6 +228,7 @@ html[data-theme="light"] {
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation:none!important; transition:none!important; }
 }
+.result-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin:18px 0}.result-metric{min-width:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-raised)}.metric-label{display:block;color:var(--muted);font-size:13px}.metric-number{display:inline-block;font-size:clamp(24px,3vw,34px);line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metric-unit{margin-left:6px;font-size:13px;color:var(--muted)}mark{background:var(--surface-raised);color:var(--success);font-weight:700}.result-context{color:var(--focus);overflow-wrap:anywhere}.network-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px}.network-card{min-width:0;border:1px solid var(--line-strong);border-radius:16px;padding:16px;background:var(--surface)}.node-badge{font-size:13px;border-left:3px solid var(--accent);padding-left:10px}.result-summary.warning{border-color:var(--focus)}.result-summary.warning h3{color:var(--text)}
 </style>
 </head>
 <body>
@@ -247,25 +252,26 @@ html[data-theme="light"] {
     <p class="eyebrow">TRUSTMEBRO / BLOCKCHAIN SIMULATION</p>
     <div class="intro-row">
       <div>
-        <h1>Từ một hồ sơ.<br>Đến một bằng chứng.</h1>
+        <h1>Từ hồ sơ đến bằng chứng</h1>
         <p class="lead">Đi từng bước để hiểu một hồ sơ được ký, ghi vào blockchain và kiểm tra tính toàn vẹn như thế nào.</p>
       </div>
-      <span class="demo-label">Bản tích hợp · Ví thật từ backend</span>
+      <span class="demo-label">Mô phỏng học tập · Ví ký bằng ECDSA</span>
     </div>
   </section>
 
-  <p class="info-strip">Trình duyệt này có phiên mô phỏng riêng; các tab cùng trình duyệt dùng chung phiên. Đặt lại chỉ xóa dữ liệu phiên này. Server khởi động lại hoặc phiên hết hạn có thể xóa dữ liệu; đây không phải mạng nhiều máy độc lập.</p>
+  <p class="session-notice">Các tab cùng trình duyệt dùng chung phiên mô phỏng.</p>
+  <details class="session-details"><summary>Thông tin phiên</summary><p>Trình duyệt này có phiên mô phỏng riêng. Đặt lại chỉ xóa dữ liệu phiên này. Máy chủ khởi động lại hoặc phiên hết hạn có thể xóa dữ liệu; đây không phải mạng nhiều máy độc lập.</p></details>
   <p id="reset-error" class="status-error" role="alert" hidden></p>
 
   <!-- Journey nav -->
-  <nav aria-label="Các bước mô phỏng">
+  <nav class="journey-nav" aria-label="Các bước mô phỏng">
     <ol class="journey" id="journey"></ol>
   </nav>
 
   <!-- Workspace -->
-  <section class="info-strip" aria-label="Mục tiêu và bước tiếp theo">
+  <section id="journey-summary" class="info-strip" aria-label="Mục tiêu, kết quả và bước tiếp theo">
     <p><strong>Mục tiêu:</strong> <span id="journey-goal"></span></p>
-    <p id="journey-observed" role="status"></p>
+    <p><strong>Kết quả:</strong> <span id="journey-observed" role="status"></span></p>
     <p><strong>Tiếp theo:</strong> <span id="journey-next"></span></p>
   </section>
   <div class="workspace">
@@ -328,10 +334,10 @@ const STEP_LABELS = [
 const EXPLANATIONS = [
   ['BẠN ĐANG CHUẨN BỊ', 'Tại sao cần ví?',
    'Trong hệ thống thật, người phát hành dùng <strong>khoá riêng để ký</strong>. Người kiểm tra dùng khoá công khai tương ứng để kiểm tra chữ ký.',
-   'Bước này kết nối backend thật. Ví được tạo bằng ECDSA; khoá riêng lưu trên server, không bao giờ truyền về browser.'],
+   'Ví ký bằng ECDSA trong mô phỏng; khóa riêng giữ trên máy chủ, không gửi về trình duyệt.'],
   ['HỒ SƠ ĐANG ĐƯỢC TẠO', 'Chữ ký nói lên điều gì?',
    'Chữ ký giúp kiểm tra hồ sơ được ký bằng khoá tương ứng và <strong>nội dung không bị thay đổi</strong> sau khi ký.',
-   'Backend ký transaction bằng ECDSA từ ví đã chọn. Đã tạo và ký — chưa gửi vào mempool.'],
+   'Giao dịch được ký bằng ECDSA từ ví đã chọn. Đã tạo và ký — chưa gửi vào mempool.'],
   ['TRƯỚC KHI VÀO BLOCK', 'Mempool là gì?',
    'Hồ sơ đã kiểm tra có thể được đưa vào <strong>hàng đợi giao dịch</strong>, chờ đưa vào block.',
    'Node backend kiểm tra giao dịch đã ký trước khi nhận. Snapshot mempool được đọc thật theo từng node; broadcast qua queue là bất đồng bộ.'],
@@ -472,7 +478,7 @@ function journeyGuidance() {
     next = canContinue(2) ? 'Mở Tạo block và kiểm tra node có giao dịch đang chờ.' : 'Cần hồ sơ đã ký và node ONLINE; gửi hoặc làm mới để đọc kết quả thực.';
   } else if (step === 3) {
     observed = p?.pending || p?.enabling ? 'Đang xử lý; chỉ kết luận khi backend trả kết quả, không có tiến độ phần trăm giả.'
-      : p?.result ? p.result.mined || p.result.forged ? 'Backend đã tạo block; peer có thể chưa áp dụng xong.' : `Chưa tạo block: ${p.result.reason}`
+      : p?.result ? p.result.mined || p.result.forged ? 'Đã tạo block; các node khác có thể chưa nhận xong.' : `Chưa tạo block: ${p.result.reason}`
       : state.block ? 'Có block đã tạo trước đó trong workflow.' : 'Chưa có kết quả tạo block.';
     next = canContinue(3) ? 'Mở Kiểm tra và đồng bộ mạng để đọc các bản sao.' : 'Chọn node ONLINE có giao dịch chờ. Nếu không tạo được block, đọc lý do rồi làm mới trước khi thử lại.';
   } else if (step === 4) {
@@ -496,8 +502,15 @@ function journeyGuidance() {
   }
   return { goal: JOURNEY_GOALS[step], observed, next };
 }
+const journeySummary = $('journey-summary');
 function showJourneyGuidance() {
+  const heading = $('stage').querySelector?.('.stage-heading');
+  if (heading && journeySummary.parentNode !== heading) heading.append(journeySummary);
   const hint = journeyGuidance();
+  const next = $(['w-next-btn', 'c-next', 'm-next', 'p-next', 'n-next'][state.step]);
+  if (state.step < 5 && canContinue(state.step) && next && !next.disabled && next.textContent.trim()) {
+    hint.next = `Bấm “${next.textContent.trim()}”.`;
+  }
   const error = $(['w-error', 'c-error', 'm-error', 'p-error', 'n-error', 'v-error'][state.step]);
   if (error && !error.hidden && error.textContent) hint.observed = 'Thao tác chưa hoàn tất: ' + error.textContent;
   for (const [id, value] of [['journey-goal', hint.goal], ['journey-observed', hint.observed], ['journey-next', hint.next]]) {
@@ -589,23 +602,23 @@ async function renderStep0() {
     <div class="stage-heading">
       <p class="eyebrow">BƯỚC 01 / 06</p>
       <h2>Ai sẽ phát hành hồ sơ?</h2>
-      <p>Chọn ví của đơn vị phát hành từ danh sách thật từ backend, hoặc tạo ví mới bằng ECDSA.</p>
+      <p>Chọn ví phát hành có sẵn trong phiên mô phỏng, hoặc tạo ví mới bằng ECDSA.</p>
     </div>
 
     <div id="w-conn-error" class="status-error" hidden></div>
 
-    <span class="label">Ví Issuer có sẵn (từ backend):</span>
+    <span class="label">Ví phát hành có sẵn trong phiên:</span>
     <div id="w-list-area">
       <p class="status-loading" id="w-loading">Đang tải danh sách ví…</p>
     </div>
 
     <details id="w-create-section" style="margin-top:8px;">
-      <summary style="cursor:pointer;font-size:14px;margin-bottom:16px;">Tạo ví mới bằng ECDSA thật</summary>
+      <summary style="cursor:pointer;font-size:14px;margin-bottom:16px;">Tạo ví mới bằng ECDSA</summary>
       <div class="field">
         <label for="w-name">Tên đơn vị phát hành</label>
         <input id="w-name" maxlength="80" placeholder="Ví dụ: Trung tâm Đào tạo Ánh Dương" autocomplete="off">
         <p class="hint">Tên là nhãn hiển thị; khóa công khai xác định ví ký trong mô phỏng.</p>
-        <p class="hint">Ví được tạo thật bằng thư viện <code>cryptography</code>. Khoá riêng lưu server-side, không gửi về browser.</p>
+        <p class="hint">Ví ký bằng ECDSA; khóa riêng giữ trên máy chủ, không gửi về trình duyệt.</p>
       </div>
       <div class="actions" style="margin-top:16px;">
         <button class="secondary" id="w-create-btn">Tạo ví mới</button>
@@ -623,6 +636,7 @@ async function renderStep0() {
     </div>
     <p class="status-error" id="w-error" hidden></p>
   `;
+  showJourneyGuidance();
 
   // Wire buttons
   $('w-create-btn').onclick = handleCreateWallet;
@@ -808,7 +822,7 @@ function renderStep1() {
     <div class="stage-heading">
       <p class="eyebrow">BƯỚC 02 / 06</p>
       <h2>Phát hành &amp; ký hồ sơ</h2>
-      <p>Ví phát hành: ${esc(state.selectedWalletName)}. Backend xác định tên Issuer và ký bằng khóa của ví đã chọn.</p>
+      <p>Ví phát hành: ${esc(state.selectedWalletName)}. Tên đơn vị phát hành được lấy từ ví này; hồ sơ được ký bằng khóa của ví đã chọn.</p>
     </div>
     <form id="c-form">
       <div class="field"><label for="c-holder">Người học</label>
@@ -825,6 +839,7 @@ function renderStep1() {
     <div id="c-result" aria-live="polite"></div>
     <div class="actions"><button class="primary" id="c-next" disabled>Tiếp theo: Gửi vào mempool →</button></div>
   `;
+  showJourneyGuidance();
   $('c-form').onsubmit = handleCredentialCreate;
   showSignedCredential();
 }
@@ -976,6 +991,7 @@ async function renderStep2() {
     <div class="actions"><button class="primary" id="m-next" disabled>Tiếp theo: Tạo block →</button></div>
     <p id="m-propagation" class="hint" aria-live="polite"></p>
     <p class="hint">Tạo block bằng PoW hoặc PoS sau khi giao dịch được chấp nhận. Không tự chuyển bước trước khi bạn đọc kết quả.</p>`;
+  showJourneyGuidance();
   $('m-form').onsubmit = handleMempoolSubmit;
   $('m-refresh').onclick = () => refreshMempool(current, record, m, false);
   $('m-enable').onclick = () => enableJourneyNode('m');
@@ -1108,7 +1124,7 @@ async function renderStep3() {
     <form id="p-form">
       <fieldset class="mode-cards" id="p-mode"><legend>Cách tạo block</legend>
         <label class="mode-card"><input type="radio" id="p-mode-pow" name="consensus" value="pow"><strong>PoW</strong><small>Tìm nonce để hash đạt độ khó.</small></label>
-        <label class="mode-card"><input type="radio" id="p-mode-pos" name="consensus" value="pos"><strong>PoS</strong><small>Backend chọn validator theo trọng số stake để ký block.</small></label></fieldset>
+        <label class="mode-card"><input type="radio" id="p-mode-pos" name="consensus" value="pos"><strong>PoS</strong><small>Chọn validator theo trọng số stake để ký block.</small></label></fieldset>
       <div class="field"><label for="p-node">Node tạo block — giao dịch đang chờ</label><select id="p-node"></select></div>
       <p id="p-node-status" class="hint" aria-live="polite"></p>
       <button type="button" class="secondary" id="p-enable" hidden>Bật node này</button>
@@ -1120,6 +1136,7 @@ async function renderStep3() {
     <p id="p-error" class="status-error" role="alert" hidden></p>
     <div id="p-pos" hidden></div><details><summary>Mempool theo node</summary><div id="p-snapshots"></div></details><div id="p-network"></div>
     <p class="hint">Block được Node tự broadcast qua queue, các peer có thể cập nhật sau. Chọn bước 5 để xem trạng thái mạng hoặc đồng bộ node ONLINE. Bước 6 xác minh và thu hồi qua backend.</p>`;
+  showJourneyGuidance();
   $('p-form').onsubmit = handlePowMining;
   $('p-mode').value = p.mode;
   $('p-mode').onchange = async event => {
@@ -1152,6 +1169,17 @@ function showMiningNetwork(data) {
   $('p-network').innerHTML = `<p class="hint">Node ONLINE: ${data.online_nodes_agree ? 'cùng chiều cao và tip' : 'chưa xác nhận cùng chiều cao/tip'} · Chain ONLINE: ${data.online_nodes_valid ? 'hợp lệ' : 'chưa xác nhận hợp lệ'} · ${offline} node OFFLINE. Xem chi tiết ở bước 5.</p>`;
 }
 
+function metricHtml(label, value, unit, decimals) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+  return `<div class="result-metric"><span class="metric-label">${esc(label)}</span><strong class="metric-number">${esc(decimals == null ? value : value.toFixed(decimals))}</strong><span class="metric-unit">${esc(unit)}</span></div>`;
+}
+function miningMetricsHtml(result) {
+  return `<div class="result-metrics">${result.forged ? '' : metricHtml('Nonce tìm được', result.block.nonce, 'nonce') + metricHtml('Số lần thử', result.attempts, 'lần băm')}${metricHtml(result.forged ? 'Thời gian tạo block' : 'Thời gian', result.seconds, 'giây', 3)}</div>`;
+}
+function targetHashHtml(hash, difficulty) {
+  const zeros = Number.isInteger(difficulty) && difficulty > 0 && difficulty <= hash.length && hash.startsWith('0'.repeat(difficulty)) ? difficulty : 0;
+  return `<code>${zeros ? `<mark>${esc(hash.slice(0, zeros))}</mark>` : ''}${esc(hash.slice(zeros))}</code>`;
+}
 function showMining(p, m) {
   if (state.step !== 3 || !$('p-status')) return;
   const selected = p.nodeId || $('p-node').value;
@@ -1169,7 +1197,7 @@ function showMining(p, m) {
   $('p-refresh').disabled = busy;
   showContinuation(3, 'p-next');
   renderRail();
-  $('p-status').textContent = p.pending ? (p.mode === 'pos' ? 'Backend đang chọn validator, ký và kiểm tra block. Hãy chờ kết quả.' : 'Backend đang tìm nonce và kiểm tra block. Hãy chờ kết quả.')
+  $('p-status').textContent = p.pending ? (p.mode === 'pos' ? 'Đang chọn validator, ký và kiểm tra block. Hãy chờ kết quả.' : 'Đang tìm nonce và kiểm tra block. Hãy chờ kết quả.')
     : p.result ? (p.result.mined || p.result.forged ? `Đã tạo block ${p.result.forged ? 'PoS' : 'PoW'} tại ${p.result.node_id}.` : `Không tạo được block: ${p.result.reason}`)
     : 'Chưa tạo block. Số giao dịch đang chờ được đọc thật từ từng node.';
   $('p-pos').hidden = p.mode !== 'pos';
@@ -1191,8 +1219,11 @@ function showMining(p, m) {
   $('p-snapshots').innerHTML = m.nodes.map(n => `<div class="info-strip">${esc(n.node_id)} — ${esc(n.status)}: ${n.pending_count} giao dịch đang chờ</div>`).join('');
   const result = p.result;
   $('p-result').innerHTML = result && (result.mined || result.forged) ? `
+    ${p.pending ? '<p class="result-context">Đang chờ lượt tạo block mới — bên dưới là kết quả trước đó.</p>' : !$('p-error').hidden ? '<p class="result-context">Yêu cầu vừa gặp lỗi — bên dưới là kết quả trước đó.</p>' : ''}
     <section class="result-summary"><h3>Đã tạo block #${result.block.height} bằng ${result.forged ? 'PoS' : 'PoW'}</h3>
-      <p>${esc(result.node_id)} · ${result.block.transaction_count} giao dịch · ${Number(result.seconds).toFixed(3)} giây</p>
+      <p>${esc(result.node_id)} · ${result.block.transaction_count} giao dịch</p>
+      ${miningMetricsHtml(result)}
+      ${result.forged ? '' : `<p>Hash block: ${targetHashHtml(result.block.hash, result.block.difficulty)}</p><p class="hint">Chỉ tô các ký tự 0 đầu tiên đáp ứng độ khó ${esc(result.block.difficulty)}.</p>`}
       <p><a href="/ui/explorer.html?node_id=${encodeURIComponent(result.node_id)}&amp;height=${result.block.height}">Xem block vừa tạo →</a></p>
       ${result.forged ? `<p>Validator tạo block — ký block: ${publicValidatorHtml(result.signer)}</p>` : ''}
       <p class="hint">Đây là thời gian xử lý được đo, không phải mức tiêu thụ điện năng. Block đã được gửi qua queue; xem mạng để xác nhận lan truyền.</p>
@@ -1203,7 +1234,7 @@ function showMining(p, m) {
     <p>Merkle root: <code style="overflow-wrap:anywhere">${esc(result.block.merkle_root)}</code></p>
     <p>Transaction count: ${result.block.transaction_count}</p>
     ${result.transaction_ids.map(id => `<p>tx_id: <code style="overflow-wrap:anywhere">${esc(id)}</code></p>`).join('')}
-    <p>${result.forged ? `Thời gian gọi forge_pos_pending đo bởi API (tạo, ký, validate, append và queue broadcast): ${result.seconds} giây.` : `Thời gian vòng lặp PoW đo bởi backend: ${result.seconds} giây · ${result.attempts} lần hash đã thử.`}</p>
+    <p>${result.forged ? `Thời gian gọi forge_pos_pending đo bởi API (tạo, ký, validate, append và queue broadcast): ${result.seconds} giây.` : `Thời gian vòng lặp PoW: ${result.seconds == null ? 'Không được trả về' : result.seconds + ' giây'} · Số lần thử: ${result.attempts == null ? 'Không được trả về' : result.attempts + ' lần hash'}.`}</p>
     </details></section>` : '';
 }
 
@@ -1329,12 +1360,21 @@ async function renderStep4() {
     <details><summary>Event backend gần đây</summary><pre id="n-events" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
     <p class="hint">Snapshot nhất quán trong từng node, không phải ảnh chụp atomic toàn mạng. Pending count không chứng minh chain đồng bộ. Offline giữ lại node và chain; online tự yêu cầu catch-up qua queue.</p>
     <p class="hint">Chọn bước 6 để xác minh chain và hồ sơ xuất trình hoặc gửi yêu cầu thu hồi.</p>`;
+  showJourneyGuidance();
   $('n-refresh').onclick = () => loadNetwork(current, v, false);
   $('n-sync').onclick = () => networkOperation(`${API_BASE}/network/sync`, null);
   showNetwork(v);
   await loadNetwork(current, v, false);
 }
 
+function nodeTipLabel(node, nodes) {
+  if (node.status !== 'ONLINE') return 'OFFLINE — bản sao cục bộ có thể cũ';
+  const peers = nodes.filter(n => n.status === 'ONLINE' && n.node_id !== node.node_id);
+  if (!peers.length) return 'Chưa có node ONLINE khác để đối chiếu';
+  return node.tip_hash && peers.every(n => n.height === node.height && n.tip_hash === node.tip_hash)
+    ? 'Cùng height và tip với các node ONLINE khác'
+    : 'Khác height hoặc tip với node ONLINE khác';
+}
 function showNetwork(v) {
   if (state.step !== 4 || !$('n-summary')) return;
   const data = v.snapshot;
@@ -1348,17 +1388,20 @@ function showNetwork(v) {
     : !data ? 'Đang đọc trạng thái backend…'
     : !online.length ? 'Không có node ONLINE; không thể xác nhận đồng bộ.'
     : !data.online_nodes_valid ? 'Có chain ONLINE không hợp lệ; chưa đồng bộ.'
-    : data.all_nodes_synchronized ? 'Cả ba node ONLINE có chain hợp lệ, cùng height và tip hash.'
+    : data.all_nodes_synchronized ? 'Quan sát: cả ba node ONLINE có chuỗi hợp lệ, cùng height và tip hash. Đây là trạng thái khớp của các bản sao trong mô phỏng.'
     : data.online_nodes_synchronized ? `${online.length} node ONLINE đã đồng bộ chain hợp lệ. Node OFFLINE chưa được tính là bắt kịp.`
     : 'Các node ONLINE chưa đồng bộ: height hoặc tip hash khác nhau (kể cả cùng height nhưng khác tip).';
+  $('n-nodes').className = 'network-cards';
   $('n-nodes').innerHTML = (data?.nodes || []).map(n => `
-    <div class="info-strip"><strong>${esc(n.node_id)} — ${esc(n.status)}</strong>
-      <p>Height: ${n.height} · Block count (gồm genesis): ${n.block_count} · Pending: ${n.pending_count}</p>
-      <p>Tip hash: <code style="overflow-wrap:anywhere">${esc(n.tip_hash || 'Không có tip')}</code></p>
-      <p>Chain validity: ${n.chain_valid ? 'Hợp lệ' : 'Không hợp lệ'} — ${esc(n.validity_reason)}</p>
+    <article class="network-card"><h3>${esc(n.node_id)}</h3><p>${n.status === 'ONLINE' ? '● ONLINE — đang hoạt động' : '○ OFFLINE — bản sao có thể cũ'}</p>
+      <div class="result-metrics">${metricHtml('Chiều cao chuỗi (height)', n.height, 'khối sau genesis')}${metricHtml('Giao dịch đang chờ', n.pending_count, 'giao dịch')}</div>
+      <p class="node-badge">${esc(nodeTipLabel(n, data.nodes))}</p>
+      <p>Chuỗi: ${n.chain_valid ? '✓ Hợp lệ' : '✗ Không hợp lệ — ' + esc(n.validity_reason)}</p>
+      <p>Tip: <code>${esc(shortPub(n.tip_hash || 'Không có tip'))}</code></p>
+      <details class="technical"><summary>Chi tiết kỹ thuật</summary><p>Tip hash đầy đủ: <code>${esc(n.tip_hash || 'Không có tip')}</code></p><p>Số block gồm genesis: ${n.block_count}</p><p>${esc(n.validity_reason)}</p></details>
       <button class="secondary" id="n-toggle-${esc(n.node_id)}" data-node-status="${esc(n.node_id)}"
         data-online="${n.status !== 'ONLINE'}" ${v.busy ? 'disabled' : ''}>${n.status === 'ONLINE' ? 'Đặt OFFLINE' : 'Đưa ONLINE'}</button>
-    </div>`).join('');
+    </article>`).join('');
   document.querySelectorAll('[data-node-status]').forEach(button => {
     button.onclick = () => networkOperation(`${API_BASE}/network/nodes/${encodeURIComponent(button.dataset.nodeStatus)}/status`, { online: button.dataset.online === 'true' });
   });
@@ -1470,6 +1513,7 @@ async function renderStep5() {
       <button class="secondary" onclick="goToStep(4)">Kiểm tra / đồng bộ mạng</button></div>
     <p id="v-revocation" class="info-strip"></p>
     <p class="hint">REVOKE được ký bằng issuer gốc trong wallet_store. Thu hồi đang chờ phải mine tường minh, rồi sync và xác minh lại; endpoint thu hồi không tự mine.</p>`;
+  showJourneyGuidance();
   $('v-form').onsubmit = e => { e.preventDefault(); verificationOperation('verify', false); };
   $('v-id').oninput = () => {
     v.credentialId = $('v-id').value.trim();
@@ -1498,6 +1542,16 @@ async function renderStep5() {
   } catch (error) { if (state === current && state.step === 5) showError('v-error', error.message); }
 }
 
+function verificationOutcome(r) {
+  const status = r.chain_status.status;
+  if (status === 'VERIFIED') return r.presentation_match === false
+    ? ['Chuỗi hợp lệ, nhưng hồ sơ xuất trình không khớp', 'Bản ghi trên chuỗi được xác minh; hồ sơ xuất trình không được chấp nhận.']
+    : r.presentation_match === true ? ['Bản ghi đã xác minh; hồ sơ xuất trình khớp', 'Đã so sánh hồ sơ với bản ghi trên chuỗi. Đây không phải chứng nhận danh tính pháp lý.']
+    : ['Bản ghi trên chuỗi đã xác minh', 'Chưa so sánh hồ sơ xuất trình; VERIFIED theo ID không xác nhận một tài liệu xuất trình.'];
+  if (status === 'REVOKED') return ['Hồ sơ đã bị thu hồi', 'Bản ghi có trạng thái REVOKED; hồ sơ không được chấp nhận.'];
+  if (status === 'NOT_FOUND') return ['Chưa tìm thấy hồ sơ tại node này', 'NOT_FOUND trên bản sao cục bộ có thể do node chưa bắt kịp; chưa có bản ghi để so sánh.'];
+  return ['Xác minh không đạt — ' + status, 'Đọc lý do và kiểm tra thực tế bên dưới; không có kết quả chấp nhận.'];
+}
 function showVerification(v) {
   if (state.step !== 5) return;
   showJourneyGuidance();
@@ -1506,12 +1560,13 @@ function showVerification(v) {
   $('v-status').textContent = v.busy ? 'Đang chờ backend…' : !r ? (v.miningResult ? `Đã mine block ${v.miningResult.block.height}: ${v.miningResult.block.hash}. Hãy sync và xác minh lại.` : 'Chưa xác minh.')
     : r.chain_status.status === 'VERIFIED' && r.presentation_match === false ? 'Chuỗi hợp lệ, nhưng hồ sơ xuất trình không khớp'
     : `${r.chain_status.status} — ${r.node_id} ${r.node_status} — ${r.chain_status.reason}`;
-  $('v-result').innerHTML = !r ? '' : `<p>${esc(r.local_chain_warning || '')}</p>
+  const outcome = r && verificationOutcome(r);
+  $('v-result').innerHTML = !r ? '' : `${v.busy ? '<p class="result-context">Đang chờ lượt kiểm tra mới — bên dưới là kết quả trước đó.</p>' : !$('v-error').hidden ? '<p class="result-context">Yêu cầu vừa gặp lỗi — bên dưới là kết quả trước đó.</p>' : ''}<section class="result-summary${r.chain_status.status === 'VERIFIED' && r.presentation_match !== false ? '' : ' warning'}"><h3>${esc(outcome[0])}</h3><p>${esc(outcome[1])}</p><p>${esc(r.chain_status.status)} — ${esc(r.node_id)} ${esc(r.node_status)}</p><p>${esc(r.chain_status.reason)}</p><p>${esc(r.local_chain_warning || '')}</p>
     <p>Presentation match: ${r.presentation_match === null ? 'Không so sánh' : r.presentation_match} · Trường không khớp: ${esc(r.mismatched_fields.join(', ') || '—')}</p>
     <p>Bản ghi on-chain đã xác minh: ${r.chain_status.status === 'VERIFIED'}. ${r.presentation_match === null ? 'Chưa so sánh hồ sơ xuất trình; VERIFIED theo ID không xác nhận một tài liệu xuất trình.' : `Hồ sơ xuất trình được chấp nhận: ${r.chain_status.status === 'VERIFIED' && r.presentation_match === true}.`}</p>
     ${['VERIFIED','REVOKED'].includes(r.chain_status.status) ? `<p>Issuer trên chain: <strong>${esc(r.chain_status.info.issuer_name)}</strong><br>Public key: <code style="overflow-wrap:anywhere">${esc(r.chain_status.info.issuer_public_key || 'Không có')}</code>${r.chain_status.info.issuer_address ? `<br>Address: ${esc(r.chain_status.info.issuer_address)}` : ''}</p>` : ''}
-    <ul>${r.chain_status.checks.map(([name,passed,reason]) => `<li>${passed ? '✓' : '✗'} ${esc(name)}: ${esc(reason)}</li>`).join('')}</ul>
-    <pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(r.chain_status.info,null,2))}</pre>`;
+    <details class="technical"><summary>Chi tiết kỹ thuật — các kiểm tra và bản ghi</summary><ul>${r.chain_status.checks.map(([name,passed,reason]) => `<li>${passed ? '✓' : '✗'} ${esc(name)}: ${esc(reason)}</li>`).join('')}</ul>
+    <pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(r.chain_status.info,null,2))}</pre></details></section>`;
   const rev = v.revocation;
   $('v-revocation').textContent = !rev ? 'Chưa gửi REVOKE.' : rev.pending
     ? `Thu hồi đang chờ ghi vào block · tx_id: ${rev.tx_id} · ${rev.reason}`
@@ -1634,7 +1689,7 @@ function renderRail() {
   showJourneyGuidance();
   const e = state.step === 3 && state.mining?.mode === 'pos'
     ? ['HỒ SƠ ĐANG ĐƯỢC GHI', 'Ai ký block PoS?',
-       'Backend chọn validator theo <strong>trọng số stake</strong> để ký block. Ví phát hành ký hồ sơ; ví validator ký block. Đây là hai khóa riêng, dù tổ chức có thể cùng tên.',
+       'Validator được chọn theo <strong>trọng số stake</strong> để ký block. Ví phát hành ký hồ sơ; ví validator ký block. Đây là hai khóa riêng, dù tổ chức có thể cùng tên.',
        'Validator dự kiến có thể thay đổi khi tip thay đổi. Kết quả tạo block hiển thị validator đã ký thực tế.']
     : EXPLANATIONS[state.step] || EXPLANATIONS[0];
   $('rail-label').textContent = e[0];

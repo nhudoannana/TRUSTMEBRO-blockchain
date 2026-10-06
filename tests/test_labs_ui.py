@@ -9,7 +9,7 @@ import pytest
                                   'signature_reset', 'merkle', 'merkle_reset', 'errors',
                                   'comparison', 'comparison_reset', 'example_safety',
                                   'result_guidance', 'sha_navigation', 'sha_preservation',
-                                  'lab_learning', 'merkle_svg'])
+                                  'lab_learning', 'merkle_svg', 'merkle_previews', 'metric_mapping'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
@@ -154,6 +154,20 @@ if(testCase==='lab_learning'){
  run('showMerkle(data,null,1)');assert.equal($('merkle-root').title,'a'.repeat(64));
  assert.equal($('merkle-root-full').textContent,'a'.repeat(64));
  assert.ok($('merkle-root').textContent.length<64);
+}else if(testCase==='metric_mapping'){
+ const parent=document.createElement('div');
+ run('resultMetric($("metric-test"),"Attempts",null,"tries");resultMetric($("metric-test"),"Attempts",undefined,"tries")');
+ assert.equal($('metric-test').children.length,0);
+ run('resultMetric($("metric-test"),"Nonce",0,"nonce");resultMetric($("metric-test"),"Attempts",137,"tries")');
+ assert.equal($('metric-test').children.length,2);
+ assert.equal($('metric-test').children[0].children[1].textContent,'0');
+ assert.equal($('metric-test').children[1].children[1].textContent,'137');
+ run('powHash($("hash-test"),"0000abcdef",3)');
+ assert.equal($('hash-test').children[0].children[0].children[0].textContent,'000');
+ assert.equal($('hash-test').children[0].children[0].children[1].textContent,'0abcdef');
+ run('powHash($("hash-not-target"),"00abcdef",3)');
+ assert.equal($('hash-not-target').children[0].children[0].children.length,1);
+ assert.equal(calls.length,0);
 }else if(testCase==='hash_vectors'){
  assert.equal(await run('hashText("")'),'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
  assert.equal(await run('hashText("abc")'),'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
@@ -168,6 +182,11 @@ if(testCase==='lab_learning'){
  assert.equal(run('changedHashBits($("hash-original").textContent,$("hash-edited").textContent)'),0);
  assert.ok($('hash-difference').textContent.startsWith('0/256'));
  assert.notEqual($('hash-difference').textContent,different);
+ assert.equal($('hash-metrics').children[0].children[1].textContent,'0.00');
+ assert.equal($('hash-metrics').children[1].children[1].textContent,'0');
+ $('hash-b').value='Changed';$('hash-b').oninput();
+ assert.ok($('hash-result-context').textContent.includes('lần tính trước'));
+ assert.equal($('hash-metrics').children[1].children[1].textContent,'0');
  assert.equal(calls.length,0);
  run('resetHash()');assert.equal($('hash-result').hidden,true);
 }else if(testCase==='hash_reset'){
@@ -190,11 +209,31 @@ if(testCase==='lab_learning'){
   await run('signatureAction("verify")');assert.equal(run('signature.result.valid'),false);
   await run('resetSignature()');assert.equal(run('signature.key'),null);assert.equal($('sig-signature').textContent,'');
  }
+}else if(testCase==='merkle_previews'){
+ const all=e=>[e,...e.children.flatMap(all)];
+ context.inputs=['<img src=x>','', '  spaces  ', 'Last input'];
+ context.data={levels:[['a','b','c','d'],['ab','cd'],['r']],root:'r',proof:null};
+ run('showMerkle(data,null,4,inputs)');
+ let nodes=all($('merkle-tree'));
+ const leaves=nodes.filter(e=>e.dataset.node?.startsWith('0:'));
+ assert.equal(leaves.length,4);
+ assert.ok(all(leaves[0]).some(e=>e.textContent==='<img src=x>'));
+ assert.ok(all(leaves[2]).some(e=>e.textContent==='  spaces  '));
+ assert.equal(nodes.filter(e=>e.dataset.duplicateNote==='true').length,0);
+ const details=nodes.find(e=>e.dataset.fullNode==='0:0');
+ assert.ok(details.children.some(e=>e.textContent==='<img src=x>'));
+ const levels=$('merkle-tree').children.find(e=>e.children[0]?.textContent==='Chi tiết các tầng');
+ assert.notEqual(levels.open,true);
+ leaves[0].onkeydown({key:' ',preventDefault(){}});assert.equal(levels.open,true);assert.equal(details.open,true);
+ context.data={levels:[['a','b','c'],['ab','cc'],['r']],root:'r',proof:null};
+ run('showMerkle(data,null,3,inputs)');nodes=all($('merkle-tree'));
+ assert.equal(nodes.filter(e=>e.dataset.duplicateNote==='true').length,1);
+ assert.equal(calls.length,0);
 }else if(testCase==='merkle_svg'){
  const all=e=>[e,...e.children.flatMap(all)];
  const draw=(d,previous,count)=>{context.d=d;context.previous=previous;run('showMerkle(d,previous,'+count+')');return all($('merkle-tree'));};
  const d={levels:[['a','b','c'],['ab','cc'],['root']],root:'root',proof:{index:2,siblings:[['c','right'],['ab','left']],valid:false}};
- let nodes=draw(d,null,3),groups=nodes.filter(e=>e.tag==='g'),edges=nodes.filter(e=>e.tag==='path');
+ let nodes=draw(d,null,3),groups=nodes.filter(e=>e.tag==='g'&&e.dataset.node!==undefined),edges=nodes.filter(e=>e.tag==='path');
  assert.equal(groups.length,6);assert.equal(edges.length,6);
  assert.equal(edges.filter(e=>e.dataset.duplicate==='true').length,1);
  assert.ok(edges.some(e=>e.dataset.from==='0:2'&&e.dataset.to==='1:1'));
@@ -206,14 +245,14 @@ if(testCase==='lab_learning'){
  assert.equal(nodes.find(e=>e.dataset.fullNode==='0:2').open,true);
  assert.ok(Number(groups.find(e=>e.dataset.node==='2:0').dataset.y)<Number(leaf.dataset.y));
  const previous=structuredClone(d);d.levels[0][0]='new';d.levels[1][0]='new-parent';d.levels[2][0]='new-root';d.root='new-root';
- nodes=draw(d,previous,3);assert.equal(nodes.filter(e=>e.tag==='g'&&e['class'].includes('changed')).length,3);
+ nodes=draw(d,previous,3);assert.equal(nodes.filter(e=>e.tag==='g'&&e.dataset.node!==undefined&&e['class'].includes('changed')).length,3);
  nodes=draw({levels:[['one']],root:'one',proof:{index:0,siblings:[],valid:true}},null,1);
- assert.equal(nodes.filter(e=>e.tag==='g').length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
- assert.ok(nodes.find(e=>e.tag==='g')['aria-label'].includes('Lá / Root'));
+ assert.equal(nodes.filter(e=>e.tag==='g'&&e.dataset.node!==undefined).length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
+ assert.ok(nodes.find(e=>e.tag==='g'&&e.dataset.node!==undefined)['aria-label'].includes('Lá / Merkle root'));
  nodes=draw({levels:[['empty']],root:'empty',proof:null},null,0);
- assert.equal(nodes.filter(e=>e.tag==='g').length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
+ assert.equal(nodes.filter(e=>e.tag==='g'&&e.dataset.node!==undefined).length,1);assert.equal(nodes.filter(e=>e.tag==='path').length,0);
  nodes=draw({levels:[['a','b','c','d','e'],['ab','cd','ee'],['abcd','eeee'],['r']],root:'r',proof:null},null,5);
- assert.equal(nodes.filter(e=>e.tag==='g').length,11);
+ assert.equal(nodes.filter(e=>e.tag==='g'&&e.dataset.node!==undefined).length,11);
  assert.equal(nodes.filter(e=>e.tag==='path').length,12);
  assert.equal(nodes.filter(e=>e.tag==='path'&&e.dataset.duplicate==='true').length,2);
  assert.equal(calls.length,0);
@@ -223,7 +262,7 @@ if(testCase==='lab_learning'){
  $('merkle-leaves').value='a\nb\nc';await run('computeMerkle(event)');
  const previous=run('merklePrevious');tree.levels[0][0]='changed';tree.levels[1][0]='new-parent';tree.levels[2][0]='new-root';tree.root='new-root';
  await run('computeMerkle(event)');assert.equal($('merkle-root').textContent,'new-root');
- const nodes=$('merkle-tree').children.filter(e=>e.className==='tree-level').flatMap(e=>e.children);
+ const descend=e=>[e,...e.children.flatMap(descend)];const nodes=descend($('merkle-tree')).filter(e=>e.className==='tree-level').flatMap(e=>e.children);
  assert.equal(nodes.filter(e=>e.className.includes('changed')).length,3);
  assert.equal(nodes.filter(e=>!e.className.includes('changed')).length,3);
  run('resetMerkle()');assert.equal($('merkle-result').hidden,true);assert.equal(run('merklePrevious'),null);
@@ -260,7 +299,13 @@ if(testCase==='lab_learning'){
   const text=e=>e.textContent+e.children.map(text).join(' ');
   assert.ok(text($('comparison-result-pos')).includes('actual-backend-node'));
   assert.ok(text($('comparison-result-pos')).includes('0.1235'));
-  const technical=$('comparison-result-pos').children.find(e=>e.children.length===2).children[1];
+  const posMetrics=$('comparison-result-pos').children.find(e=>e.className==='result-metrics');
+  assert.equal(posMetrics.children.length,1);
+  assert.ok(!text(posMetrics).includes('Nonce'));assert.ok(!text(posMetrics).includes('Số lần thử'));
+  const powMetrics=$('comparison-result-pow').children.find(e=>e.className==='result-metrics');
+  assert.equal(powMetrics.children[1].children[1].textContent,'83');
+  assert.equal(powMetrics.children[2].children[1].textContent,'84');
+  const technical=$('comparison-result-pos').children.find(e=>e.className==='technical').children[1];
   assert.equal(JSON.parse(technical.textContent).seconds,.123456);
   assert.notEqual(JSON.parse(technical.textContent).issuer.public_key_hex,JSON.parse(technical.textContent).signer.public_key_hex);
   $('comparison-sample').checked=false;$('comparison-sample').oninput();
