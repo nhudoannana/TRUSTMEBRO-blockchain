@@ -1,0 +1,154 @@
+/*
+ * TRUSTMEBRO — Design Tokens v2
+ * Visual prototype (standalone HTML). Not connected to Streamlit backend.
+ *
+ * Contrast improvements over v1:
+ *   --text-mid  raised from rgba(255,255,255,0.70) → 0.80
+ *   --text-low  raised from 0.38 → 0.52
+ *   --text-xlow raised from 0.20 → 0.32
+ *   Nav section labels bumped to 11px / --text-low
+ */
+
+:root {
+  /* === Surfaces === */
+  --bg-canvas:   #0a0a0a;
+  --bg-surface:  #111111;
+  --bg-raised:   #181818;
+  --bg-overlay:  #1e1e2e;
+
+  /* === Borders === */
+  --border-faint:  rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.10);
+  --border-mid:    rgba(255,255,255,0.18);
+
+  /* === Type (higher contrast than v1) === */
+  --text-strong: #ffffff;
+  --text-mid:    rgba(255,255,255,0.82);
+  --text-low:    rgba(255,255,255,0.55);
+  --text-xlow:   rgba(255,255,255,0.34);
+
+  /* === Accent — blue (primary) === */
+  --accent-blue:       #818cf8;
+  --accent-blue-dim:   rgba(129,140,248,0.13);
+  --accent-blue-line:  rgba(129,140,248,0.35);
+
+  /* === Accent — amber (secondary, from landing hero) === */
+  --accent-amber:      #c8a060;
+  --accent-amber-dim:  rgba(200,160,96,0.14);
+
+  /* === Status === */
+  --ok:   #a6e3a1;
+  --warn: #f9e2af;
+  --err:  #f38ba8;
+  --ok-dim:  rgba(166,227,161,0.12);
+  --err-dim: rgba(243,139,168,0.12);
+
+  /* === Fonts === */
+  --font-sans:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'DM Serif Display', Georgia, serif;
+
+  /* === Spacing (8-pt) === */
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* === Radius === */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* === Sidebar === */
+  --sidebar-w: 228px;
+
+  /* === Transition === */
+  --t-fast: 0.14s ease;
+  --t-mid:  0.28s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-canvas);
+  color: var(--text-mid);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-canvas); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 99px; }
+
+/* ── Focus ── */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ── Helpers ── */
+.font-mono { font-family: var(--font-mono); }
+.text-ok   { color: var(--ok); }
+.text-warn { color: var(--warn); }
+.text-err  { color: var(--err); }
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 99px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.badge-blue   { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.badge-ok     { background: var(--ok-dim);          color: var(--ok); }
+.badge-err    { background: var(--err-dim);         color: var(--err); }
+.badge-amber  { background: var(--accent-amber-dim);color: var(--accent-amber); }
+.badge-neutral{ background: rgba(255,255,255,0.06); color: var(--text-low); border: 1px solid var(--border-faint); }
+
+/* dot inside badge */
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* some badges skip the dot */
+.badge.no-dot::before { display: none; }
+
+/* ── Mono value (hashes, ports) ── */
+.hash-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-low);
+  word-break: break-all;
+}

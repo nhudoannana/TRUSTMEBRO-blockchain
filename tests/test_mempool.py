@@ -15,8 +15,8 @@ def _make_credential(cred_id="CRED-TEST"):
     """Helper: tạo một Credential mẫu."""
     return Credential(
         credential_id=cred_id,
-        issuer_name="Test University",
-        holder_name="Alice",
+        issuer_name="Trường Đại học A",
+        holder_name="Người học DEMO-001",
         title="BSc CS",
         issue_date="2026-01-01",
         claims={"gpa": "3.5"},

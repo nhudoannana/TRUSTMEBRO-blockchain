@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">TRUSTMEBRO — Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="tokens.css">
+
+  <style>
+  /* ════════════════════════════════
+     APP SHELL
+  ════════════════════════════════ */
+
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-faint);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 50;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .sidebar-logo {
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+    border-bottom: 1px solid var(--border-faint);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+
+  .sidebar-logo-mark {
+    width: 30px; height: 30px;
+    border-radius: var(--r-sm);
+    background: var(--accent-blue-dim);
+    border: 1px solid var(--accent-blue-line);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sidebar-logo-mark svg { width: 15px; height: 15px; }
+
+  .sidebar-wordmark {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: var(--text-strong);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .sidebar-wordmark em { font-style: italic; color: var(--accent-blue); }
+
+  /* Section label — readable, not ghostly */
+  .nav-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-xlow);
+    padding: var(--sp-4) var(--sp-4) var(--sp-1);
+    white-space: nowrap;
+  }
+
+  /* Nav item */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px var(--sp-4);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    color: var(--text-low);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nav-item:hover {
+    color: var(--text-mid);
+    background: rgba(255,255,255,0.04);
+  }
+  .nav-item.active {
+    color: var(--text-strong);
+    border-left-color: var(--accent-blue);
+    background: rgba(129,140,248,0.07);
+  }
+
+  .nav-icon {
+    width: 15px;
+    flex-shrink: 0;
+    font-size: 13px;
+    line-height: 1;
+    text-align: center;
+    opacity: 0.75;
+  }
+  .nav-item.active .nav-icon { opacity: 1; }
+
+  /* Sidebar footer */
+  .sidebar-footer {
+    margin-top: auto;
+    padding: var(--sp-4);
+    border-top: 1px solid var(--border-faint);
+  }
+  .sidebar-footer p {
+    font-size: 11px;
+    color: var(--text-xlow);
+    line-height: 1.5;
+  }
+
+  /* ── Main area ── */
+  .main-area {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(10,10,10,0.90);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border-faint);
+    padding: 0 var(--sp-6);
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+  }
+
+  .topbar-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-size: 13px;
+    min-width: 0;
+  }
+  .crumb     { color: var(--text-xlow); white-space: nowrap; }
+  .crumb-sep { color: var(--text-xlow); font-size: 11px; }
+  .crumb-current { color: var(--text-mid); font-weight: 600; white-space: nowrap; }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-shrink: 0;
+  }
+
+  /* Prototype label — amber, clearly decorative */
+  .proto-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-amber);
+    background: var(--accent-amber-dim);
+    border: 1px solid rgba(200,160,96,0.22);
+    padding: 3px 9px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+
+  /* ── Page wrapper ── */
+  .page-content {
+    padding: var(--sp-6) var(--sp-8);
+    width: 100%;
+    /* No max-width cap — fills available space */
+  }
+
+  /* ════════════════════════════════
+     PAGE HEADER
+  ════════════════════════════════ */
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-6);
+    margin-bottom: var(--sp-6);
+    flex-wrap: wrap;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 2.5vw, 2.1rem);
+    color: var(--text-strong);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-low);
+    line-height: 1.6;
+    margin-top: 4px;
+  }
+
+  /* Demo notice — concise, clearly labeled */
+  .demo-notice {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    background: var(--accent-amber-dim);
+    border: 1px solid rgba(200,160,96,0.20);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-4);
+    font-size: 12px;
+    color: var(--accent-amber);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .demo-notice::before {
+    content: '◆';
+    font-size: 8px;
+  }
+
+  /* ════════════════════════════════
+     4-GROUP METRIC STRIP
+     (replaces 8 equal large cards)
+  ════════════════════════════════ */
+
+  .metric-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-6);
+  }
+
+  .metric-group {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4) var(--sp-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    transition: border-color var(--t-mid);
+    position: relative;
+  }
+  .metric-group:hover { border-color: var(--border-mid); }
+
+  /* Accent top line on hover */
+  .metric-group::after {
+    content: '';
+    position: absolute;
+    top: 0; left: var(--sp-4); right: var(--sp-4);
+    height: 1px;
+    background: var(--accent-blue);
+    border-radius: 1px;
+    opacity: 0;
+    transition: opacity var(--t-mid);
+  }
+  .metric-group:hover::after { opacity: 0.4; }
+
+  .mg-category {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-xlow);
+  }
+
+  /* Primary value — larger, readable */
+  .mg-primary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+  }
+  .mg-value {
+    font-family: var(--font-display);
+    font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+    color: var(--text-strong);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .mg-value.ok   { color: var(--ok); }
+  .mg-value.warn { color: var(--accent-amber); }
+  .mg-value.err  { color: var(--err); }
+  .mg-value.blue { color: var(--accent-blue); }
+
+  .mg-primary-label {
+    font-size: 12px;
+    color: var(--text-low);
+    font-weight: 500;
+  }
+
+  /* Supporting value — smaller, clearly secondary */
+  .mg-support {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding-top: var(--sp-1);
+    border-top: 1px solid var(--border-faint);
+  }
+  .mg-support-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-mid);
+  }
+  .mg-support-label {
+    font-size: 11.5px;
+    color: var(--text-low);
+  }
+
+  /* ════════════════════════════════
+     PANEL
+  ════════════════════════════════ */
+
+  .panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: 1px solid var(--border-faint);
+    gap: var(--sp-3);
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-strong);
+  }
+
+  .panel-body {
+    padding: var(--sp-5);
+  }
+
+  /* ════════════════════════════════
+     TOP ROW: chain viz + node table
+     side-by-side on ≥900px
+  ════════════════════════════════ */
+
+  .top-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-4);
+    align-items: start;
+  }
+
+  /* ── Block chain viz ── */
+  .chain-viewport {
+    overflow-x: auto;
+    padding: var(--sp-4) var(--sp-5);
+    scrollbar-width: thin;
+  }
+
+  .chain-row {
+    display: flex;
+    align-items: center;
+    min-width: max-content;
+  }
+
+  .blk {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 120px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-md);
+    padding: 10px 10px 8px;
+    flex-shrink: 0;
+    transition: border-color var(--t-mid), box-shadow var(--t-mid);
+    cursor: default;
+    position: relative;
+  }
+  .blk:hover, .blk:focus-visible {
+    border-color: var(--border-mid);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 2;
+    outline: none;
+  }
+  .blk:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+  .blk.genesis {
+    border-color: var(--accent-blue-line);
+    background: rgba(129,140,248,0.04);
+  }
+  .blk.tip {
+    border-color: rgba(166,227,161,0.3);
+    background: rgba(166,227,161,0.03);
+  }
+
+  /* Chain link between blocks */
+  .chain-link {
+    flex-shrink: 0;
+    position: relative;
+    width: 24px;
+    height: 2px;
+    background: var(--border-subtle);
+    margin: 0 2px;
+  }
+  .chain-link-dot {
+    position: absolute;
+    top: -3px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    opacity: 0;
+    animation: cpulse 3.2s ease-in-out infinite;
+  }
+  .chain-row .chain-link:nth-of-type(2) .chain-link-dot  { animation-delay: 0.6s; }
+  .chain-row .chain-link:nth-of-type(3) .chain-link-dot  { animation-delay: 1.2s; }
+  .chain-row .chain-link:nth-of-type(4) .chain-link-dot  { animation-delay: 1.8s; }
+  .chain-row .chain-link:nth-of-type(5) .chain-link-dot  { animation-delay: 2.4s; }
+
+  @keyframes cpulse {
+    0%   { left: 0;    opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: calc(100% - 7px); opacity: 0; }
+  }
+
+  .blk-height {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-xlow);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .blk-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-mid);
+  }
+  .blk-hash {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-xlow);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .blk-tx {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-blue);
+    margin-top: 1px;
+  }
+
+  .chain-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-5) var(--sp-3);
+    border-top: 1px solid var(--border-faint);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-xlow);
+  }
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Node table (right of chain on wide) ── */
+  .node-panel {
+    width: 236px;
+    flex-shrink: 0;
+  }
+
+  .node-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .node-table th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-xlow);
+    padding: var(--sp-2) var(--sp-4);
+    text-align: left;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .node-table td {
+    padding: 9px var(--sp-4);
+    font-size: 12.5px;
+    color: var(--text-mid);
+    border-bottom: 1px solid var(--border-faint);
+    vertical-align: middle;
+  }
+  .node-table tr:last-child td { border-bottom: none; }
+  .node-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+  .nd-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .nd-dot.on  { background: var(--ok);  box-shadow: 0 0 5px rgba(166,227,161,0.5); }
+  .nd-dot.off { background: var(--err); }
+
+  /* ════════════════════════════════
+     MAIN BODY (2-col on ≥900px)
+  ════════════════════════════════ */
+
+  .main-body {
+    display: grid;
+    grid-template-columns: 1fr 296px;
+    gap: var(--sp-4);
+    align-items: start;
+  }
+
+  .left-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+  }
+
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+  }
+
+  /* ════════════════════════════════
+     ACTION AREA
+  ════════════════════════════════ */
+
+  .action-row {
+    display: flex;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+  }
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 9px var(--sp-4);
+    border-radius: var(--r-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--t-fast), border-color var(--t-fast), opacity var(--t-fast);
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .action-btn.primary {
+    background: rgba(129,140,248,0.14);
+    border-color: var(--accent-blue-line);
+    color: var(--accent-blue);
+  }
+  .action-btn.primary:hover {
+    background: rgba(129,140,248,0.22);
+    border-color: var(--accent-blue);
+  }
+
+  .action-btn.secondary {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border-subtle);
+    color: var(--text-mid);
+  }
+  .action-btn.secondary:hover {
+    background: rgba(255,255,255,0.09);
+    border-color: var(--border-mid);
+  }
+
+  /* "Not implemented" state */
+  .action-btn.not-impl {
+    background: rgba(255,255,255,0.03);
+    border-color: var(--border-faint);
+    color: var(--text-xlow);
+    cursor: default;
+    pointer-events: none;
+  }
+  .action-hint {
+    font-size: 11px;
+    color: var(--text-xlow);
+    margin-top: var(--sp-1);
+  }
+
+  /* ════════════════════════════════
+     PROCESS FLOW
+  ════════════════════════════════ */
+
+  .flow-track {
+    display: flex;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    flex-wrap: nowrap;
+  }
+
+  .flow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: var(--sp-4) var(--sp-3);
+    flex: 1;
+    min-width: 72px;
+    border-right: 1px solid var(--border-faint);
+    text-align: center;
+    position: relative;
+  }
+  .flow-step:last-child { border-right: none; }
+
+  /* Chevron divider */
+  .flow-step:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 7px solid var(--bg-canvas);
+    z-index: 2;
+  }
+
+  .flow-icon { font-size: 16px; line-height: 1; }
+  .flow-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-low);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .flow-step.hl { background: rgba(129,140,248,0.05); }
+  .flow-step.hl .flow-label { color: var(--accent-blue); }
+
+  /* ════════════════════════════════
+     QUICK START TABLE
+  ════════════════════════════════ */
+
+  .qs-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .qs-table th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-xlow);
+    padding: var(--sp-2) var(--sp-4);
+    text-align: left;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .qs-table td {
+    padding: 10px var(--sp-4);
+    font-size: 13px;
+    color: var(--text-mid);
+    border-bottom: 1px solid var(--border-faint);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .qs-table tr:last-child td { border-bottom: none; }
+  .qs-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-xlow);
+  }
+  .step-page {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-blue);
+    background: var(--accent-blue-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .qs-desc { font-size: 12px; color: var(--text-low); }
+
+  /* ════════════════════════════════
+     MODULE GRID
+  ════════════════════════════════ */
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+  }
+  .module-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-md);
+    padding: var(--sp-4);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-decoration: none;
+    transition: border-color var(--t-mid), background var(--t-mid);
+    cursor: pointer;
+  }
+  .module-card:hover, .module-card:focus-visible {
+    border-color: var(--border-mid);
+    background: var(--bg-raised);
+  }
+  .mc-icon  { font-size: 16px; margin-bottom: 2px; }
+  .mc-title { font-size: 12.5px; font-weight: 600; color: var(--text-strong); }
+  .mc-desc  { font-size: 11px; color: var(--text-xlow); line-height: 1.4; }
+  .mc-file  {
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-xlow);
+    letter-spacing: 0.04em;
+  }
+
+  /* ════════════════════════════════
+     RIGHT COLUMN COMPONENTS
+  ════════════════════════════════ */
+
+  /* Credential donut */
+  .cred-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    padding: var(--sp-4) var(--sp-5);
+  }
+
+  .donut-svg { flex-shrink: 0; }
+
+  .cred-legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    flex: 1;
+  }
+  .cl-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-mid);
+  }
+  .cl-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cl-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-strong);
+  }
+
+  /* Activity feed */
+  .activity-list { display: flex; flex-direction: column; }
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .act-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .act-body { flex: 1; min-width: 0; }
+  .act-title {
+    font-size: 12.5px;
+    color: var(--text-mid);
+    margin-bottom: 2px;
+  }
+  .act-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-xlow);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ════════════════════════════════
+     PLACEHOLDER PAGE
+     (unimplemented destinations)
+  ════════════════════════════════ */
+
+  .placeholder-page {
+    display: none; /* shown by JS */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    gap: var(--sp-4);
+    padding: var(--sp-12) var(--sp-8);
+  }
+  .placeholder-page.visible { display: flex; }
+
+  .ph-icon {
+    width: 56px; height: 56px;
+    border-radius: var(--r-lg);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .ph-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--text-strong);
+    letter-spacing: -0.01em;
+  }
+  .ph-sub {
+    font-size: 13px;
+    color: var(--text-low);
+    max-width: 340px;
+    line-height: 1.6;
+  }
+  .ph-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-xlow);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-subtle);
+    padding: 5px 14px;
+    border-radius: 99px;
+  }
+  .ph-streamlit {
+    font-size: 12px;
+    color: var(--text-xlow);
+    margin-top: var(--sp-2);
+  }
+  .ph-streamlit a {
+    color: var(--accent-blue);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  /* ════════════════════════════════
+     RESPONSIVE
+  ════════════════════════════════ */
+
+  @media (max-width: 960px) {
+    .top-row {
+      grid-template-columns: 1fr;
+    }
+    .node-panel { width: 100%; }
+    .main-body {
+      grid-template-columns: 1fr;
+    }
+    .right-col {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+    .right-col .panel { flex: 1 1 260px; }
+  }
+
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+    .sidebar { display: none; }
+    .main-area { margin-left: 0; }
+    .metric-strip { grid-template-columns: repeat(2, 1fr); }
+    .module-grid  { grid-template-columns: repeat(2, 1fr); }
+    .flow-track   { overflow-x: auto; }
+    .topbar { padding: 0 var(--sp-4); }
+    .page-content { padding: var(--sp-4); }
+    .page-header { flex-direction: column; gap: var(--sp-3); }
+    .demo-notice { white-space: normal; }
+  }
+
+  @media (max-width: 480px) {
+    .metric-strip { grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+    .module-grid  { grid-template-columns: 1fr 1fr; }
+  }
+  
+    /* ════════════════════════════════
+     JOURNEY PAGE
+  ════════════════════════════════ */
+  .journey-nav {
+    display: flex;
+    align-items: center;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--r-md);
+    padding: var(--sp-2) var(--sp-3);
+    margin-bottom: var(--sp-8);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .journey-nav::-webkit-scrollbar { display: none; }
+
+  .j-step {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-xlow);
+    white-space: nowrap;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
+  }
+  .j-step.active {
+    color: var(--text-strong);
+    background: rgba(255,255,255,0.06);
+  }
+  .j-sep {
+    width: 12px; height: 1px;
+    background: var(--border-faint);
+    margin: 0 var(--sp-2);
+    flex-shrink: 0;
+  }
+
+  .j-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-8);
+  }
+  .j-explain {
+    color: var(--text-mid);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+  .j-explain p { margin-bottom: var(--sp-3); }
+
+  @media (max-width: 900px) {
+    .j-layout { grid-template-columns: 1fr; gap: var(--sp-6); }
+  }
+
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar" role="navigation" aria-label="Điều hướng chính">
+
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="var(--accent-blue)" stroke-width="1.5" stroke-linecap="round">
+          <path d="M6 10l4-4"/>
+          <path d="M3.5 11.5a2.5 2.5 0 0 0 3.536 0L9 9.5"/>
+          <path d="M12.5 4.5a2.5 2.5 0 0 0-3.536 0L7 6.5"/>
+        </svg>
+      </div>
+      <span class="sidebar-wordmark">TrustMe<em>Bro</em></span>
+    </div>
+
+    <div class="nav-section-label">Tổng quan</div>
+    <a href="#" class="nav-item active" data-page="journey" aria-current="page">
+      <span class="nav-icon">🚀</span>Bắt đầu mô phỏng
+    </a>
+    <a href="#" class="nav-item" data-page="dashboard">
+      <span class="nav-icon">◧</span>Tổng quan mạng
+    </a>
+
+    <div class="nav-section-label">Khái niệm cốt lõi</div>
+    <a href="#" class="nav-item" data-page="sha256">
+      <span class="nav-icon">#</span>SHA-256
+    </a>
+    <a href="#" class="nav-item" data-page="wallet">
+      <span class="nav-icon">◈</span>Wallet &amp; Chữ ký ECDSA
+    </a>
+    <a href="#" class="nav-item" data-page="transaction">
+      <span class="nav-icon">◻</span>Credentials &amp; Transactions
+    </a>
+
+    <div class="nav-section-label">Lớp Blockchain</div>
+    <a href="#" class="nav-item" data-page="mempool">
+      <span class="nav-icon">≡</span>Mempool
+    </a>
+    <a href="#" class="nav-item" data-page="merkle">
+      <span class="nav-icon">⋎</span>Merkle Tree
+    </a>
+    <a href="#" class="nav-item" data-page="explorer">
+      <span class="nav-icon">⊕</span>Blockchain Explorer
+    </a>
+    <a href="#" class="nav-item" data-page="mining">
+      <span class="nav-icon">⛏</span>PoW / Mining
+    </a>
+
+    <div class="nav-section-label">Mạng &amp; Đồng thuận</div>
+    <a href="#" class="nav-item" data-page="network">
+      <span class="nav-icon">◎</span>Network
+    </a>
+    <a href="#" class="nav-item" data-page="consensus">
+      <span class="nav-icon">⇄</span>Mining &amp; Consensus Flow
+    </a>
+
+    <div class="nav-section-label">Xác minh &amp; Bảo mật</div>
+    <a href="#" class="nav-item" data-page="verify">
+      <span class="nav-icon">✔</span>Verify Credential
+    </a>
+    <a href="#" class="nav-item" data-page="attacks">
+      <span class="nav-icon">◈</span>Attack Simulator
+    </a>
+    <a href="#" class="nav-item" data-page="powpos">
+      <span class="nav-icon">⊖</span>PoW vs PoS &amp; Slashing
+    </a>
+
+    <div class="sidebar-footer">
+      <p>Đồ án mô phỏng blockchain, sử dụng dữ liệu giả lập; không xác minh pháp lý cá nhân hoặc tổ chức.</p>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <div class="main-area">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <nav class="topbar-breadcrumb" aria-label="Breadcrumb">
+        <span class="crumb">TRUSTMEBRO</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-current" id="breadcrumb-current">Dashboard</span>
+      </nav>
+      <div class="topbar-right">
+        <span class="proto-tag" title="Giao diện thử nghiệm — dữ liệu mẫu xác định">Prototype UI</span>
+      </div>
+    </header>
+
+    
+
+        <!-- ═══ JOURNEY PAGE ═══ -->
+    <main class="page-content" id="page-journey" aria-label="Bắt đầu mô phỏng">
+      
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Từng bước đưa một hồ sơ lên blockchain</h1>
+          <p class="page-subtitle">Mô phỏng giáo dục: Quá trình phát hành và xác minh chứng chỉ số trên mạng ngang hàng.</p>
+        </div>
+        <div class="demo-notice" role="note" aria-label="Ghi chú dữ liệu mẫu">
+          Dữ liệu mẫu xác định — không kết nối backend
+        </div>
+      </div>
+
+      <!-- 6-step progress navigation -->
+      <div class="journey-nav">
+        <div class="j-step active">1. Ví & Khóa</div>
+        <div class="j-sep"></div>
+        <div class="j-step">2. Hồ sơ & Chữ ký</div>
+        <div class="j-sep"></div>
+        <div class="j-step">3. Kiểm tra & Mempool</div>
+        <div class="j-sep"></div>
+        <div class="j-step">4. Tạo block</div>
+        <div class="j-sep"></div>
+        <div class="j-step">5. Đồng bộ mạng</div>
+        <div class="j-sep"></div>
+        <div class="j-step">6. Xác minh hồ sơ</div>
+      </div>
+
+      <!-- STEP 1 CONTENT -->
+      <div class="j-layout">
+        <!-- Left: explanation -->
+        <div class="j-explain">
+          <h2 style="font-family:var(--font-display); font-size:1.6rem; color:var(--text-strong); margin-bottom:var(--sp-4);">Bước 1: Ví & Khóa</h2>
+          <p>Để phát hành một hồ sơ học thuật, tổ chức phát hành (Issuer) cần một <strong>Ví (Wallet)</strong> đại diện trên hệ thống blockchain.</p>
+          <ul style="margin-left:var(--sp-4); margin-top:var(--sp-3); margin-bottom:var(--sp-4); display:flex; flex-direction:column; gap:var(--sp-2); color:var(--text-low);">
+            <li><strong>Private Key (Khóa riêng tư):</strong> Dùng để ký xác nhận hồ sơ. Tuyệt đối bảo mật, không bao giờ chia sẻ.</li>
+            <li><strong>Public Key (Khóa công khai):</strong> Trở thành địa chỉ định danh. Dùng để mọi người xác minh tính hợp lệ của chữ ký.</li>
+          </ul>
+          <p style="font-size:12px; color:var(--text-xlow); padding:var(--sp-4); background:var(--bg-raised); border-radius:var(--r-md); border:1px solid var(--border-faint);">
+            Lưu ý: Ví blockchain tự nó không chứng minh danh tính thực tế của tổ chức. Trong thực tế, cần có cơ chế định danh cấp cao hơn (VD: PKI, DID) liên kết Public Key với danh tính thật.
+          </p>
+        </div>
+
+        <!-- Right: controls -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Thiết lập ví Issuer</span>
+          </div>
+          <div class="panel-body">
+            
+            <div style="display:flex; gap:var(--sp-5); margin-bottom:var(--sp-5); border-bottom:1px solid var(--border-faint); padding-bottom:var(--sp-4);">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="radio" name="wallet_mode" value="demo" checked onchange="toggleWalletMode()" style="accent-color:var(--accent-blue);">
+                <span style="font-size:13px; font-weight:500;">Chọn ví mẫu</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="radio" name="wallet_mode" value="new" onchange="toggleWalletMode()" style="accent-color:var(--accent-blue);">
+                <span style="font-size:13px; font-weight:500;">Tạo ví mới</span>
+              </label>
+            </div>
+
+            <!-- Mode: Demo -->
+            <div id="w-mode-demo">
+              <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:var(--sp-2);">Ví có sẵn:</label>
+              <select id="w-demo-select" style="width:100%; padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); color:var(--text-strong); border-radius:var(--r-sm); font-size:13px; margin-bottom:var(--sp-5); outline:none;">
+                <option value="Trường Đại học A">Trường Đại học A</option>
+                <option value="Trung tâm Đào tạo B">Trung tâm Đào tạo B</option>
+                <option value="Tổ chức Kiểm định C">Tổ chức Kiểm định C</option>
+              </select>
+            </div>
+
+            <!-- Mode: New -->
+            <div id="w-mode-new" style="display:none;">
+              <label style="display:block; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:var(--sp-2);">Tên định danh:</label>
+              <input type="text" id="w-new-name" placeholder="Ví dụ: Đại học Quốc gia..." style="width:100%; padding:12px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); color:var(--text-strong); border-radius:var(--r-sm); font-size:13px; margin-bottom:var(--sp-5); outline:none;">
+            </div>
+
+            <button onclick="createWallet()" class="action-btn primary" style="width:100%; justify-content:center; padding:12px; margin-bottom:var(--sp-4);">Xác nhận Ví</button>
+
+            <!-- Result -->
+            <div id="w-result" style="display:none; border-top:1px solid var(--border-faint); padding-top:var(--sp-4); animation: fadeIn 0.3s ease;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-3);">
+                <span style="font-size:12px; font-weight:600; color:var(--ok);">✔ Ví đã sẵn sàng</span>
+                <span class="badge badge-neutral no-dot" id="w-res-name">Trường Đại học A</span>
+              </div>
+              <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:var(--r-sm); padding:var(--sp-3); position:relative;">
+                <div style="font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-xlow); margin-bottom:4px;">Public Key (địa chỉ ví):</div>
+                <div class="hash-val" id="w-res-pub" style="font-size:11.5px; color:var(--accent-blue); padding-right:32px; word-break:break-all;">04a1b2c3d4e5f6...</div>
+                <button onclick="copyPub()" title="Copy Public Key" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:rgba(255,255,255,0.05); border:1px solid var(--border-faint); border-radius:4px; padding:4px 6px; color:var(--text-low); cursor:pointer; transition:all 0.2s;">
+                  📋
+                </button>
+              </div>
+              <p style="font-size:11px; color:var(--text-xlow); margin-top:var(--sp-3); line-height:1.5;">Private key được tạo ngẫu nhiên và lưu ẩn trong frontend. Không chia sẻ private key ra ngoài.</p>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      
+      <!-- STEP 2 PREVIEW (Chưa triển khai) -->
+      <div style="margin-top:var(--sp-8); border:1px solid var(--border-subtle); border-radius:var(--r-md); background:rgba(255,255,255,0.01); display:flex; align-items:center; justify-content:space-between; padding:var(--sp-4) var(--sp-5); opacity:0.8; filter:grayscale(0.5);">
+        <div style="display:flex; align-items:center; gap:var(--sp-4);">
+          <div style="width:32px; height:32px; border-radius:50%; background:var(--bg-raised); border:1px solid var(--border-faint); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-xlow); font-weight:700;">2</div>
+          <div>
+            <div style="font-size:13px; font-weight:600; color:var(--text-strong);">Bước 2: Hồ sơ & Chữ ký</div>
+            <div style="font-size:11.5px; color:var(--text-low); margin-top:2px;">Ký xác nhận JSON hồ sơ bằng Private Key.</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:var(--sp-4);">
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+          <button onclick="nextStep()" class="action-btn secondary" style="padding:8px 16px;">
+            Tiếp tục <span style="margin-left:4px;">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3-6 PREVIEWS -->
+      <div style="margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2);">
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">3</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 3: Kiểm tra & Mempool</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">4</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 4: Tạo Block</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">5</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 5: Đồng bộ mạng</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+        <div style="border:1px solid var(--border-faint); border-radius:var(--r-md); padding:var(--sp-3) var(--sp-5); opacity:0.4; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:var(--sp-4);">
+            <div style="font-size:12px; color:var(--text-xlow); font-weight:700; width:32px; text-align:center;">6</div>
+            <div style="font-size:13px; color:var(--text-low);">Bước 6: Xác minh hồ sơ</div>
+          </div>
+          <span class="badge badge-neutral no-dot" style="font-size:9.5px;">Chưa triển khai</span>
+        </div>
+      </div>
+
+    </main>
+
+
+
+    <!-- ═══ DASHBOARD PAGE ═══ -->
+    <main class="page-content" id="page-dashboard" aria-label="Dashboard">
+
+      <!-- Header row -->
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Tổng quan mạng, chuỗi block và hồ sơ học thuật.</p>
+        </div>
+        <div class="demo-notice" role="note" aria-label="Ghi chú dữ liệu mẫu">
+          Dữ liệu mẫu xác định — không kết nối backend
+        </div>
+      </div>
+
+      <!-- ── 4-GROUP METRIC STRIP ── -->
+      <!--
+        Backend mapping (app.py › dashboard_page):
+        Network group:     online_nodes / total_nodes
+        Blockchain group:  representative.height / len(bc.chain)
+        Transactions:      pending_txs / total_txs (confirmed)
+        Credentials:       active_creds / revoked_creds
+      -->
+      <section class="metric-strip" aria-label="Chỉ số hệ thống">
+
+        <!-- Network -->
+        <div class="metric-group">
+          <span class="mg-category">Network</span>
+          <div class="mg-primary">
+            <span class="mg-value ok" id="m-online">3</span>
+            <span class="mg-primary-label">node online</span>
+          </div>
+          <div class="mg-support">
+            <span class="mg-support-value" id="m-total-nodes">3</span>
+            <span class="mg-support-label">tổng số node</span>
+          </div>
+        </div>
+
+        <!-- Blockchain — height ≠ total blocks; both shown distinctly -->
+        <div class="metric-group">
+          <span class="mg-category">Blockchain</span>
+          <div class="mg-primary">
+            <span class="mg-value blue" id="m-height">4</span>
+            <span class="mg-primary-label">chain height</span>
+          </div>
+          <div class="mg-support">
+            <span class="mg-support-value" id="m-blocks">5</span>
+            <span class="mg-support-label">blocks (inc. genesis)</span>
+          </div>
+        </div>
+
+        <!-- Transactions -->
+        <div class="metric-group">
+          <span class="mg-category">Transactions</span>
+          <div class="mg-primary">
+            <span class="mg-value warn" id="m-pending">2</span>
+            <span class="mg-primary-label">chờ mine</span>
+          </div>
+          <div class="mg-support">
+            <span class="mg-support-value" id="m-confirmed">4</span>
+            <span class="mg-support-label">đã xác nhận</span>
+          </div>
+        </div>
+
+        <!-- Credentials -->
+        <div class="metric-group">
+          <span class="mg-category">Credentials</span>
+          <div class="mg-primary">
+            <span class="mg-value ok" id="m-active">3</span>
+            <span class="mg-primary-label">active</span>
+          </div>
+          <div class="mg-support">
+            <span class="mg-support-value err" id="m-revoked" style="color:var(--err);">1</span>
+            <span class="mg-support-label">revoked</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── ACTION AREA ── -->
+      <div class="panel" style="margin-bottom:var(--sp-4);">
+        <div class="panel-header">
+          <span class="panel-title">Thao tác nhanh</span>
+          <span class="badge badge-neutral no-dot">Mở trong Streamlit → localhost:8501</span>
+        </div>
+        <div class="panel-body" style="padding:var(--sp-4) var(--sp-5);">
+          <div class="action-row">
+
+            <!-- Implemented — link to Streamlit -->
+            <a href="http://localhost:8501" target="_blank" rel="noopener"
+               class="action-btn primary" title="Mở trang Credentials & Transactions trong Streamlit">
+              <span>＋</span> Tạo Credential
+            </a>
+
+            <a href="http://localhost:8501" target="_blank" rel="noopener"
+               class="action-btn primary" title="Mở trang Mining & Consensus Flow trong Streamlit">
+              <span>⛏</span> Mine Block
+            </a>
+
+            <a href="http://localhost:8501" target="_blank" rel="noopener"
+               class="action-btn secondary" title="Mở trang Verify Credential trong Streamlit">
+              <span>✔</span> Verify Credential
+            </a>
+
+          </div>
+          <p class="action-hint">Các thao tác này chạy trong ứng dụng Streamlit. Prototype UI chưa kết nối backend.</p>
+        </div>
+      </div>
+
+      <!-- ── TOP ROW: Block linkage + Node table ── -->
+      <div class="top-row">
+
+        <!-- Chain viz -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Block Linkage</span>
+            <span class="badge badge-neutral no-dot">5 blocks · height 4</span>
+          </div>
+
+          <div class="chain-viewport">
+            <div class="chain-row" role="list" aria-label="Blockchain: Genesis đến Block 4">
+
+              <div class="blk genesis" role="listitem" tabindex="0"
+                   aria-label="Genesis block, height 0, 0 transactions">
+                <span class="blk-height">HEIGHT 0</span>
+                <span class="blk-label">Genesis</span>
+                <span class="blk-hash">fd6dbd…df496</span>
+                <span class="blk-tx">0 TX</span>
+              </div>
+
+              <div class="chain-link" aria-hidden="true"><div class="chain-link-dot"></div></div>
+
+              <div class="blk" role="listitem" tabindex="0"
+                   aria-label="Block 1, height 1, 1 transaction">
+                <span class="blk-height">HEIGHT 1</span>
+                <span class="blk-label">Block #1</span>
+                <span class="blk-hash">009f94…9bdd</span>
+                <span class="blk-tx">1 TX</span>
+              </div>
+
+              <div class="chain-link" aria-hidden="true"><div class="chain-link-dot"></div></div>
+
+              <div class="blk" role="listitem" tabindex="0"
+                   aria-label="Block 2, height 2, 1 transaction">
+                <span class="blk-height">HEIGHT 2</span>
+                <span class="blk-label">Block #2</span>
+                <span class="blk-hash">003682…6335</span>
+                <span class="blk-tx">1 TX</span>
+              </div>
+
+              <div class="chain-link" aria-hidden="true"><div class="chain-link-dot"></div></div>
+
+              <div class="blk" role="listitem" tabindex="0"
+                   aria-label="Block 3, height 3, 1 transaction">
+                <span class="blk-height">HEIGHT 3</span>
+                <span class="blk-label">Block #3</span>
+                <span class="blk-hash">00a1f2…cc89</span>
+                <span class="blk-tx">1 TX</span>
+              </div>
+
+              <div class="chain-link" aria-hidden="true"><div class="chain-link-dot"></div></div>
+
+              <div class="blk tip" role="listitem" tabindex="0"
+                   aria-label="Block 4 — tip hiện tại, height 4, 1 transaction">
+                <span class="blk-height">HEIGHT 4 · TIP</span>
+                <span class="blk-label">Block #4</span>
+                <span class="blk-hash">003f…a8c2</span>
+                <span class="blk-tx">1 TX</span>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="chain-legend" aria-hidden="true">
+            <div class="legend-item">
+              <span class="legend-dot" style="background:var(--accent-blue-line);border:1px solid var(--accent-blue);"></span>
+              Genesis
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:rgba(166,227,161,0.3);border:1px solid var(--ok);"></span>
+              Tip (mới nhất)
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:var(--accent-blue);"></span>
+              Hash flow animation
+            </div>
+            <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--text-xlow);">
+              previous_hash liên kết ←
+            </span>
+          </div>
+        </div>
+
+        <!-- Node status table -->
+        <div class="panel node-panel">
+          <div class="panel-header">
+            <span class="panel-title">Node Status</span>
+            <span class="badge badge-ok">3 online</span>
+          </div>
+          <table class="node-table" aria-label="Trạng thái từng node">
+            <thead>
+              <tr>
+                <th>Node</th>
+                <th>Height</th>
+                <th>Mempool</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="nd-dot on" aria-label="Online"></span>
+                  <strong style="color:var(--text-strong);">Node-1</strong>
+                  <div class="hash-val" style="margin-top:1px; font-size:10px;">:5001</div>
+                </td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-strong);">4</td>
+                <td><span class="badge badge-amber">2 TX</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nd-dot on" aria-label="Online"></span>
+                  <strong style="color:var(--text-strong);">Node-2</strong>
+                  <div class="hash-val" style="margin-top:1px; font-size:10px;">:5002</div>
+                </td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-strong);">4</td>
+                <td><span class="badge badge-ok">0 TX</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nd-dot on" aria-label="Online"></span>
+                  <strong style="color:var(--text-strong);">Node-3</strong>
+                  <div class="hash-val" style="margin-top:1px; font-size:10px;">:5003</div>
+                </td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--text-strong);">4</td>
+                <td><span class="badge badge-ok">0 TX</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="padding:var(--sp-2) var(--sp-4) var(--sp-3);border-top:1px solid var(--border-faint);">
+            <span style="font-size:11px;color:var(--text-xlow);">Tip chung: </span>
+            <span class="hash-val">003f…a8c2</span>
+          </div>
+        </div>
+
+      </div><!-- /top-row -->
+
+      <!-- ── MAIN BODY ── -->
+      <div class="main-body">
+
+        <!-- LEFT -->
+        <div class="left-col">
+
+          <!-- Process flow -->
+          <div>
+            <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-3);">
+              <span style="font-size:13px;font-weight:600;color:var(--text-strong);">Luồng Credential → Blockchain</span>
+              <span class="badge badge-blue no-dot">End-to-End</span>
+            </div>
+
+            <!-- Row 1 -->
+            <div class="flow-track" role="list" style="margin-bottom:var(--sp-2);">
+              <div class="flow-step" role="listitem"><span class="flow-icon">📄</span><span class="flow-label">Credential</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">📝</span><span class="flow-label">Transaction</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">🔏</span><span class="flow-label">ECDSA Ký</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">🖥</span><span class="flow-label">Node xác minh</span></div>
+              <div class="flow-step hl" role="listitem"><span class="flow-icon">📋</span><span class="flow-label">Mempool</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">🌳</span><span class="flow-label">Merkle Root</span></div>
+            </div>
+
+            <!-- Row 2 -->
+            <div class="flow-track" role="list">
+              <div class="flow-step" role="listitem"><span class="flow-icon">⛏</span><span class="flow-label">PoW Mine</span></div>
+              <div class="flow-step hl" role="listitem"><span class="flow-icon">📦</span><span class="flow-label">Block đóng</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">📡</span><span class="flow-label">Broadcast</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">🤝</span><span class="flow-label">Consensus</span></div>
+              <div class="flow-step hl" role="listitem"><span class="flow-icon">🔗</span><span class="flow-label">On-Chain</span></div>
+              <div class="flow-step" role="listitem"><span class="flow-icon">✔</span><span class="flow-label">Verify</span></div>
+            </div>
+          </div>
+
+          <!-- Quick start -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Hướng dẫn demo</span>
+              <span class="badge badge-neutral no-dot">8 bước</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="qs-table">
+                <thead>
+                  <tr>
+                    <th style="width:32px;">#</th>
+                    <th>Bước</th>
+                    <th>Module</th>
+                    <th>Ghi chú</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="step-num">01</span></td>
+                    <td>Tạo Wallet cho Issuer</td>
+                    <td><span class="step-page">Wallet</span></td>
+                    <td class="qs-desc">Cặp khoá ECDSA, đặt tên tổ chức</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">02</span></td>
+                    <td>Tạo và ký Credential TX</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td class="qs-desc">Chọn Issuer, nhập thông tin, ký và submit</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">03</span></td>
+                    <td>Broadcast tới các Node</td>
+                    <td><span class="step-page">Network</span></td>
+                    <td class="qs-desc">TX lan truyền tự động qua gossip</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">04</span></td>
+                    <td>Kiểm tra Mempool</td>
+                    <td><span class="step-page">Mempool</span></td>
+                    <td class="qs-desc">Xem TX chờ tại từng node</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">05</span></td>
+                    <td>Mine Block</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td class="qs-desc">Chọn miner, difficulty → PoW → Block</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">06</span></td>
+                    <td>Đạt Consensus</td>
+                    <td><span class="step-page">Mining Flow</span></td>
+                    <td class="qs-desc">3 node đồng bộ height và tip hash</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">07</span></td>
+                    <td>Verify Credential</td>
+                    <td><span class="step-page">Verify</span></td>
+                    <td class="qs-desc">12 bước kiểm tra → VERIFIED</td>
+                  </tr>
+                  <tr>
+                    <td><span class="step-num">08</span></td>
+                    <td>Attack Simulator</td>
+                    <td><span class="step-page">Attacks</span></td>
+                    <td class="qs-desc">6 kịch bản, thấy từng lớp bảo vệ</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Module grid -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-3);">
+              <span style="font-size:13px;font-weight:600;color:var(--text-strong);">Tất cả module</span>
+              <span class="badge badge-blue no-dot">13 module</span>
+            </div>
+            <div class="module-grid" role="list">
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">#</span><span class="mc-title">SHA-256</span><span class="mc-desc">Băm, avalanche, brute-force</span><span class="mc-file">1_Hash_Demo.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">◈</span><span class="mc-title">Wallet &amp; ECDSA</span><span class="mc-desc">Cặp khoá, ký, xác minh</span><span class="mc-file">2_Wallet.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">◻</span><span class="mc-title">Credentials &amp; TXs</span><span class="mc-desc">Tạo, ký, phát hành</span><span class="mc-file">3_Transaction.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">≡</span><span class="mc-title">Mempool</span><span class="mc-desc">Hàng chờ, replay, giả mạo</span><span class="mc-file">4_Mempool.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">⋎</span><span class="mc-title">Merkle Tree</span><span class="mc-desc">Xây cây, proof inclusion</span><span class="mc-file">5_Merkle.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">⊕</span><span class="mc-title">Explorer</span><span class="mc-desc">Block, TX, hash linkage</span><span class="mc-file">6_Explorer.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">⛏</span><span class="mc-title">PoW / Mining</span><span class="mc-desc">Nonce, difficulty, target</span><span class="mc-file">7_Mining.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">◎</span><span class="mc-title">Network</span><span class="mc-desc">3 Node P2P, gossip</span><span class="mc-file">8_Network.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">⇄</span><span class="mc-title">Consensus Flow</span><span class="mc-desc">End-to-end, broadcast</span><span class="mc-file">9_Mining_Flow.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">✔</span><span class="mc-title">Verify Credential</span><span class="mc-desc">12 bước, REVOKE, Proof JSON</span><span class="mc-file">10_Verify.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">◈</span><span class="mc-title">Attack Simulator</span><span class="mc-desc">6 kịch bản tấn công</span><span class="mc-file">11_Attacks.py</span></div>
+              <div class="module-card" role="listitem" tabindex="0"><span class="mc-icon">⊖</span><span class="mc-title">PoW vs PoS</span><span class="mc-desc">So sánh, slashing</span><span class="mc-file">12_PoW_vs_PoS.py</span></div>
+            </div>
+          </div>
+
+        </div><!-- /left-col -->
+
+        <!-- RIGHT -->
+        <div class="right-col">
+
+          <!-- Credential donut — SVG-based, accessible -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Credentials</span>
+              <span class="badge badge-neutral no-dot">4 tổng cộng</span>
+            </div>
+            <div class="cred-wrap">
+              <!-- SVG donut: 3 active (75%), 1 revoked (25%) -->
+              <svg class="donut-svg" width="72" height="72" viewBox="0 0 72 72"
+                   role="img" aria-label="3 active, 1 revoked">
+                <circle cx="36" cy="36" r="26"
+                  fill="none" stroke="var(--bg-raised)" stroke-width="12"/>
+                <!-- active: 75% = 163.36 of 217.8 circumference -->
+                <circle cx="36" cy="36" r="26"
+                  fill="none" stroke="var(--ok)" stroke-width="12"
+                  stroke-dasharray="163.36 54.44"
+                  stroke-dashoffset="0"
+                  transform="rotate(-90 36 36)"/>
+                <!-- revoked: 25% = 54.44 -->
+                <circle cx="36" cy="36" r="26"
+                  fill="none" stroke="var(--err)" stroke-width="12"
+                  stroke-dasharray="54.44 163.36"
+                  stroke-dashoffset="-163.36"
+                  transform="rotate(-90 36 36)"/>
+                <text x="36" y="40" text-anchor="middle"
+                  font-family="var(--font-mono)"
+                  font-size="14" font-weight="700"
+                  fill="var(--text-strong)">4</text>
+              </svg>
+
+              <div class="cred-legend">
+                <div class="cl-item">
+                  <span class="cl-dot" style="background:var(--ok);"></span>
+                  Active
+                  <span class="cl-count text-ok">3</span>
+                </div>
+                <div class="cl-item">
+                  <span class="cl-dot" style="background:var(--err);"></span>
+                  Revoked
+                  <span class="cl-count" style="color:var(--err);">1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity feed -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">Hoạt động gần đây</span>
+              <span class="badge badge-amber">Dữ liệu mẫu</span>
+            </div>
+            <div class="activity-list" role="log" aria-live="polite">
+              <div class="activity-item">
+                <span class="act-dot" style="background:var(--accent-blue);"></span>
+                <div class="act-body">
+                  <div class="act-title">TX vào Mempool — ISSUE</div>
+                  <div class="act-meta">CRED-DEMO-9041 · Node-1 · 2 TX chờ</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="act-dot" style="background:var(--ok);"></span>
+                <div class="act-body">
+                  <div class="act-title">Block #4 mine xong · Height 4</div>
+                  <div class="act-meta">nonce: 151 · difficulty: 2 · 1 TX</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="act-dot" style="background:var(--ok);"></span>
+                <div class="act-body">
+                  <div class="act-title">Consensus — 3/3 node đồng bộ</div>
+                  <div class="act-meta">tip: 003682…6335 · height 4</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="act-dot" style="background:var(--err);"></span>
+                <div class="act-body">
+                  <div class="act-title">REVOKE on-chain</div>
+                  <div class="act-meta">CRED-ATK-001 · Block #3</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <span class="act-dot" style="background:var(--accent-amber);"></span>
+                <div class="act-body">
+                  <div class="act-title">TX giả mạo bị từ chối</div>
+                  <div class="act-meta">Chữ ký ECDSA không hợp lệ · Mempool</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview note (dev info kept here, off main dashboard) -->
+          <div class="panel">
+            <div class="panel-body">
+              <p style="font-size:12px;font-weight:600;color:var(--text-mid);margin-bottom:var(--sp-2);">Xem ứng dụng thật</p>
+              <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-xlow);background:var(--bg-overlay);padding:var(--sp-3) var(--sp-4);border-radius:var(--r-sm);border:1px solid var(--border-faint);line-height:1.8;">
+                <span style="color:var(--accent-blue);">$</span> streamlit run app.py<br>
+                <span style="opacity:0.5;"># → http://localhost:8501</span>
+              </div>
+              <p style="font-size:11px;color:var(--text-xlow);margin-top:var(--sp-2);line-height:1.5;">Backend Python đang chạy độc lập. File này là prototype giao diện, dữ liệu mẫu xác định.</p>
+            </div>
+          </div>
+
+        </div><!-- /right-col -->
+      </div><!-- /main-body -->
+
+    </main><!-- /#page-dashboard -->
+
+    <!-- ═══ PLACEHOLDER PAGE (unimplemented destinations) ═══ -->
+    <div class="placeholder-page page-content" id="page-placeholder" aria-label="Module chưa triển khai trong prototype">
+      <div class="ph-icon" id="ph-icon">◻</div>
+      <h2 class="ph-title" id="ph-title">Module</h2>
+      <p class="ph-sub">
+        Màn hình này chưa được triển khai trong prototype UI.
+        Tính năng đầy đủ có sẵn trong ứng dụng Streamlit.
+      </p>
+      <span class="ph-badge">Chưa triển khai trong prototype</span>
+      <p class="ph-streamlit">
+        Xem trong Streamlit:
+        <a href="http://localhost:8501" target="_blank" rel="noopener">localhost:8501</a>
+      </p>
+    </div>
+
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<script>
+/*
+ * Minimal JS — no framework.
+ * 1. Router: sidebar clicks → show dashboard or placeholder.
+ * 2. Sync breadcrumb, title, nav active state with visible content.
+ * 3. Count-up animation for metric values (respects prefers-reduced-motion).
+ * 4. Keyboard support for module cards and blk elements.
+ */
+
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── Page map: data-page → display info ──
+const PAGES = {
+  journey:     { label: 'Bắt đầu mô phỏng',           icon: '🚀', file: null },
+  dashboard:   { label: 'Tổng quan mạng',             icon: '◧',  file: null },
+  sha256:      { label: 'SHA-256',                     icon: '#',  file: '1_Hash_Demo.py' },
+  wallet:      { label: 'Wallet & Chữ ký ECDSA',      icon: '◈',  file: '2_Wallet.py' },
+  transaction: { label: 'Credentials & Transactions',  icon: '◻',  file: '3_Transaction.py' },
+  mempool:     { label: 'Mempool',                     icon: '≡',  file: '4_Mempool.py' },
+  merkle:      { label: 'Merkle Tree',                 icon: '⋎',  file: '5_Merkle.py' },
+  explorer:    { label: 'Blockchain Explorer',         icon: '⊕',  file: '6_Explorer.py' },
+  mining:      { label: 'PoW / Mining',                icon: '⛏',  file: '7_Mining.py' },
+  network:     { label: 'Network',                     icon: '◎',  file: '8_Network.py' },
+  consensus:   { label: 'Mining & Consensus Flow',     icon: '⇄',  file: '9_Mining_Flow.py' },
+  verify:      { label: 'Verify Credential',           icon: '✔',  file: '10_Verify.py' },
+  attacks:     { label: 'Attack Simulator',            icon: '◈',  file: '11_Attacks.py' },
+  powpos:      { label: 'PoW vs PoS & Slashing',       icon: '⊖',  file: '12_PoW_vs_PoS.py' },
+};
+
+const dashboardEl   = document.getElementById('page-dashboard');
+const journeyEl     = document.getElementById('page-journey');
+const placeholderEl = document.getElementById('page-placeholder');
+const breadcrumb    = document.getElementById('breadcrumb-current');
+const phIcon        = document.getElementById('ph-icon');
+const phTitle       = document.getElementById('ph-title');
+const docTitle      = document.getElementById('page-title');
+
+function showPage(pageKey) {
+  const info = PAGES[pageKey] || PAGES.journey;
+
+  // Update document title
+  docTitle.textContent = 'TRUSTMEBRO — ' + info.label;
+
+  // Update breadcrumb
+  breadcrumb.textContent = info.label;
+
+  // Update nav active state + aria-current
+  document.querySelectorAll('.nav-item').forEach(a => {
+    const active = a.dataset.page === pageKey;
+    a.classList.toggle('active', active);
+    if (active) {
+      a.setAttribute('aria-current', 'page');
+    } else {
+      a.removeAttribute('aria-current');
+    }
+  });
+
+  // Hide all main views initially
+  if(dashboardEl) dashboardEl.style.display = 'none';
+  if(journeyEl) journeyEl.style.display = 'none';
+  placeholderEl.classList.remove('visible');
+
+  if (pageKey === 'dashboard') {
+    if(dashboardEl) dashboardEl.style.display = '';
+  } else if (pageKey === 'journey') {
+    if(journeyEl) journeyEl.style.display = '';
+  } else {
+    phIcon.textContent  = info.icon;
+    phTitle.textContent = info.label;
+    placeholderEl.classList.add('visible');
+  }
+}
+
+// Attach nav clicks
+document.querySelectorAll('.nav-item[data-page]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    showPage(a.dataset.page);
+    // Update hash for deep-linking feel (no reload)
+    history.replaceState(null, '', '#' + a.dataset.page);
+  });
+});
+
+// On load: read hash
+const initPage = (location.hash.slice(1) || 'journey');
+showPage(PAGES[initPage] ? initPage : 'journey');
+
+// ── Count-up animation ──
+function countUp(el, target, duration) {
+  if (prefersReducedMotion) { el.textContent = target; return; }
+  const start = performance.now();
+  (function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * eased);
+    if (p < 1) requestAnimationFrame(step);
+  })(start);
+}
+
+const metricMap = {
+  'm-online': 3, 'm-total-nodes': 3,
+  'm-height': 4, 'm-blocks': 5,
+  'm-pending': 2, 'm-confirmed': 4,
+  'm-active': 3, 'm-revoked': 1,
+};
+
+const metricSection = document.querySelector('.metric-strip');
+if (metricSection) {
+  const io = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      Object.entries(metricMap).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) countUp(el, val, 700);
+      });
+      io.disconnect();
+    }
+  }, { threshold: 0.2 });
+  io.observe(metricSection);
+}
+
+// ── Keyboard for module cards and blk elements ──
+document.querySelectorAll('.module-card, .blk').forEach(el => {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      el.click();
+    }
+  });
+});
+
+function toggleWalletMode() {
+  const mode = document.querySelector('input[name="wallet_mode"]:checked').value;
+  document.getElementById('w-mode-demo').style.display = mode === 'demo' ? 'block' : 'none';
+  document.getElementById('w-mode-new').style.display = mode === 'new' ? 'block' : 'none';
+  document.getElementById('w-result').style.display = 'none';
+}
+
+function createWallet() {
+  const mode = document.querySelector('input[name="wallet_mode"]:checked').value;
+  const name = mode === 'demo' ? document.getElementById('w-demo-select').value : document.getElementById('w-new-name').value;
+  
+  if(mode === 'new' && !name.trim()) {
+    alert('Vui lòng nhập tên định danh');
+    return;
+  }
+
+  // Generate fake pub key based on name length for demo
+  const mockPub = '04' + Array.from(name).map(c => c.charCodeAt(0).toString(16)).join('').padEnd(64, '0').substring(0, 128);
+  
+  document.getElementById('w-res-name').textContent = name;
+  document.getElementById('w-res-pub').textContent = mockPub.substring(0,64) + '...';
+  document.getElementById('w-result').style.display = 'block';
+}
+
+function copyPub() {
+  const text = document.getElementById('w-res-pub').textContent;
+  navigator.clipboard.writeText(text);
+  alert('Đã copy Public Key');
+}
+
+function nextStep() {
+  showPage('transaction');
+  history.replaceState(null, '', '#transaction');
+}
+
+</script>
+
+</body>
+</html>
+
+

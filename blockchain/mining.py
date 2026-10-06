@@ -21,14 +21,14 @@ def mine_block(block) -> dict:
     difficulty = block.header.difficulty
     target_prefix = "0" * difficulty
 
-    start = time.time()
+    start = time.perf_counter()
     nonce = 0
 
     while True:
         block.header.nonce = nonce
         block_hash = block.compute_hash()
         if block_hash.startswith(target_prefix):
-            elapsed = time.time() - start
+            elapsed = time.perf_counter() - start
             return {
                 "nonce": nonce,
                 "attempts": nonce + 1,
@@ -36,6 +36,17 @@ def mine_block(block) -> dict:
                 "block_hash": block_hash,
             }
         nonce += 1
+
+
+# Mức difficulty tối thiểu mà mạng chấp nhận cho block PoW.
+# difficulty=0 nghĩa là "không cần đào" — nếu không chặn, kẻ tấn công có thể
+# gắn consensus_type="PoW", difficulty=0 để né cả PoW lẫn kiểm tra Validator của PoS.
+MIN_POW_DIFFICULTY = 1
+
+
+def is_acceptable_pow(block) -> bool:
+    """PoW hợp lệ VÀ đạt mức difficulty tối thiểu của mạng."""
+    return block.header.difficulty >= MIN_POW_DIFFICULTY and is_valid_pow(block)
 
 
 def is_valid_pow(block) -> bool:

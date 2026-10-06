@@ -20,44 +20,85 @@ init_state()
 
 
 st.header("7️⃣ Proof of Work — Mining")
+st.caption("Bài tập đào khối độc lập. Dùng Mining & Consensus Flow để ghi khối lên mạng đang chạy.")
 
 # ══════════════════════════════════════════════
-# PHẦN 1: Mine một block
+# PHẦN 1: Khối Ứng Viên & Trình Mô Phỏng Đào (Candidate Block Card)
 # ══════════════════════════════════════════════
-st.subheader("🔹 Đào Block")
-st.caption("Chọn difficulty, bấm Mine. Miner thử nonce từ 0 đến khi hash bắt đầu bằng đủ số '0'.")
+st.subheader("🔹 Khối Ứng Viên (Candidate Block) & Trình Đào PoW")
+st.caption(
+    "Trong Proof of Work, Miner đóng gói các trường header của khối ứng viên và liên tục thay đổi giá trị Nonce "
+    "cho đến khi tìm được mã băm SHA-256 nhỏ hơn hoặc bằng Target Hash (thỏa mãn số lượng ký tự '0' ở đầu)."
+)
 
-col1, col2 = st.columns([1, 2])
-with col1:
-    difficulty = st.slider("Difficulty (số ký tự '0' đầu hash):", 2, 5, 3, key="mine_diff")
-    st.markdown(f"**Target:** hash bắt đầu bằng `{'0' * difficulty}…`")
-    st.caption(f"Không gian: ~16^{difficulty} = ~{16**difficulty:,} lần thử trung bình")
+# Cấu hình phần cứng đào
+HARDWARE_PROFILES = {
+    "💻 CPU Tiêu chuẩn (Laptop sinh viên)": {"hashrate": 1500, "desc": "Sử dụng các luồng CPU thông thường."},
+    "🎮 Card Đồ họa Rời (Gaming RTX GPU)": {"hashrate": 45000, "desc": "Tính toán song song hàng ngàn luồng CUDA."},
+    "⚡ Máy đào ASIC Chuyên dụng (Antminer Rig)": {"hashrate": 250000, "desc": "Vi mạch chuyên dụng tối ưu hóa riêng cho SHA-256."},
+}
 
-with col2:
-    if st.button("⛏️ Start Mining", key="btn_mine"):
-        block = Block(
-            transactions=[], height=1,
-            previous_hash="0" * 64, difficulty=difficulty,
-        )
+col_hw1, col_hw2 = st.columns(2)
+with col_hw1:
+    difficulty = st.slider("Độ khó mạng (Difficulty — số ký tự '0' đầu):", 2, 5, 3, key="mine_diff")
+    target_pattern = "0" * difficulty
+    target_hash_display = target_pattern + "f" * (64 - difficulty)
+    expected_attempts = 16 ** difficulty
+    st.markdown(f"**Target Hash:** `{'0' * difficulty}` + `{'f' * (64 - difficulty)}`")
+    st.caption(f"Không gian tìm kiếm trung bình: ~16^{difficulty} = **{expected_attempts:,}** giá trị Nonce")
 
-        with st.spinner(f"Đang đào với difficulty={difficulty}..."):
-            result = mine_block(block)
+with col_hw2:
+    hw_choice = st.selectbox("Mô phỏng Phần cứng Khai thác (Hardware Profile):", list(HARDWARE_PROFILES.keys()), key="mine_hw")
+    hw_info = HARDWARE_PROFILES[hw_choice]
+    est_seconds = expected_attempts / hw_info["hashrate"]
+    st.caption("Hashrate của các cấu hình là giả định minh họa; chương trình vẫn chạy trên CPU hiện tại.")
+    st.markdown(f"**Năng lực băm lý thuyết:** `{hw_info['hashrate']:,} H/s` — *{hw_info['desc']}*")
+    st.markdown(f"⏱️ **Thời gian giải ước tính lý thuyết:** `{est_seconds:.2f}s`")
 
-        st.success("✅ **Block successfully mined!**")
-        st.markdown(f"**Nonce tìm được:** `{result['nonce']:,}`")
-        st.markdown(f"**Số lần thử:** `{result['attempts']:,}`")
-        st.markdown(f"**Thời gian:** `{result['seconds']:.4f}` giây")
-        st.markdown(f"**Hash:**")
-        st.code(result["block_hash"], language="text")
+# Thẻ thông tin Khối Ứng Viên (Candidate Block Inspector)
+st.markdown("#### 📦 Thẻ Khối Ứng Viên (Candidate Block Header):")
+col_cb1, col_cb2 = st.columns(2)
+with col_cb1:
+    cand_height = 1
+    cand_prev = "0" * 64
+    st.text_input("Height:", value=str(cand_height), disabled=True)
+    st.text_input("Previous Hash:", value=cand_prev, disabled=True)
+with col_cb2:
+    cand_merkle = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    st.text_input("Merkle Root (Giao dịch văn bằng):", value=cand_merkle, disabled=True)
+    st.text_input("Difficulty:", value=str(difficulty), disabled=True)
 
-        # Đánh dấu các số 0 đầu
-        leading = result["block_hash"][:difficulty]
-        rest = result["block_hash"][difficulty:]
-        st.markdown(f"Leading zeros: **`{leading}`**`{rest}`")
+if st.button("⛏️ Bắt đầu Đào Khối (Start Mining)", key="btn_mine"):
+    block = Block(
+        transactions=[], height=cand_height,
+        previous_hash=cand_prev, difficulty=difficulty,
+    )
 
-        # Verify
-        assert is_valid_pow(block)
-        st.caption("✅ is_valid_pow() xác nhận hợp lệ")
+    start_t = time.time()
+    with st.spinner(f"⛏️ Miner đang thử các giá trị Nonce để giải bài toán (Target: {difficulty} số '0')..."):
+        result = mine_block(block)
+    real_time = result["seconds"] if result["seconds"] > 0 else 0.0001
+    real_hashrate = int(result["attempts"] / real_time)
+
+    st.success("🎉 **BLOCK SUCCESSFULLY MINED! ĐÃ TÌM THẤY NONCE HỢP LỆ!**")
+
+    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col1.metric("Nonce vàng tìm được", f"{result['nonce']:,}")
+    m_col2.metric("Số lần băm thử (Attempts)", f"{result['attempts']:,}")
+    m_col3.metric("Thời gian thực tế", f"{result['seconds']:.4f} s", delta=f"{real_hashrate:,} H/s trên máy")
+
+    st.markdown("#### 🔍 So khớp Hash Khối với Target:")
+    leading = result["block_hash"][:difficulty]
+    trailing = result["block_hash"][difficulty:]
+    st.code(
+        f"Mã Hash đạt chuẩn: [{leading}] {trailing}\n"
+        f"Yêu cầu Target:   [{target_pattern}] {'*' * (64 - difficulty)} (Thoả mãn {difficulty} số '0' đầu)",
+        language="text",
+    )
+
+    # Verify
+    assert is_valid_pow(block)
+    st.caption("✅ `is_valid_pow()` xác nhận khối hoàn toàn hợp lệ theo quy tắc Nakamoto Consensus.")
 
 st.divider()
 

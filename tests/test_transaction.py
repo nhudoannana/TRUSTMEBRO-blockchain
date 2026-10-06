@@ -15,8 +15,8 @@ def _make_signed_tx():
     wallet = generate_wallet()
     cred = Credential(
         credential_id="CRED-001",
-        issuer_name="Demo University",
-        holder_name="Alice",
+        issuer_name="Trường Đại học A",
+        holder_name="Người học DEMO-001",
         title="BSc Computer Science",
         issue_date="2026-06-01",
         claims={"gpa": "3.8"},

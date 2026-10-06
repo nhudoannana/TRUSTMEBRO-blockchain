@@ -10,7 +10,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from state import init_state
+from state import init_state, get_network
 from blockchain.wallet import generate_wallet, sign_message, verify_signature
 
 init_state()
@@ -23,9 +23,9 @@ st.header("2️⃣ Wallet — Chữ ký số ECDSA")
 # PHẦN 1: Tạo Wallet
 # ══════════════════════════════════════════════
 st.subheader("🔹 Tạo Wallet")
-st.caption("Mỗi wallet chứa cặp khoá ECDSA (SECP256K1) và địa chỉ dẫn xuất.")
+st.caption("Mạng có sẵn 3 ví validator minh họa. Mỗi lần bấm Generate Wallet sẽ tạo thêm một ví riêng với khóa và địa chỉ mới.")
 
-wallet_name = st.text_input("Tên wallet:", value="Demo University", key="wallet_name")
+wallet_name = st.text_input("Tên wallet:", value="Trường Đại học A", key="wallet_name")
 
 if st.button("🔑 Generate Wallet", key="btn_gen_wallet"):
     w = generate_wallet()
@@ -40,9 +40,12 @@ if st.button("🔑 Generate Wallet", key="btn_gen_wallet"):
 
 # Hiển thị danh sách wallet
 if st.session_state.wallets:
-    st.markdown("#### 📋 Danh sách Wallet")
+    current_addresses = set(get_network().pos_registry.validators)
+    st.markdown(f"#### 📋 Danh sách Wallet ({len(st.session_state.wallets)})")
+    st.caption(f"{len(current_addresses)} validator hiện tại. Ví cùng tên nhưng khác địa chỉ là các danh tính khác nhau.")
     for i, wal in enumerate(st.session_state.wallets):
-        with st.expander(f"👛 {wal['name']} — `{wal['address'][:16]}…`"):
+        role = "Validator" if wal["address"] in current_addresses else "Ví riêng / demo cũ"
+        with st.expander(f"👛 [{role}] {wal['name']} — `{wal['address'][:16]}…`"):
             st.markdown(f"**Address:** `{wal['address']}`")
             st.markdown(f"**Public Key (hex):** `{wal['public_key_hex'][:32]}…`")
             st.code(wal["public_key_hex"], language="text")
@@ -65,7 +68,7 @@ if not st.session_state.wallets:
     st.warning("⚠️ Tạo ít nhất 1 wallet trước khi ký.")
 else:
     # Chọn wallet để ký
-    wallet_names = [w["name"] for w in st.session_state.wallets]
+    wallet_names = [f"{w['name']} — {w['address'][:12]}…" for w in st.session_state.wallets]
 
     sign_col, verify_col = st.columns(2)
 
@@ -86,6 +89,9 @@ else:
             st.session_state["last_signature"] = sig
             st.session_state["last_signer_pub"] = signer["public_key_hex"]
             st.session_state["last_signed_msg"] = sign_msg
+            st.session_state["verify_msg"] = sign_msg
+            st.session_state["verify_sig"] = sig
+            st.session_state["verify_pub"] = signer["public_key_hex"]
             st.success(f"✅ Đã ký bằng wallet **{signer['name']}**")
             st.markdown("**Chữ ký (hex):**")
             st.code(sig, language="text")

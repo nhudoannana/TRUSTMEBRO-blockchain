@@ -35,7 +35,7 @@ def _make_network():
 
 def _make_signed_tx(wallet, cred_id="CRED-NET-TEST"):
     """Helper: tạo Transaction ISSUE đã ký."""
-    cred = Credential(cred_id, "Uni", "Alice", "BSc", "2026-01-01", {})
+    cred = Credential(cred_id, "Trường Đại học A", "Người học DEMO-001", "BSc CS", "2026-01-01", {})
     tx = Transaction("ISSUE", wallet.public_key_hex, asdict(cred))
     tx.sign(wallet)
     return tx

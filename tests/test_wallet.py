@@ -22,7 +22,7 @@ def test_wallet_fields():
 def test_sign_verify_valid():
     """Ký rồi xác minh cùng message, cùng khoá → True."""
     w = generate_wallet()
-    msg = "Credential for Alice"
+    msg = "Credential for Holder A"
     sig = sign_message(msg, w.private_key_pem)
     assert verify_signature(msg, sig, w.public_key_hex) is True
 

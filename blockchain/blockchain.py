@@ -9,8 +9,50 @@ from blockchain.hash import sha256_hex
 from blockchain.merkle import (
     calculate_merkle_root, generate_merkle_proof, verify_merkle_proof,
 )
-from blockchain.mining import is_valid_pow
-from blockchain.transaction import verify_transaction
+from blockchain.mining import is_valid_pow, is_acceptable_pow, MIN_POW_DIFFICULTY
+from blockchain.transaction import verify_transaction, verify_ledger_transaction
+from blockchain.wallet import verify_signature
+
+
+def block_work(difficulty: int) -> int:
+    """Tính công việc Proof of Work của 1 block: 16^difficulty."""
+    return 16 ** max(0, difficulty)
+
+
+def calculate_chain_work(chain: list[Block]) -> int:
+    """Tính điểm chọn nhánh cho chuỗi mô phỏng PoW/PoS.
+
+    PoW dùng 16^difficulty; mỗi block PoS có 1 điểm cố định. Đây là
+    quy tắc chọn nhánh của mô phỏng hỗn hợp, không phải đồng thuận PoS production.
+    """
+    return sum(1 if b.header.consensus_type == "PoS" else block_work(b.header.difficulty)
+               for b in chain if b.height > 0)
+
+
+def verify_pos_signature(block: Block, pos_registry) -> tuple[bool, str]:
+    """Xác minh chữ ký ECDSA của Validator trên block PoS.
+
+    Kiểm tra: validator_address có trong registry và chữ ký khớp
+    hash header (chữ ký KHÔNG nằm trong hash nên phải verify riêng).
+    Không kiểm tra "Validator chính danh tại slot" — việc đó cần seed/stake
+    tại thời điểm tạo block (xem PoSRegistry.verify_pos_block).
+    """
+    if block.header.consensus_type != "PoS":
+        return False, "Loại đồng thuận không phải PoS"
+    if block.header.difficulty != 0 or block.header.nonce != 0:
+        return False, "PoS phải có difficulty=0 và nonce=0"
+    if pos_registry is None:
+        return False, "CHƯA xác minh ECDSA: thiếu PoS registry đáng tin cậy"
+    addr = block.header.validator_address
+    sig = block.header.validator_signature
+    if not addr or not sig:
+        return False, "Khối PoS thiếu chữ ký số hoặc địa chỉ của Validator"
+    validator = pos_registry.validators.get(addr)
+    if validator is None:
+        return False, f"Validator '{addr[:16]}…' không có trong danh bạ Consortium"
+    if not verify_signature(block.compute_hash(), sig, validator.public_key_hex):
+        return False, "Chữ ký ECDSA của Validator không hợp lệ (sai khoá hoặc block bị sửa)"
+    return True, "OK"
 
 
 class Blockchain:
@@ -21,7 +63,10 @@ class Blockchain:
     """
 
     def __init__(self):
-        self.chain: list[Block] = [self._create_genesis()]
+        genesis = self._create_genesis()
+        self.chain: list[Block] = [genesis]
+        self.side_branches: list[list[Block]] = []
+        self.block_pool: dict[str, Block] = {genesis.compute_hash(): genesis}
 
     def _create_genesis(self) -> Block:
         """Tạo Genesis Block — block đầu tiên, previous_hash toàn số 0.
@@ -36,13 +81,75 @@ class Blockchain:
             timestamp="2026-01-01T00:00:00+00:00",
         )
 
-    def add_block(self, block: Block) -> None:
-        """Thêm block vào cuối chuỗi.
+    def total_work(self) -> int:
+        """Tổng công việc PoW của chuỗi chính hiện tại."""
+        return calculate_chain_work(self.chain)
 
-        Vì sao tồn tại: sau khi miner đào thành công và node xác minh,
-        block mới được nối vào chuỗi, mở rộng sổ cái.
-        """
+    def add_block(self, block: Block) -> None:
+        """Thêm block vào cuối chuỗi chính."""
         self.chain.append(block)
+        self.block_pool[block.compute_hash()] = block
+
+    def add_side_branch_block(self, block: Block) -> tuple[bool, str, list[Block] | None]:
+        """Thêm một block phân nhánh (fork/side branch) vào bộ lưu trữ.
+
+        Returns:
+            (success, message, candidate_branch)
+        """
+        block_hash = block.compute_hash()
+        self.block_pool[block_hash] = block
+
+        # 1. Thử nối vào một side_branch đã có
+        for branch in self.side_branches:
+            if branch[-1].compute_hash() == block.header.previous_hash:
+                branch.append(block)
+                return True, f"Nối block vào nhánh phụ đã có (chiều dài {len(branch)})", branch
+
+        # 2. Thử nối vào một block cũ trong self.chain
+        for idx, main_block in enumerate(self.chain):
+            if main_block.compute_hash() == block.header.previous_hash:
+                new_branch = list(self.chain[:idx + 1])
+                new_branch.append(block)
+                self.side_branches.append(new_branch)
+                return True, f"Tạo nhánh rẽ mới từ Block {idx}", new_branch
+
+        return False, "Không tìm thấy block cha (orphan block)", None
+
+    def reorganize(self, new_branch: list[Block]) -> tuple[list, list[Block]]:
+        """Thực hiện tái tổ chức chuỗi (Chain Reorganization) sang new_branch.
+
+        Returns:
+            (reverted_transactions, disconnected_blocks)
+        """
+        common_idx = -1
+        min_len = min(len(self.chain), len(new_branch))
+        for i in range(min_len):
+            if self.chain[i].compute_hash() == new_branch[i].compute_hash():
+                common_idx = i
+            else:
+                break
+
+        disconnected_blocks = self.chain[common_idx + 1:] if common_idx != -1 else list(self.chain[1:])
+        connected_blocks = new_branch[common_idx + 1:] if common_idx != -1 else list(new_branch[1:])
+
+        new_tx_ids = set()
+        for b in connected_blocks:
+            for tx in b.transactions:
+                new_tx_ids.add(tx.tx_id)
+
+        reverted_txs = []
+        for b in disconnected_blocks:
+            for tx in b.transactions:
+                if tx.tx_id not in new_tx_ids:
+                    reverted_txs.append(tx)
+
+        old_chain = list(self.chain)
+        self.side_branches = [b for b in self.side_branches if b != new_branch]
+        self.side_branches.append(old_chain)
+        self.chain = list(new_branch)
+        self.block_pool.update({b.compute_hash(): b for b in self.chain})
+
+        return reverted_txs, disconnected_blocks
 
     def get_latest_block(self) -> Block:
         """Trả về block mới nhất (cuối chuỗi).
@@ -52,7 +159,7 @@ class Blockchain:
         """
         return self.chain[-1]
 
-    def is_chain_valid(self) -> tuple[bool, int | None, str]:
+    def is_chain_valid(self, pos_registry=None, authorized_issuers=None) -> tuple[bool, int | None, str]:
         """Kiểm tra tính hợp lệ toàn chuỗi, trả về block sai đầu tiên.
 
         Vì sao tồn tại: bất kỳ node nào cũng phải tự kiểm tra toàn chuỗi
@@ -61,14 +168,22 @@ class Blockchain:
         Kiểm tra:
         1. merkle_root khớp danh sách giao dịch thực tế trong block.
         2. previous_hash của mỗi block khớp hash block trước.
-        3. Proof of Work hợp lệ (trừ Genesis).
+        3. Đồng thuận PoW/PoS hợp lệ (trừ Genesis).
+        4. Hash, chữ ký, quyền issuer và trạng thái giao dịch theo thứ tự.
 
         Returns:
             (True, None, "Chain hợp lệ") hoặc
             (False, chỉ_số_block_sai, lý_do).
         """
+        if not self.chain or self.chain[0].compute_hash() != self._create_genesis().compute_hash():
+            return False, 0, "Genesis không khớp mạng mô phỏng"
+        states = {}
+        issuers = {}
+        seen_tx_ids = set()
         for i in range(len(self.chain)):
             block = self.chain[i]
+            if block.height != i:
+                return False, i, f"Block {i}: height không khớp vị trí trong chuỗi"
 
             # 1. Kiểm tra merkle_root khớp giao dịch
             tx_hashes = [tx.tx_id for tx in block.transactions]
@@ -80,6 +195,24 @@ class Blockchain:
                     f"(header={block.header.merkle_root[:16]}…, "
                     f"expected={expected_root[:16]}…)"
                 )
+
+            for tx in block.transactions:
+                cred_id = tx.payload.get("credential_id") if isinstance(tx.payload, dict) else None
+                if not isinstance(cred_id, str):
+                    return False, i, "Thiếu credential_id hợp lệ"
+                if tx.tx_id in seen_tx_ids:
+                    return False, i, "Transaction bị replay (trùng tx_id)"
+                ok, why = verify_ledger_transaction(
+                    tx, states.get(cred_id), issuers.get(cred_id), authorized_issuers,
+                )
+                if not ok:
+                    return False, i, f"Block {i}: {why}"
+                seen_tx_ids.add(tx.tx_id)
+                if tx.tx_type == "ISSUE":
+                    states[cred_id] = "ACTIVE"
+                    issuers[cred_id] = tx.sender_public_key
+                else:
+                    states[cred_id] = "REVOKED"
 
             # 2–3 chỉ áp dụng cho block sau genesis
             if i > 0:
@@ -93,15 +226,25 @@ class Blockchain:
                         f"expected={prev_hash_expected[:16]}…)"
                     )
 
-                # 3. Kiểm tra Proof of Work
-                if not is_valid_pow(block):
-                    block_hash = block.compute_hash()
-                    return (
-                        False, i,
-                        f"Block {i}: Proof of Work không hợp lệ "
-                        f"(hash={block_hash[:16]}…, "
-                        f"cần {block.header.difficulty} ký tự '0' đầu)"
-                    )
+                if block.header.consensus_type not in ("PoW", "PoS"):
+                    return False, i, "Loại đồng thuận không hỗ trợ"
+                # 3. Kiểm tra tính hợp lệ của cơ chế đồng thuận (PoW hoặc PoS)
+                if block.header.consensus_type == "PoS":
+                    ok_sig, why = verify_pos_signature(block, pos_registry)
+                    if not ok_sig:
+                        return False, i, f"Block {i}: {why}"
+                else:
+                    if not is_acceptable_pow(block):
+                        block_hash = block.compute_hash()
+                        if block.header.difficulty < MIN_POW_DIFFICULTY:
+                            why = f"difficulty={block.header.difficulty} < mức tối thiểu {MIN_POW_DIFFICULTY}"
+                        else:
+                            why = f"cần {block.header.difficulty} ký tự '0' đầu"
+                        return (
+                            False, i,
+                            f"Block {i}: Proof of Work không hợp lệ "
+                            f"(hash={block_hash[:16]}…, {why})"
+                        )
 
         return (True, None, "Chain hợp lệ")
 
@@ -142,6 +285,7 @@ class Blockchain:
 
     def verify_credential(
         self, credential_id: str, authorized_issuers: set[str] | None = None,
+        pos_registry=None,
     ) -> tuple[list[tuple[str, bool, str]], str, dict]:
         """Xác minh credential qua 12 bước, trả kết quả từng bước.
 
@@ -196,6 +340,7 @@ class Blockchain:
             "holder_name": issue_tx.payload.get("holder_name", "—"),
             "title": issue_tx.payload.get("title", "—"),
             "issue_date": issue_tx.payload.get("issue_date", "—"),
+            "claims_root": issue_tx.payload.get("claims_root", "—"),
             "issuer_public_key": issue_tx.sender_public_key,
             "issue_tx_id": issue_tx.tx_id,
             "issue_block_height": issue_block.height,
@@ -271,19 +416,31 @@ class Blockchain:
         else:
             steps.append(("previous_hash đúng", True, "Genesis block"))
 
-        # ── Bước 10: PoW hợp lệ ──
-        if issue_block_idx == 0 or is_valid_pow(issue_block):
+        # ── Bước 10: Cơ chế đồng thuận hợp lệ (PoW hoặc PoS) ──
+        if issue_block_idx == 0:
+            steps.append(("Đồng thuận khối hợp lệ", True, "Genesis block"))
+        elif issue_block.header.consensus_type == "PoS":
+            addr16 = issue_block.header.validator_address[:16]
+            ok_sig, why = verify_pos_signature(issue_block, pos_registry)
+            if not ok_sig:
+                steps.append(("Đồng thuận PoS hợp lệ", False, why))
+                return steps, "INVALID", info
             steps.append((
-                "PoW hợp lệ", True,
+                "Đồng thuận PoS hợp lệ", True,
+                f"Validator: {addr16}… (Chữ ký số ECDSA verified)",
+            ))
+        elif is_acceptable_pow(issue_block):
+            steps.append((
+                "Đồng thuận PoW hợp lệ", True,
                 f"difficulty={issue_block.header.difficulty}, "
                 f"nonce={issue_block.header.nonce:,}",
             ))
         else:
-            steps.append(("PoW hợp lệ", False, "Block không thoả mãn PoW"))
+            steps.append(("Đồng thuận PoW hợp lệ", False, "Block không thoả mãn PoW"))
             return steps, "INVALID", info
 
         # ── Bước 11: Blockchain hợp lệ ──
-        chain_ok, _, chain_reason = self.is_chain_valid()
+        chain_ok, _, chain_reason = self.is_chain_valid(pos_registry=pos_registry, authorized_issuers=authorized_issuers)
         if chain_ok:
             steps.append((
                 "Blockchain hợp lệ", True,
@@ -307,4 +464,73 @@ class Blockchain:
         else:
             steps.append(("Trạng thái", False, "Trạng thái không xác định"))
             return steps, "INVALID", info
+
+    def verify_selective_claim(
+        self,
+        credential_id: str,
+        claim_name: str,
+        claim_value: str,
+        salt: str,
+        proof: list[tuple[str, str]],
+        pos_registry=None,
+    ) -> tuple[bool, str, dict]:
+        """Xác minh một claim riêng lẻ bằng Proof of Inclusion với claims_root trên chain.
+
+        Verifier kiểm chứng tính toàn vẹn của claim mà không thấy bất kỳ claim nào khác.
+        LƯU Ý: Đây là Proof of Inclusion qua Merkle Proof, KHÔNG PHẢI Zero-Knowledge Proof (ZKP).
+
+        Returns:
+            (is_valid, reason, info)
+        """
+        from blockchain.claim_merkle import verify_claim_inclusion_proof
+
+        # Chain phải hợp lệ trước khi tin bất kỳ dữ liệu nào đọc từ nó
+        chain_ok, _, chain_reason = self.is_chain_valid(pos_registry=pos_registry)
+        if not chain_ok:
+            return False, f"Blockchain không hợp lệ: {chain_reason}", {}
+
+        status = self.credential_status(credential_id)
+        if status != "ACTIVE":
+            return False, f"Credential '{credential_id}' không ở trạng thái ACTIVE (trạng thái: {status or 'NOT_FOUND'})", {}
+
+        target_tx = None
+        target_block = None
+        for block in self.chain:
+            for tx in block.transactions:
+                if tx.tx_type == "ISSUE" and tx.payload.get("credential_id") == credential_id:
+                    target_tx = tx
+                    target_block = block
+                    break
+            if target_tx:
+                break
+
+        if not target_tx:
+            return False, f"Không tìm thấy transaction phát hành của credential '{credential_id}'", {}
+
+        # Transaction phải còn nguyên vẹn (chữ ký + tx_id khớp hash) trước khi
+        # tin bất kỳ trường nào trong payload của nó — trước đây bỏ qua bước
+        # này nên claims_root có thể bị sửa sau khi phát hành mà vẫn "xác minh
+        # thành công" miễn kẻ tấn công tự tạo proof khớp root giả của họ.
+        tx_ok, tx_reason = verify_transaction(target_tx)
+        if not tx_ok:
+            return False, f"Transaction phát hành đã bị giả mạo: {tx_reason}", {}
+
+        claims_root = target_tx.payload.get("claims_root")
+        if not claims_root:
+            return False, f"Credential '{credential_id}' không có claims_root trên blockchain (payload cũ)", {}
+
+        ok = verify_claim_inclusion_proof(claim_name, claim_value, salt, proof, claims_root)
+        if ok:
+            return True, f"Xác minh thành công: Claim '{claim_name}={claim_value}' thuộc credential (Proof of Inclusion)", {
+                "credential_id": credential_id,
+                "claim_name": claim_name,
+                "claim_value": claim_value,
+                "claims_root": claims_root,
+                "block_height": target_block.height,
+            }
+        else:
+            return False, "Merkle Proof không khớp claims_root — dữ liệu claim hoặc salt không chính xác", {
+                "credential_id": credential_id,
+                "claims_root": claims_root,
+            }
 
