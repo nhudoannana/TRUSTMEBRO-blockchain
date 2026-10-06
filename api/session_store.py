@@ -159,16 +159,17 @@ registry = SessionRegistry()
 
 
 class SimulationSessionMiddleware:
-    """Cookie-only selection for every HTTP route, including initial HTML.
+    """Cookie-only selection for simulation APIs; public visits have no lease.
 
+    Pages serialize their first API calls behind a lightweight bootstrap.
     Resolve HTTPS from ASGI's existing scheme, not untrusted forwarded headers.
-    Static page responses establish the cookie before concurrent UI API calls.
     """
     def __init__(self, app):
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http':
+        if (scope['type'] != 'http' or not scope['path'].startswith('/api/')
+                or scope['path'] in ('/api/health', '/api/health/', '/api/docs', '/api/docs/')):
             return await self.app(scope, receive, send)
         request = Request(scope)
         try:

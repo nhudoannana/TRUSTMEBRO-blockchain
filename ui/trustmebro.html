@@ -313,6 +313,7 @@ html[data-theme="light"] {
   </footer>
 </div><!-- /shell -->
 
+<script src="/ui/session.js"></script>
 <script>
 'use strict';
 
@@ -491,7 +492,8 @@ function journeyGuidance() {
       : 'Làm mới/đồng bộ node ONLINE và kiểm tra block có chứa giao dịch hồ sơ; lỗi hoặc timeout không mở bước tiếp.';
   } else {
     const r = v?.result, status = r?.chain_status.status;
-    observed = v?.busy ? 'Đang chờ backend; chưa có kết luận mới.'
+    observed = v?.comparisonDirty ? 'Bản xuất trình đã đổi — hãy kiểm tra lại. Kết quả on-chain bên dưới thuộc lần quan sát trước.'
+      : v?.busy ? 'Đang chờ backend; chưa có kết luận mới.'
       : status === 'VERIFIED' ? r.presentation_match === true ? 'VERIFIED: bản ghi trên chuỗi hợp lệ và bản xuất trình khớp.'
         : r.presentation_match === false ? 'Chuỗi hợp lệ, nhưng hồ sơ xuất trình không khớp.' : 'VERIFIED: đã xác minh bản ghi theo ID; chưa so sánh bản xuất trình.'
       : status === 'NOT_FOUND' ? 'NOT_FOUND: chưa tìm thấy trên node đã chọn; node offline/cũ có thể chưa biết hồ sơ.'
@@ -1478,6 +1480,7 @@ async function networkOperation(path, body) {
 
 function verificationState() {
   if (!state.verification) state.verification = { busy: false, token: 0, result: null, revocation: null,
+    presentationRevision: 0, comparisonDirty: false,
     generation: state.network?.snapshot?.reset_count ?? state.mempool?.generation ?? null };
   return state.verification;
 }
@@ -1518,6 +1521,7 @@ async function renderStep5() {
   $('v-id').oninput = () => {
     v.credentialId = $('v-id').value.trim();
     v.result = null; v.revocation = null; v.miningResult = null;
+    v.comparisonDirty = false;
     v.originalId = null;
     v.original = Object.fromEntries(Object.keys(v.copy).map(k=>[k, '']));
     v.copy = { ...v.original };
@@ -1525,8 +1529,8 @@ async function renderStep5() {
     showVerification(v);
   };
   $('v-copy').onclick = () => verificationOperation('verify', true);
-  $('v-restore').onclick = () => { v.copy = { ...v.original }; Object.keys(v.copy).forEach(k => { $('v-'+k).value = v.copy[k]; }); };
-  Object.keys(v.copy).forEach(k => { $('v-'+k).oninput = () => { v.copy[k] = $('v-'+k).value; }; });
+  $('v-restore').onclick = () => { v.copy = { ...v.original }; Object.keys(v.copy).forEach(k => { $('v-'+k).value = v.copy[k]; }); invalidatePresentation(v); };
+  Object.keys(v.copy).forEach(k => { $('v-'+k).oninput = () => { v.copy[k] = $('v-'+k).value; invalidatePresentation(v); }; });
   $('v-revoke').onclick = () => verificationOperation('revoke');
   $('v-mine').onclick = () => verificationOperation('mine');
   showVerification(v);
@@ -1540,6 +1544,12 @@ async function renderStep5() {
     $('v-node').value = v.nodeId || 'Node-1';
     showVerification(v);
   } catch (error) { if (state === current && state.step === 5) showError('v-error', error.message); }
+}
+
+function invalidatePresentation(v) {
+  v.presentationRevision = (v.presentationRevision || 0) + 1;
+  v.comparisonDirty = true;
+  showVerification(v);
 }
 
 function verificationOutcome(r) {
@@ -1557,13 +1567,15 @@ function showVerification(v) {
   showJourneyGuidance();
   ['v-original','v-copy','v-revoke','v-mine','v-restore','v-id','v-node','v-reason', ...Object.keys(v.copy || {}).map(k=>'v-'+k)].forEach(id => { $(id).disabled = v.busy; });
   const r = v.result;
-  $('v-status').textContent = v.busy ? 'Đang chờ backend…' : !r ? (v.miningResult ? `Đã mine block ${v.miningResult.block.height}: ${v.miningResult.block.hash}. Hãy sync và xác minh lại.` : 'Chưa xác minh.')
+  $('v-status').textContent = v.comparisonDirty ? 'Bản xuất trình đã đổi — hãy kiểm tra lại.' : v.busy ? 'Đang chờ backend…' : !r ? (v.miningResult ? `Đã mine block ${v.miningResult.block.height}: ${v.miningResult.block.hash}. Hãy sync và xác minh lại.` : 'Chưa xác minh.')
     : r.chain_status.status === 'VERIFIED' && r.presentation_match === false ? 'Chuỗi hợp lệ, nhưng hồ sơ xuất trình không khớp'
     : `${r.chain_status.status} — ${r.node_id} ${r.node_status} — ${r.chain_status.reason}`;
-  const outcome = r && verificationOutcome(r);
-  $('v-result').innerHTML = !r ? '' : `${v.busy ? '<p class="result-context">Đang chờ lượt kiểm tra mới — bên dưới là kết quả trước đó.</p>' : !$('v-error').hidden ? '<p class="result-context">Yêu cầu vừa gặp lỗi — bên dưới là kết quả trước đó.</p>' : ''}<section class="result-summary${r.chain_status.status === 'VERIFIED' && r.presentation_match !== false ? '' : ' warning'}"><h3>${esc(outcome[0])}</h3><p>${esc(outcome[1])}</p><p>${esc(r.chain_status.status)} — ${esc(r.node_id)} ${esc(r.node_status)}</p><p>${esc(r.chain_status.reason)}</p><p>${esc(r.local_chain_warning || '')}</p>
-    <p>Presentation match: ${r.presentation_match === null ? 'Không so sánh' : r.presentation_match} · Trường không khớp: ${esc(r.mismatched_fields.join(', ') || '—')}</p>
-    <p>Bản ghi on-chain đã xác minh: ${r.chain_status.status === 'VERIFIED'}. ${r.presentation_match === null ? 'Chưa so sánh hồ sơ xuất trình; VERIFIED theo ID không xác nhận một tài liệu xuất trình.' : `Hồ sơ xuất trình được chấp nhận: ${r.chain_status.status === 'VERIFIED' && r.presentation_match === true}.`}</p>
+  const outcome = r && (v.comparisonDirty
+    ? ['Bản xuất trình đã đổi — hãy kiểm tra lại.', 'Bên dưới là kết quả trước: quan sát on-chain, không phải kết luận cho bản xuất trình hiện tại.']
+    : verificationOutcome(r));
+  $('v-result').innerHTML = !r ? '' : `${v.busy ? '<p class="result-context">Đang chờ lượt kiểm tra mới — bên dưới là kết quả trước đó.</p>' : !$('v-error').hidden ? '<p class="result-context">Yêu cầu vừa gặp lỗi — bên dưới là kết quả trước đó.</p>' : ''}<section class="result-summary${!v.comparisonDirty && r.chain_status.status === 'VERIFIED' && r.presentation_match !== false ? '' : ' warning'}"><h3>${esc(outcome[0])}</h3><p>${esc(outcome[1])}</p><p>${esc(r.chain_status.status)} — ${esc(r.node_id)} ${esc(r.node_status)}</p><p>${esc(r.chain_status.reason)}</p><p>${esc(r.local_chain_warning || '')}</p>
+    ${v.comparisonDirty ? '<p>Quan sát trước về bản ghi trên chuỗi; bản xuất trình hiện tại chưa được kiểm tra.</p>' : `<p>Presentation match: ${r.presentation_match === null ? 'Không so sánh' : r.presentation_match} · Trường không khớp: ${esc(r.mismatched_fields.join(', ') || '—')}</p>
+    <p>Bản ghi on-chain đã xác minh: ${r.chain_status.status === 'VERIFIED'}. ${r.presentation_match === null ? 'Chưa so sánh hồ sơ xuất trình; VERIFIED theo ID không xác nhận một tài liệu xuất trình.' : `Hồ sơ xuất trình được chấp nhận: ${r.chain_status.status === 'VERIFIED' && r.presentation_match === true}.`}</p>`}
     ${['VERIFIED','REVOKED'].includes(r.chain_status.status) ? `<p>Issuer trên chain: <strong>${esc(r.chain_status.info.issuer_name)}</strong><br>Public key: <code style="overflow-wrap:anywhere">${esc(r.chain_status.info.issuer_public_key || 'Không có')}</code>${r.chain_status.info.issuer_address ? `<br>Address: ${esc(r.chain_status.info.issuer_address)}` : ''}</p>` : ''}
     <details class="technical"><summary>Chi tiết kỹ thuật — các kiểm tra và bản ghi</summary><ul>${r.chain_status.checks.map(([name,passed,reason]) => `<li>${passed ? '✓' : '✗'} ${esc(name)}: ${esc(reason)}</li>`).join('')}</ul>
     <pre style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(r.chain_status.info,null,2))}</pre></details></section>`;
@@ -1596,7 +1608,7 @@ async function verificationOperation(action, presented = false) {
   if (v.busy) return;
   v.credentialId = $('v-id').value.trim(); v.nodeId = $('v-node').value;
   if (!v.credentialId || !v.nodeId) { showError('v-error','Nhập Credential ID và chọn node.'); return; }
-  v.busy = true; const token = ++v.token;
+  v.busy = true; const token = ++v.token, revision = v.presentationRevision || 0;
   $('v-error').hidden = true; showVerification(v);
   try {
     const url = action === 'verify' ? '/verify' : action === 'mine' ? '/mining/pow' : `/credentials/${encodeURIComponent(v.credentialId)}/revoke`;
@@ -1610,6 +1622,8 @@ async function verificationOperation(action, presented = false) {
     if (!await acceptVerificationGeneration(current, v, data.reset_count)) return;
     if (action === 'verify') {
       v.result = data;
+      v.comparisonDirty = (v.presentationRevision || 0) !== revision
+        || !!body.presented_credential && Object.keys(v.copy).some(key => v.copy[key] !== body.presented_credential[key]);
       v.miningResult = null;
       if (['VERIFIED','REVOKED'].includes(data.chain_status.status)) {
         v.original = Object.fromEntries(Object.keys(v.copy).map(k=>[k,data.chain_status.info[k]]));
@@ -1862,6 +1876,7 @@ $('reset').onclick = async () => {
 // ═══════════════════════════════════════════════════════════════
 
 window.addEventListener('pagehide', saveJourney);
+window.addEventListener('simulation-ready', () => render());
 window.addEventListener('pageshow', event => {
   if (event.persisted) { state = freshState(); journeyRestoreMessage = ''; enterJourney(); }
 });

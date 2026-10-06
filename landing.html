@@ -333,7 +333,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                 <div class="feature-card stagger-child" style="grid-column: span 2;">
                     <div class="feature-icon" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">#</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Băm SHA-256</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Chỉ cần thay đổi 1 ký tự, toàn bộ giá trị băm 256-bit thay đổi hoàn toàn. Hiệu ứng tuyết lở (Avalanche Effect) — nền tảng bảo mật của blockchain.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Thay đổi nhỏ ở đầu vào thường làm khoảng một nửa số bit hash thay đổi qua nhiều lần thử; mỗi lần không cần đạt đúng 50%. Đây là hiệu ứng Avalanche của SHA-256.</p>
                     <!-- Mini hash demo -->
                     <div style="margin-top: 20px; background: #0b111c; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
                         <div style="color: rgba(255,255,255,0.35); margin-bottom: 6px;">INPUT:</div>
@@ -378,14 +378,14 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                 <div class="feature-card stagger-child">
                     <div class="feature-icon" style="background: rgba(96, 165, 250, 0.15); color: #60a5fa;">🔗</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Blockchain Explorer</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Xem chi tiết từng block, hash linkage, và thử nghiệm sửa đổi dữ liệu.</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Explorer chỉ đọc block, giao dịch và liên kết hash của phiên có hướng dẫn. Muốn thử sửa dữ liệu, hãy mở lab Khối &amp; Chuỗi khối.</p>
                 </div>
 
                 <!-- Card 6: P2P -->
                 <div class="feature-card stagger-child">
                     <div class="feature-icon" style="background: rgba(167, 139, 250, 0.15); color: #a78bfa;">🌐</div>
                     <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Mạng P2P</h3>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">3 Nodes đồng bộ theo quy tắc chuỗi dài nhất (Longest Chain Rule).</p>
+                    <p style="font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.7;">Trong mô phỏng PoW, node chọn nhánh hợp lệ theo công việc tích lũy; tương đương chọn chuỗi dài nhất khi độ khó các block bằng nhau.</p>
                 </div>
             </div>
         </div>
@@ -436,7 +436,7 @@ html[data-theme="light"] .landing-hero{background:#e3eaf3}html[data-theme="light
                             <div style="width: 40px; height: 40px; border-radius: 50%; background: #16253c; border: 1px solid #60799566; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono'; font-size: 14px; font-weight: 700; color: #ead9b5; flex-shrink: 0;">04</div>
                             <div>
                                 <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">Đồng bộ Node P2P</h4>
-                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">3 Nodes đạt đồng thuận bằng chuỗi dài nhất, phát tán Gossip.</p>
+                                <p style="font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.6;">Node PoW chọn nhánh hợp lệ theo công việc tích lũy và truyền dữ liệu qua hàng đợi. Khi các block cùng độ khó, chuỗi dài hơn có nhiều công việc hơn.</p>
                             </div>
                         </div>
                     </div>

@@ -9,7 +9,7 @@ import pytest
                                   'signature_reset', 'merkle', 'merkle_reset', 'errors',
                                   'comparison', 'comparison_reset', 'example_safety',
                                   'result_guidance', 'sha_navigation', 'sha_preservation',
-                                  'lab_learning', 'merkle_svg', 'merkle_previews', 'metric_mapping'])
+                                  'lab_learning', 'merkle_svg', 'merkle_previews', 'metric_mapping', 'merkle_selection_stale', 'public_learning'])
 def test_lab_handlers_and_isolation(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto');
@@ -61,7 +61,23 @@ vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),context);
 const $=id=>document.getElementById(id),run=s=>vm.runInContext(s,context),event={preventDefault(){}};
 context.event=event;
 (async()=>{
-if(testCase==='lab_learning'){
+if(testCase==='public_learning'){
+ context.location.hash='#blocks';events.hashchange();await new Promise(r=>setImmediate(r));
+ assert.equal($('blocks-theory').hidden,false);assert.equal(run('chainLab.result'),null);
+ for(let i=0;i<4;i++)$('blocks-topic-'+i).onclick();
+ context.location.hash='#sha';events.hashchange();$('sha-tab-practice').onclick();
+ $('hash-a').value='abc';$('hash-b').value='abd';await run('compareHashes(event)');
+ assert.match($('hash-difference').textContent,/122\/256/);assert.equal(calls.length,0);
+}else if(testCase==='merkle_selection_stale'){
+ $('merkle-leaves').value='A\nB\nC';$('merkle-proof').value='0';
+ await run('computeMerkle(event)');
+ const count=calls.length,proof=$('merkle-proof-result').textContent,tree=$('merkle-tree').children;
+ $('merkle-proof').value='2';$('merkle-proof').onchange?.();
+ assert.match($('merkle-status').textContent,/lần tính trước/);
+ assert.equal($('merkle-proof-result').textContent,proof);assert.equal($('merkle-tree').children,tree);
+ assert.equal(calls.length,count);await run('computeMerkle(event)');
+ assert.doesNotMatch($('merkle-status').textContent,/lần tính trước/);
+}else if(testCase==='lab_learning'){
  run('signature.key={key_handle:"keep"};signature.signed={signature_hex:"keep-signature"};chainLab.result={chain:["keep-chain"]};networkLab.handle="keep-network";networkLab.snapshot={keep:true};comparison.results.pow={keep:true}');
  const owners=run('[signature,chainLab,networkLab,comparison]');
  const snapshot=run('JSON.stringify([signature,chainLab,networkLab,comparison])');

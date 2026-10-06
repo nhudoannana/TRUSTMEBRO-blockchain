@@ -103,6 +103,8 @@ function showLabLearning(name, tab, focusPractice = false) {
     button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
     $(name + '-' + value).hidden = !selected;
   }
+  if (name === 'blocks' && s.tab === 'practice' && !chainLab.result && !chainLab.busy)
+    chainLab.initialization = chainLabAction('init');
   if (focusPractice && s.tab === 'practice') {
     const target = $(labPracticeFocus[name]);
     (target.disabled ? $(name + '-practice') : target).focus();
@@ -944,7 +946,8 @@ async function resetTamperLab() {
     });
     document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
-    if (name === 'blocks' && !chainLab.result && !chainLab.busy) chainLab.initialization = chainLabAction('init');
+    if (name === 'blocks' && labLearning.blocks.tab === 'practice' && !chainLab.result && !chainLab.busy)
+      chainLab.initialization = chainLabAction('init');
   }
   window.addEventListener('hashchange', () => route(true));
   for (const [index, name] of ['theory', 'practice'].entries()) {
@@ -975,6 +978,9 @@ async function resetTamperLab() {
   ['sig-presented', 'sig-key-choice'].forEach(id => { $(id).oninput = () => { signature.result = null; showSignature(); $('sig-status').textContent = 'Bản xuất trình hoặc khóa kiểm tra đã đổi. Chữ ký gốc vẫn giữ nguyên.'; }; });
   $('merkle-form').onsubmit = computeMerkle; $('merkle-reset').onclick = resetMerkle;
   $('merkle-leaves').oninput = () => { updateProofChoices(); $('merkle-status').textContent = 'Lá đã đổi — cây và root đang hiển thị thuộc lần tính trước. Bấm tính lại để cập nhật và so sánh các node.'; };
+  $('merkle-proof').onchange = () => {
+    if (merklePrevious) $('merkle-status').textContent = 'Lựa chọn lá đã đổi — proof và đường đi đang hiển thị thuộc lần tính trước. Bấm tính lại để kiểm tra lá đang chọn.';
+  };
   for (const [id, text] of [['merkle-one', 'Hồ sơ An'], ['merkle-odd', 'Hồ sơ An\nHồ sơ Bình\nHồ sơ Chi'], ['merkle-empty', '']]) {
     $(id).onclick = () => { if (merkleBusy) return; fillLabExample('merkle-leaves', text); };
   }

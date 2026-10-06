@@ -24,6 +24,9 @@ vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),c);
 (async()=>{
  await new Promise(r=>setImmediate(r));
  assert.equal(document.getElementById('lab-blocks').hidden,false);
+ assert.deepEqual(calls,[]); // Opening theory does not reserve a simulation.
+ document.getElementById('blocks-tab-practice').onclick();
+ await new Promise(r=>setImmediate(r));
  assert.deepEqual(calls,['/api/labs/blockchain/init']);
  assert.equal(vm.runInContext('chainLab.result.chain.length',c),1);
  const owner=vm.runInContext('chainLab',c);

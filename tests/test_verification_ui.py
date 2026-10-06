@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only', 'outcome_mapping'])
+@pytest.mark.parametrize('case', ['original', 'mismatch', 'revoke', 'mine', 'failure', 'local_reset', 'remote_reset', 'new_credential', 'different_id', 'mined_label', 'duplicate_label', 'wallet_reset', 'id_only', 'outcome_mapping', 'dirty_edit', 'dirty_restore', 'dirty_inflight', 'dirty_recheck'])
 def test_verification_ui(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -38,6 +38,10 @@ context=vm.createContext({document,console,record,fetch:async(url,options={})=>{
   else assert.equal(body.presented_credential.title,mode==='mismatch'?'Edited':'Title');
   data={chain_status:{status:'VERIFIED',reason:'ACTIVE',checks:[['signature',true,'valid']],info:{...metadata,issuer_public_key:'on-chain-issuer-key'}},
    node_id:'Node-1',node_status:'ONLINE',presentation_match:mode==='id_only'?null:mode!=='mismatch',mismatched_fields:mode==='mismatch'?['title']:[],success:mode!=='mismatch',reset_count:mode==='remote_reset'?1:0};
+  if(mode==='dirty_inflight'){
+   document.getElementById('v-title').value='Edited during request';
+   document.getElementById('v-title').oninput();
+  }
  }
  return {ok:mode!=='failure',status:500,json:async()=>mode==='failure'?{detail:{message:'actual failure'}}:data};
 }});
@@ -79,6 +83,24 @@ vm.runInContext('state.record=record;state.step=5;state.mempool={generation:0};r
  else if(mode==='mine'){assert.equal(vm.runInContext('state.verification.revocation.pending',context),false);assert.match(document.getElementById('v-status').textContent,/real-block/);}
  else if(mode==='mismatch'){assert.equal(vm.runInContext('state.verification.result.chain_status.status',context),'VERIFIED');assert.equal(vm.runInContext('state.verification.result.success',context),false);document.getElementById('v-restore').onclick();assert.equal(document.getElementById('v-title').value,'Title');}
  else assert.equal(vm.runInContext('state.verification.result.success',context),true);
+ if(mode.startsWith('dirty_')){
+  const previous=vm.runInContext('state.verification.result',context),original=JSON.stringify(previous);
+  if(mode!=='dirty_inflight'){
+   document.getElementById('v-title').value='A newer copy';document.getElementById('v-title').oninput();
+   if(['dirty_restore','dirty_recheck'].includes(mode))document.getElementById('v-restore').onclick();
+  }
+  const html=document.getElementById('v-result').innerHTML;
+  assert.doesNotMatch(html,/xuất trình khớp|Hồ sơ xuất trình được chấp nhận: true/);
+  assert.match(document.getElementById('v-status').textContent,/Bản xuất trình đã đổi/);
+  assert.match(html,/kết quả trước|quan sát trước/i);
+  assert.equal(JSON.stringify(previous),original);assert.equal(previous.presentation_match,true);
+  assert.equal(calls,1);assert.equal(document.getElementById('v-original').disabled,false);
+  if(mode==='dirty_recheck'){
+   await vm.runInContext('verificationOperation("verify",true)',context);
+   assert.equal(calls,2);assert.match(document.getElementById('v-result').innerHTML,/xuất trình khớp/);
+   assert.equal(vm.runInContext('state.verification.comparisonDirty',context),false);
+  }
+ }
  if(mode==='id_only'){
   assert.equal(vm.runInContext('state.verification.result.presentation_match',context),null);
   assert.match(document.getElementById('v-result').innerHTML,/VERIFIED/);

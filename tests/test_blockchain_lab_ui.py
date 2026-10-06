@@ -56,6 +56,8 @@ const find=(e,p)=>p(e)?e:e.children.map(child=>find(child,p)).find(Boolean);
 const card=height=>$('chain-cards').children.find(e=>e.dataset.height===String(height));
 (async()=>{
  assert.equal($('lab-blocks').hidden,false);
+ assert.equal(calls.length,0); // Theory must not allocate a simulation session.
+ $('blocks-tab-practice').onclick();
  const pending=run('chainLab.initialization');
  if(['reset','pagehide'].includes(testCase)){
   await new Promise(r=>setImmediate(r));

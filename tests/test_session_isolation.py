@@ -110,7 +110,7 @@ def test_cookie_stable_same_profile_tabs_and_ignored_selection_inputs():
 @pytest.mark.parametrize('https', [False, True])
 def test_server_cookie_flags_and_missing_forged_identifiers(https):
     with TestClient(app, base_url=('https' if https else 'http')+'://testserver') as client:
-        response = client.get('/landing.html', headers={'X-Forwarded-Proto': 'https'})
+        response = client.get('/api/session/bootstrap', headers={'X-Forwarded-Proto': 'https'})
         cookie = response.headers['set-cookie'].lower()
         assert 'httponly' in cookie and 'samesite=lax' in cookie and 'path=/' in cookie
         assert ('; secure' in cookie) is https

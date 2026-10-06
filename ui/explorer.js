@@ -174,6 +174,7 @@ async function enterExplorer() {
   }
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   $('explorer-node').onchange = loadExplorerBlocks; $('explorer-refresh').onclick = loadExplorerBlocks;
+  window.addEventListener('simulation-ready', enterExplorer);
   window.addEventListener('pageshow', event => { restoreTheme(); if (event.persisted) enterExplorer(); });
   window.addEventListener('pagehide', () => { ++explorerVersion; explorerAbort?.abort(); clearExplorerList(); });
   restoreTheme(); enterExplorer();

@@ -93,6 +93,20 @@ app.add_middleware(
 )
 
 
+@app.get('/api/health')
+def api_health():
+    """Public liveness check; no session, network or wallet initialization."""
+    return {'status': 'ok'}
+
+
+@app.get('/api/session/bootstrap')
+def api_session_bootstrap():
+    """Establish the cookie before page API concurrency, without demo seeding."""
+    context = current_session()
+    with context.lock:
+        return {'context_generation': context.generation, 'reset_count': context.reset_count}
+
+
 # ── Pydantic models ────────────────────────────────────────────────────────
 
 class WalletCreateRequest(BaseModel):
