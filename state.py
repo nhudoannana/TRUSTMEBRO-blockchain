@@ -38,11 +38,15 @@ def get_network():
 
     cache_resource giữ nguyên đối tượng (kể cả thread) qua mọi lần rerun.
     """
+    import random
     from blockchain.node import Network
+    from blockchain.pos import create_trustprofile_consortium
     net = Network()
     net.create_node("Node-1", "127.0.0.1", 5001)
     net.create_node("Node-2", "127.0.0.1", 5002)
     net.create_node("Node-3", "127.0.0.1", 5003)
+    net.pos_registry = create_trustprofile_consortium()
+    net.consensus_seed = random.randint(1, 999999)
     return net
 
 
