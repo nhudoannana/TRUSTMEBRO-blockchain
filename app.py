@@ -14,6 +14,32 @@ st.set_page_config(
     layout="wide",
 )
 
+# ══════════════════════════════════════════════
+# AUTHENTICATION — Google OAuth
+# ══════════════════════════════════════════════
+
+# Kiểm tra xem có cấu hình [auth] trong secrets không
+_has_auth = "auth" in st.secrets if hasattr(st, "secrets") else False
+
+if _has_auth:
+    # Nút Login/Logout trên sidebar
+    with st.sidebar:
+        if st.experimental_user.is_logged_in:
+            name = st.experimental_user.name or st.experimental_user.email
+            st.markdown(f"👤 **{name}**")
+            if st.button("🚪 Đăng xuất", use_container_width=True):
+                st.logout()
+        else:
+            st.markdown("### 🔐 Đăng nhập")
+            if st.button("🔑 Đăng nhập bằng Google", use_container_width=True, type="primary"):
+                st.login()
+
+    # Chặn nội dung nếu chưa đăng nhập
+    if not st.experimental_user.is_logged_in:
+        st.title("🔗 TRUSTMEBRO")
+        st.info("👋 Vui lòng **đăng nhập bằng Google** ở sidebar để truy cập ứng dụng.")
+        st.stop()
+
 
 # ══════════════════════════════════════════════
 # Dashboard (callable cho st.Page)
@@ -212,6 +238,7 @@ pg = st.navigation([
     st.Page("pages/10_Verify.py", title="Verify Credential", icon="✅"),
     st.Page("pages/11_Attacks.py", title="Attack Simulator", icon="🛡️"),
     st.Page("pages/12_PoW_vs_PoS.py", title="PoW vs PoS & Slashing", icon="⚖️"),
+    st.Page("pages/13_Chatbot.py", title="Chatbot TRUSTMEBRO", icon="🤖"),
 ])
 
 st.sidebar.divider()
