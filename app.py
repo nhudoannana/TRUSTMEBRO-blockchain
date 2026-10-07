@@ -24,8 +24,8 @@ _has_auth = "auth" in st.secrets if hasattr(st, "secrets") else False
 if _has_auth:
     # Nút Login/Logout trên sidebar
     with st.sidebar:
-        if st.experimental_user.is_logged_in:
-            name = st.experimental_user.name or st.experimental_user.email
+        if st.user.is_logged_in:
+            name = st.user.name or st.user.email
             st.markdown(f"👤 **{name}**")
             if st.button("🚪 Đăng xuất", use_container_width=True):
                 st.logout()
@@ -35,7 +35,7 @@ if _has_auth:
                 st.login()
 
     # Chặn nội dung nếu chưa đăng nhập
-    if not st.experimental_user.is_logged_in:
+    if not st.user.is_logged_in:
         st.title("🔗 TRUSTMEBRO")
         st.info("👋 Vui lòng **đăng nhập bằng Google** ở sidebar để truy cập ứng dụng.")
         st.stop()
