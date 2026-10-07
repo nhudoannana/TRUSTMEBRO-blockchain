@@ -27,7 +27,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -46,6 +46,8 @@ from blockchain.transaction import Credential, Transaction, verify_transaction
 from blockchain.block import Block
 from blockchain.mining import mine_block, is_acceptable_pow
 from blockchain.node import Network
+from blockchain.net_node import block_from_json
+from api.http_network import HttpLabNetwork
 
 from api.wallet_store import (
     list_wallets,
@@ -91,6 +93,20 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.get('/api/health')
+def api_health():
+    """Public liveness check; no session, network or wallet initialization."""
+    return {'status': 'ok'}
+
+
+@app.get('/api/session/bootstrap')
+def api_session_bootstrap():
+    """Establish the cookie before page API concurrency, without demo seeding."""
+    context = current_session()
+    with context.lock:
+        return {'context_generation': context.generation, 'reset_count': context.reset_count}
 
 
 # ── Pydantic models ────────────────────────────────────────────────────────
@@ -1437,8 +1453,11 @@ def _close_lab_network(handle, kind=None):
         raise HTTPException(404, detail="Handle không thuộc loại lab này.")
     del current_session().lab_networks[handle]
     entry['timer'].cancel()
-    for node in entry['network'].nodes.values():
-        node.stop()
+    if hasattr(entry['network'], 'close'):
+        entry['network'].close()
+    else:
+        for node in entry['network'].nodes.values():
+            node.stop()
     return True
 
 
@@ -1472,9 +1491,13 @@ def _get_lab_network(handle, kind='network'):
 class LabNetworkNodeSnapshot(NetworkNodeSnapshot):
     verification: dict | None
     local_chain_warning: str | None
+    host: str | None = None
+    port: int | None = None
 
 
 class LabNetworkSnapshot(BaseModel):
+    transport: Literal['queue', 'http'] = 'queue'
+    context_generation: str
     lab_handle: str
     expires_in_seconds: int
     credential_id: str | None
@@ -1498,6 +1521,11 @@ def _lab_network_snapshot(handle, entry):
     network, tx = entry['network'], entry['tx']
     rows = []
     for node in network.nodes.values():
+        if entry.get('transport') == 'http':
+            from urllib.parse import urlencode
+            rows.append(network.request(node.node_id, '/snapshot?' + urlencode(
+                {'credential_id': tx.payload['credential_id']} if tx else {})))
+            continue
         with node._state_lock:
             valid, invalid_height, reason = node.blockchain.is_chain_valid(
                 pos_registry=network.pos_registry, authorized_issuers=node.mempool.authorized_issuers)
@@ -1519,7 +1547,9 @@ def _lab_network_snapshot(handle, entry):
     online = [row for row in rows if row['status'] == 'ONLINE']
     agree = bool(online) and len({(row['height'], row['tip_hash']) for row in online}) == 1
     valid = bool(online) and all(row['chain_valid'] for row in online)
-    return {'lab_handle': handle, 'expires_in_seconds': max(0, int(entry['expires'] - time.monotonic())),
+    return {'lab_handle': handle, 'transport': entry.get('transport', 'queue'),
+            'context_generation': current_session().generation,
+            'expires_in_seconds': max(0, int(entry['expires'] - time.monotonic())),
             'credential_id': tx.payload['credential_id'] if tx else None,
             'transaction': tx.to_dict() if tx else None, 'issuer': entry['issuer'], 'mining': entry['mining'],
             'nodes': rows, 'online_nodes_agree': agree, 'online_nodes_valid': valid,
@@ -1528,38 +1558,53 @@ def _lab_network_snapshot(handle, entry):
             'events': network.get_event_log()}
 
 
-def _initialize_lab_network(kind):
+def _initialize_lab_network(kind, transport='queue'):
     """Caller holds this context's lab lock. Both retained labs reuse this lifecycle."""
     for handle in list(current_session().lab_networks):
         _expire_lab_network(handle)
     if len(current_session().lab_networks) >= _LAB_NETWORK_LIMIT:
         raise HTTPException(429, detail="Đã đủ mạng lab tạm. Reset lab không dùng hoặc chờ hết hạn.")
-    network = Network()
+    if transport == 'http' and any(e.get('transport') == 'http' for e in current_session().lab_networks.values()):
+        raise HTTPException(429, detail='Phiên này đã có một mạng HTTP. Đặt lại mạng đó trước khi mở mạng mới.')
+    network = HttpLabNetwork(_mine_lab_block_bounded) if transport == 'http' else Network()
     handle = str(uuid.uuid4())
     timer = threading.Timer(_LAB_NETWORK_TTL, _expire_lab_network, args=(handle, current_session()))
     timer.daemon = True
-    entry = {'kind': kind, 'network': network, 'tx': None, 'issuer': None, 'submitted': False,
+    entry = {'kind': kind, 'transport': transport, 'network': network, 'tx': None, 'issuer': None, 'submitted': False,
              'mining': None, 'expires': time.monotonic() + _LAB_NETWORK_TTL, 'timer': timer}
     try:
-        for i in range(1, 4):
-            network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
+        if transport == 'queue':
+            for i in range(1, 4):
+                network.create_node(f'Node-{i}', '127.0.0.1', 5000 + i)
         current_session().lab_networks[handle] = entry
         timer.start()
         return handle, entry
     except Exception as exc:
         timer.cancel()
         current_session().lab_networks.pop(handle, None)
-        for node in network.nodes.values():
-            node.stop()
+        if hasattr(network, 'close'):
+            network.close()
+        else:
+            for node in network.nodes.values():
+                node.stop()
         raise HTTPException(500, detail="Không khởi tạo được mạng lab; worker tạm đã được dọn.") from exc
 
 
+class LabNetworkRequest(BaseModel):
+    model_config = {'extra': 'forbid'}
+    transport: Literal['queue', 'http'] = 'queue'
+
+
 @app.post('/api/labs/network', status_code=201, response_model=LabNetworkSnapshot)
-def lab_initialize_network():
+def lab_initialize_network(body: LabNetworkRequest | None = Body(default=None)):
     # ponytail: serialize at most eight lab sessions; per-handle locks if throughput matters.
     with current_session().lab_network_lock:
-        handle, entry = _initialize_lab_network('network')
-        return _lab_network_snapshot(handle, entry)
+        handle, entry = _initialize_lab_network('network', body.transport if body else 'queue')
+        try:
+            return _lab_network_snapshot(handle, entry)
+        except Exception:
+            _close_lab_network(handle)
+            raise
 
 
 @app.get('/api/labs/network/{handle}', response_model=LabNetworkSnapshot)
@@ -1580,6 +1625,10 @@ def lab_node_status(handle: str, node_id: str, body: NodeStatusRequest):
         entry = _get_lab_network(handle)
         if node_id != 'Node-3':
             raise HTTPException(404, detail="Lab này chỉ điều khiển trạng thái Node-3.")
+        if entry.get('transport') == 'http':
+            result = entry['network'].request(node_id, '/status', {'online': body.online})
+            return {'changed': result['changed'], 'catch_up_requested': False,
+                    'snapshot': _lab_network_snapshot(handle, entry)}
         node = entry['network'].nodes[node_id]
         with node._state_lock:
             changed = (node.status == 'ONLINE') != body.online
@@ -1592,16 +1641,30 @@ def lab_node_status(handle: str, node_id: str, body: NodeStatusRequest):
 def _mine_lab_sample(entry):
     """Same sample signing/admission/mining for both retained lab scenarios."""
     node = entry['network'].nodes['Node-1']
+    if entry['tx'] is None:
+        wallet = generate_wallet()
+        entry['issuer'] = {'name': 'Trường Đại học A', 'public_key_hex': wallet.public_key_hex,
+                           'address': wallet.address}
+        credential = Credential(str(uuid.uuid4()), entry['issuer']['name'], 'Người học DEMO-001',
+                                'Chứng chỉ Phân tích dữ liệu', '2026-01-01')
+        tx = Transaction('ISSUE', wallet.public_key_hex, credential.to_onchain_payload())
+        tx.sign(wallet)
+        entry['tx'] = tx
+    if entry.get('transport') == 'http':
+        network = entry['network']
+        if not entry['submitted']:
+            result = network.request('Node-1', '/submit_tx', entry['tx'].to_dict())
+            if not result['ok']:
+                return None, result['reason']
+            entry['submitted'] = True
+        result = network.request('Node-1', '/mine', {'difficulty': 3, 'max_txs': 10})
+        if not result['ok']:
+            return None, result['reason']
+        block = block_from_json(result['block'])
+        result = {k: result[k] for k in ('nonce', 'attempts', 'seconds', 'block_hash')}
+        entry['mining'] = {'block': block.to_dict(), **result}
+        return block, result
     with node._state_lock:
-        if entry['tx'] is None:
-            wallet = generate_wallet()
-            entry['issuer'] = {'name': 'Trường Đại học A', 'public_key_hex': wallet.public_key_hex,
-                               'address': wallet.address}
-            credential = Credential(str(uuid.uuid4()), entry['issuer']['name'], 'Người học DEMO-001',
-                                    'Chứng chỉ Phân tích dữ liệu', '2026-01-01')
-            tx = Transaction('ISSUE', wallet.public_key_hex, credential.to_onchain_payload())
-            tx.sign(wallet)
-            entry['tx'] = tx
         if not entry['submitted']:
             accepted, reason = node.submit_transaction(entry['tx'])
             if not accepted:
@@ -1634,7 +1697,7 @@ def lab_sync_network(handle: str):
     with current_session().lab_network_lock:
         entry = _get_lab_network(handle)
         try:
-            entry['network'].sync_all_nodes(online_only=True)
+            sync_results = entry['network'].sync_all_nodes(online_only=True)
         except Exception as exc:
             logging.getLogger(__name__).exception('Network lab synchronization failed')
             raise HTTPException(500, detail="Backend sync lab thất bại. Làm mới trạng thái trước khi thử lại.") from exc
@@ -1642,7 +1705,10 @@ def lab_sync_network(handle: str):
         invalid = next((n for n in snapshot['nodes'] if n['status'] == 'ONLINE' and not n['chain_valid']), None)
         reason = None if snapshot['all_nodes_synchronized'] else (
             invalid['validity_reason'] if invalid else 'Adapter: chưa quan sát đủ ba node ONLINE cùng height/tip; node OFFLINE không được sync.')
-        return {'completed': snapshot['all_nodes_synchronized'], 'reason': reason, 'snapshot': snapshot}
+        response = {'completed': snapshot['all_nodes_synchronized'], 'reason': reason, 'snapshot': snapshot}
+        if entry.get('transport') == 'http':
+            response['node_results'] = sync_results
+        return response
 
 
 class LabTamperEditRequest(BaseModel):

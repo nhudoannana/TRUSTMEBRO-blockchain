@@ -29,14 +29,17 @@ function clearAttackResult() {
   attackElement('attack-results').hidden = true;
   for (const id of ['attack-baseline', 'attack-data', 'attack-outcome']) attackElement(id).replaceChildren();
   attackElement('attack-technical').textContent = attackElement('attack-next').textContent = '';
+  attackElement('attack-result-context').textContent = '';
 }
 function showAttackResult(data) {
   attackElement('attack-results').hidden = false;
   const outcome = attackElement('attack-outcome'); outcome.replaceChildren();
   const accepted = data.attack.submission.accepted;
-  outcome.className = 'result ' + (accepted ? 'valid' : 'invalid');
-  attackText(outcome, 'h2', accepted ? '✓ Backend chấp nhận giao dịch thử' : '✗ Backend từ chối giao dịch thử');
-  attackText(outcome, 'p', 'Lớp kiểm tra: ' + (accepted ? 'Không có lớp từ chối' : attackLayers[data.failure_layer] || data.failure_layer));
+  outcome.className = 'result ' + (accepted ? 'unexpected' : 'invalid');
+  attackText(outcome, 'h2', accepted ? 'Giao dịch thử được chấp nhận — kết quả ngoài dự kiến' : '✗ Giao dịch thử bị từ chối');
+  attackText(outcome, 'p', 'Giao dịch nền: ' + (data.baseline.submission.accepted ? '✓ Được chấp nhận' : '✗ Bị từ chối') + ' — ' + data.baseline.submission.reason);
+  attackText(outcome, 'p', accepted ? 'Backend không từ chối giao dịch thử; không có lớp thất bại được báo.'
+    : 'Kiểm tra thất bại đầu tiên: ' + (attackLayers[data.failure_layer] || data.failure_layer || 'Không được trả về'));
   attackText(outcome, 'p', data.attack.submission.reason);
   for (const [id, record, title] of [['attack-baseline', data.baseline, 'Nền hợp lệ'], ['attack-data', data.attack, 'Dữ liệu thử']]) {
     const panel = attackElement(id), tx = record.transaction; panel.replaceChildren();
@@ -62,7 +65,8 @@ function showAttackResult(data) {
     ? 'Đây là kết quả backend thực tế, không có từ chối được giả lập. Đọc các kiểm tra rồi thử kịch bản khác.'
     : data.failure_layer === 'transaction_hash' ? 'Nội dung đổi nhưng tx_id được giữ, nên lớp hash chặn trước ECDSA. Thử giả danh để phân biệt chữ ký hợp lệ với quyền phát hành.'
     : data.failure_layer === 'issuer_authorization' ? 'Khóa tự tạo có chữ ký hợp lệ nhưng không được phép phát hành. Thử replay để xem một giao dịch hợp lệ vẫn có thể bị từ chối.'
-    : 'Gửi lần đầu được chấp nhận; gửi lại cùng giao dịch bị từ chối. Có thể chạy lại: mỗi lượt dùng mạng tạm mới.';
+    : data.failure_layer === 'duplicate_submission' ? 'Gửi trùng cùng giao dịch bị từ chối; đây là replay, không phải chi tiêu kép tiền tệ. Có thể chạy lại trên mạng tạm mới.'
+    : 'Đọc lý do tiếp nhận thực tế trong kết quả và chi tiết, rồi thử kịch bản khác.';
   attackElement('attack-technical').textContent = JSON.stringify(data, null, 2);
 }
 async function runAttack(event) {
@@ -85,7 +89,7 @@ async function runAttack(event) {
   } catch (error) {
     if (s === attackState) {
       attackElement('attack-error').textContent = error.message; attackElement('attack-error').hidden = false;
-      attackElement('attack-status').textContent = 'Chưa nhận được kết quả; không có dữ liệu mẫu thay thế. Nếu phiên hết hạn, lượt mới dùng phiên mới.';
+      attackElement('attack-status').textContent = 'Lượt thử thất bại: chưa nhận được kết quả. Nếu phiên hết hạn, lượt mới dùng phiên mới.';
     }
   } finally { if (s === attackState) { s.busy = false; attackControls(); } }
 }
@@ -98,7 +102,7 @@ function resetAttack() {
 (function setupAttack() {
   function theme(value) {
     document.documentElement.dataset.theme = value;
-    attackElement('attack-theme').textContent = value === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    attackElement('attack-theme').title = value === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     attackElement('attack-theme').setAttribute('aria-pressed', String(value === 'light'));
     try { localStorage.setItem('trustmebro-theme', value); } catch {}
   }
@@ -106,7 +110,10 @@ function resetAttack() {
   attackElement('attack-theme').onclick = () => theme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   window.addEventListener('pageshow', () => { try { theme(localStorage.getItem('trustmebro-theme') === 'light' ? 'light' : 'dark'); } catch {} });
   attackElement('attack-form').onsubmit = runAttack; attackElement('attack-reset').onclick = resetAttack;
-  attackElement('attack-title').oninput = attackControls;
+  attackElement('attack-title').oninput = () => {
+    attackControls();
+    if (attackState.result) attackElement('attack-result-context').textContent = 'Đầu vào đã đổi — kết quả bên dưới thuộc lượt thử trước. Bấm Chạy thử để cập nhật.';
+  };
   attackElement('attack-scenario').onchange = () => { if (!attackState.busy) resetAttack(); };
   window.addEventListener('pagehide', resetAttack); attackControls();
 })();

@@ -17,7 +17,7 @@ const source = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1
 const elements = new Map();
 const document = {
   getElementById(id) {
-    if (!elements.has(id)) elements.set(id, {value:'', hidden:true, disabled:false,
+    if (!elements.has(id)) elements.set(id, {value:'', textContent:'', hidden:true, disabled:false,
       focus(){}, scrollIntoView(){}});
     return elements.get(id);
   },

@@ -1,12 +1,44 @@
 """Behavioral Node-VM checks; these do not constitute browser verification."""
 import subprocess
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
 
 
+def test_network_layout_preserves_single_controls_and_theory_navigation():
+    class Layout(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.ids = []
+            self.stack = []
+            self.parents = {}
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if 'id' in attrs:
+                self.ids.append(attrs['id'])
+                self.parents[attrs['id']] = tuple(self.stack)
+            if tag not in {'input', 'meta', 'link', 'br', 'hr'}:
+                self.stack.append((tag, attrs.get('id'), attrs.get('class', '')))
+
+        def handle_endtag(self, tag):
+            for i in range(len(self.stack) - 1, -1, -1):
+                if self.stack[i][0] == tag:
+                    self.stack = self.stack[:i]
+                    break
+
+    parser = Layout()
+    parser.feed(Path('ui/labs.html').read_text(encoding='utf-8'))
+    assert len(parser.ids) == len(set(parser.ids)), 'Duplicate IDs can redirect working theory/practice handlers'
+    assert any(parent[1] == 'network-theory' for parent in parser.parents['network-next'])
+    for control in ['network-guidance', 'network-nodes', 'network-connections']:
+        assert any(parent[2] == 'network-observation' for parent in parser.parents[control])
+    assert any(parent[2] == 'panel network-controls' for parent in parser.parents['network-mine'])
+
+
 @pytest.mark.parametrize('case', ['controls', 'propagation', 'reconnect', 'timeout',
-                                  'errors', 'stale_reset', 'page_exit', 'read_timeout'])
+                                  'errors', 'stale_reset', 'page_exit', 'read_timeout', 'http_mode', 'http_reconnect', 'http_hierarchy'])
 def test_network_lab_handlers(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -25,7 +57,7 @@ class Element {
 const document={documentElement:{dataset:{theme:'dark'}},getElementById(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);},querySelectorAll(){return [];},createElement(){return new Element();}};
 let clock=0,reads=0,handleCount=0,deferred,holdInit=['controls','page_exit'].includes(testCase),holdRead=false,errorCode=0;
 const tip='a'.repeat(64),genesis='0'.repeat(64),text=e=>e.textContent+e.children.map(text).join(' ');
-let snapshot;
+let snapshot,manuallySynced=false;
 function fresh(handle){return {lab_handle:handle,credential_id:null,transaction:null,mining:null,
  nodes:[1,2,3].map(i=>({node_id:'Node-'+i,status:'ONLINE',height:0,block_count:1,tip_hash:genesis,pending_count:0,chain_valid:true,verification:null,local_chain_warning:null})),
  online_nodes_agree:true,online_nodes_valid:true,online_nodes_synchronized:true,all_nodes_synchronized:true};}
@@ -45,7 +77,7 @@ const context=vm.createContext({document,TextEncoder,Uint8Array,AbortController,
   assert.ok(url.startsWith('/api/labs/network'));const method=options.method||'GET';calls.push({url,method,body:options.body});
   if(errorCode)return {ok:false,status:errorCode,json:async()=>({detail:'Exact backend error <safe>'})};
   if(method==='POST'&&url==='/api/labs/network'){
-   const data=fresh('handle-'+(++handleCount));snapshot=data;
+   const data=fresh('handle-'+(++handleCount));data.transport=options.body?JSON.parse(options.body).transport:'queue';snapshot=data;
    if(holdInit){holdInit=false;await new Promise(r=>deferred=r);}return ok(data);
   }
   if(url.endsWith('/reset'))return ok({cleared:true});
@@ -54,12 +86,12 @@ const context=vm.createContext({document,TextEncoder,Uint8Array,AbortController,
    if(testCase==='read_timeout')await new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Object.assign(Error('aborted'),{name:'AbortError'}))));
    const data=structuredClone(snapshot);
    if(holdRead){holdRead=false;await new Promise(r=>deferred=r);return ok(data);}
-   if(snapshot.credential_id&&testCase!=='timeout')snapshot.nodes.filter(n=>n.status==='ONLINE').forEach(catchUp);
+   if(snapshot.credential_id&&testCase!=='timeout')snapshot.nodes.filter(n=>n.status==='ONLINE'&&(!testCase.startsWith('http_')||n.node_id!=='Node-3'||manuallySynced)).forEach(catchUp);
    flags();return ok(snapshot);
   }
   if(url.endsWith('/status')){
    const online=JSON.parse(options.body).online;snapshot.nodes[2].status=online?'ONLINE':'OFFLINE';flags();
-   return ok({changed:true,catch_up_requested:online,snapshot});
+   return ok({changed:true,catch_up_requested:online&&snapshot.transport!=='http',snapshot});
   }
   if(url.endsWith('/mine')){
    snapshot.credential_id='credential';snapshot.transaction={tx_id:'tx'};snapshot.mining={block:{height:1,difficulty:3,hash:tip}};
@@ -67,7 +99,7 @@ const context=vm.createContext({document,TextEncoder,Uint8Array,AbortController,
    if(snapshot.nodes[2].status==='OFFLINE'){snapshot.nodes[2].verification={status:'NOT_FOUND'};snapshot.nodes[2].local_chain_warning='stale node <safe>';}flags();
    return ok({mined:true,block:snapshot.mining.block,snapshot});
   }
-  if(url.endsWith('/sync')){snapshot.nodes.filter(n=>n.status==='ONLINE').forEach(n=>{if(snapshot.credential_id)catchUp(n);});flags();return ok({completed:snapshot.all_nodes_synchronized,reason:snapshot.all_nodes_synchronized?null:'Node offline',snapshot});}
+  if(url.endsWith('/sync')){manuallySynced=true;snapshot.nodes.filter(n=>n.status==='ONLINE').forEach(n=>{if(snapshot.credential_id)catchUp(n);});flags();return ok({completed:snapshot.all_nodes_synchronized,reason:snapshot.all_nodes_synchronized?null:'Node offline',snapshot});}
   throw Error('Unexpected request '+url);
  }});
 vm.runInContext(fs.readFileSync('ui/labs.js','utf8'),context);
@@ -77,6 +109,11 @@ const posts=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix));
  assert.equal($('lab-network').hidden,false);assert.equal($('lab-consensus').hidden,true);
  assert.equal($('network-mine').disabled,true);assert.equal($('network-online').disabled,true);
  await run('networkLabAction("mine")');assert.equal(calls.length,0);
+ if(testCase.startsWith('http_')){
+  assert.equal(typeof $('network-transport').onchange,'function');
+  $('network-transport').value='http';$('network-transport').onchange();
+  assert.equal(calls.length,0); // Selection alone must not allocate servers.
+ }
  if(testCase==='controls'||testCase==='page_exit'){
   const pending=run('networkLabAction("init")');await tick();
   assert.equal($('network-init').disabled,true);await run('networkLabAction("init")');await run('resetNetworkLab()');assert.equal(calls.length,1);
@@ -85,6 +122,50 @@ const posts=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix));
  }else await run('networkLabAction("init")');
  assert.equal(run('networkLab.handle'),'handle-1');assert.equal($('network-offline').disabled,false);assert.equal($('network-online').disabled,true);
  assert.equal($('network-mine').disabled,false);assert.equal($('network-reset').disabled,false);
+ if(testCase==='http_hierarchy'){
+  const initialCalls=calls.length;
+  assert.equal($('network-guidance').dataset.action,'offline');
+  assert.equal($('network-offline').className,'primary');
+  await run('networkLabAction("offline")');
+  let card=$('network-nodes').children[2];
+  assert.ok(card.className.includes('offline'));assert.ok(!card.className.includes('lagging'));
+  assert.ok(text($('network-connections')).includes('Ngắt kết nối'));
+  assert.equal($('network-guidance').dataset.action,'mine');
+  await run('networkLabAction("mine")');
+  card=$('network-nodes').children[2];assert.ok(card.className.includes('lagging'));
+  assert.ok(text(card).includes('Chưa tìm thấy tại node này'));
+  assert.equal($('network-guidance').dataset.action,'online');
+  await run('networkLabAction("online")');assert.equal($('network-guidance').dataset.action,'sync');
+  assert.equal($('network-sync').className,'primary');
+  assert.equal(posts('/sync').length,0);
+  await run('networkLabAction("sync")');
+  assert.ok(!$('network-nodes').children[2].className.includes('lagging'));
+  const count=calls.length;run('showNetworkLab()');run('showNetworkLab()');assert.equal(calls.length,count);
+  run('networkLab.snapshot.nodes[2].tip_hash="b".repeat(64);networkLab.snapshot.all_nodes_synchronized=false;networkLab.snapshot.online_nodes_synchronized=false;showNetworkLab()');
+  assert.equal($('network-guidance').dataset.action,'sync');assert.ok(!$('network-summary').className.includes('valid'));
+  assert.ok(text($('network-nodes').children[2]).includes('Khác tip'));
+  assert.ok(calls.length>initialCalls);return;
+ }
+ if(testCase==='http_mode'){
+  assert.equal(JSON.parse(calls[0].body).transport,'http');assert.equal($('network-transport').disabled,true);
+  assert.ok($('network-transport-note').textContent.includes('HTTP'));
+  $('network-transport').value='queue';$('network-transport').onchange();
+  assert.equal(run('networkLab.transport'),'http');assert.equal(calls.length,1);
+  await run('resetNetworkLab()');assert.equal($('network-transport').disabled,false);
+  assert.equal(run('networkLab.transport'),'http');return;
+ }
+ if(testCase==='http_reconnect'){
+  await run('networkLabAction("offline")');await run('networkLabAction("mine")');
+  const readsBefore=reads;
+  await run('networkLabAction("online")');
+  assert.equal(reads,readsBefore);assert.equal(posts('/sync').length,0);
+  assert.equal(run('networkLab.snapshot.nodes[2].height'),0);
+  assert.equal(run('networkLab.snapshot.all_nodes_synchronized'),false);
+  assert.ok($('network-status').textContent.includes('Đồng bộ'));
+  assert.ok(!$('network-summary').className.includes('valid'));
+  await run('networkLabAction("sync")');assert.equal(posts('/sync').length,1);
+  assert.equal(run('networkLab.snapshot.all_nodes_synchronized'),true);return;
+ }
  if(testCase==='controls'){
   await run('networkLabAction("offline")');assert.equal($('network-offline').disabled,true);assert.equal($('network-online').disabled,false);
   assert.equal(run('networkLab.snapshot.nodes[2].status'),'OFFLINE');assert.equal($('network-mine').disabled,false);

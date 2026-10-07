@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('case', ['navigation', 'signing_pending', 'sidebar', 'offline', 'mining_offline', 'remote_reset', 'local_reset', 'failure', 'hint_states'])
+@pytest.mark.parametrize('case', ['navigation', 'signing_pending', 'sidebar', 'offline', 'mining_offline', 'remote_reset', 'local_reset', 'failure', 'hint_states', 'summary_mount'])
 def test_guided_journey(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -35,7 +35,20 @@ context=vm.createContext({document,console,record,fetch:async(url,options={})=>{
 vm.runInContext(source.slice(0,source.indexOf('(function initTheme()')),context);
 vm.runInContext('render=async()=>{}',context);
 (async()=>{
- if(testCase==='hint_states'){
+ if(testCase==='summary_mount'){
+  const run=s=>vm.runInContext(s,context),summary=document.getElementById('journey-summary');
+  let heading={append(node){this.node=node;node.parentNode=this;}};
+  document.getElementById('stage').querySelector=()=>heading;
+  run('state.step=1;state.record=record;renderStep1()');assert.equal(heading.node,summary);
+  document.getElementById('c-next').textContent='Available action';run('showJourneyGuidance()');
+  assert.ok(document.getElementById('journey-next').textContent.includes('Available action'));
+  assert.equal(document.getElementById('c-next').disabled,false);
+  const prior=heading;heading={append(node){this.node=node;node.parentNode=this;}};
+  run('state.record=null;renderStep1()');assert.equal(heading.node,summary);assert.notEqual(heading,prior);
+  assert.equal(document.getElementById('c-next').disabled,true);
+  assert.ok(!document.getElementById('journey-next').textContent.includes('Available action'));
+  assert.equal(posts,0);assert.equal(reads,0);
+ }else if(testCase==='hint_states'){
   const run=s=>vm.runInContext(s,context),hint=()=>run('journeyGuidance()');
   const empty=hint();run('state.selectedWalletId="wallet"');assert.notEqual(hint().next,empty.next);
   run('state.step=1;state.signing=true');const pending=hint();assert.equal(run('canContinue(1)'),false);

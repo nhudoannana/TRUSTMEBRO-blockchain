@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 
-@pytest.mark.parametrize('case', ['results', 'error', 'reset_pending', 'selection', 'accepted'])
+@pytest.mark.parametrize('case', ['results', 'error', 'reset_pending', 'selection', 'accepted', 'changed_input'])
 def test_attack_handlers(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -50,9 +50,21 @@ context.event={preventDefault(){}};
  assert.equal($('attack-results').hidden,false);
  assert.ok(text($('attack-data')).includes('<img src=x onerror=alert(1)>'));
  assert.ok(text($('attack-outcome')).includes('Exact backend rejection <unsafe>'));
- if(testCase==='accepted'){assert.ok($('attack-outcome').className.includes('valid'));return;}
+ if(testCase==='accepted'){
+  assert.ok($('attack-outcome').className.includes('unexpected'));
+  assert.ok(!$('attack-outcome').className.split(' ').includes('valid'));
+  return;
+ }
  assert.ok($('attack-outcome').className.includes('invalid'));
  const first=text($('attack-outcome'));
+ assert.ok(first.includes('Đối chiếu hash giao dịch'));
+ assert.ok(!first.includes('Chữ ký số ECDSA'));
+ if(testCase==='changed_input'){
+  $('attack-title').value='A newer draft';$('attack-title').oninput();
+  assert.ok($('attack-result-context').textContent.includes('lượt thử trước'));
+  assert.equal(text($('attack-outcome')),first);assert.equal(calls.length,1);
+  $('attack-reset').onclick();assert.equal($('attack-result-context').textContent,'');return;
+ }
  assert.ok(text($('attack-data')).includes('ECDSA')); // hash gate is explained visibly.
  for(const scenario of ['impersonation','replay']){
   $('attack-scenario').value=scenario;$('attack-scenario').onchange();assert.equal($('attack-results').hidden,true);

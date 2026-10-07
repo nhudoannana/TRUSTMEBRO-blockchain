@@ -164,7 +164,7 @@ async function enterExplorer() {
 (function setupExplorer() {
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
-    $('theme-toggle').textContent = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    $('theme-toggle').title = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     $('theme-toggle').setAttribute('aria-pressed', String(theme === 'light'));
     try { localStorage.setItem('trustmebro-theme', theme); } catch {}
   }
@@ -174,6 +174,7 @@ async function enterExplorer() {
   }
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   $('explorer-node').onchange = loadExplorerBlocks; $('explorer-refresh').onclick = loadExplorerBlocks;
+  window.addEventListener('simulation-ready', enterExplorer);
   window.addEventListener('pageshow', event => { restoreTheme(); if (event.persisted) enterExplorer(); });
   window.addEventListener('pagehide', () => { ++explorerVersion; explorerAbort?.abort(); clearExplorerList(); });
   restoreTheme(); enterExplorer();

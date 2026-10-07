@@ -26,6 +26,26 @@ function labError(id, message = '') { $(id).textContent = message; $(id).hidden 
 function formBusy(id, busy) { $(id).querySelectorAll('input,textarea,select,button').forEach(e => { e.disabled = busy; }); }
 const shortHash = value => value.slice(0, 12) + '…' + value.slice(-8);
 
+function resultMetric(parent, label, value, unit, decimals, counterKey) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return;
+  const metric = document.createElement('div'); metric.className = 'result-metric';
+  chainText(metric, 'span', label).className = 'metric-label';
+  const number = chainText(metric, 'strong', decimals == null ? String(value) : value.toFixed(decimals));
+  number.className = 'metric-number';
+  if (counterKey) globalThis.TrustCounter?.render(number, value, { key: counterKey, decimals: decimals || 0 });
+  chainText(metric, 'span', unit).className = 'metric-unit'; parent.append(metric);
+}
+function powHash(parent, hash, difficulty) {
+  if (!hash) return;
+  const line = chainText(parent, 'p', 'Hash block: '), code = document.createElement('code');
+  code.className = 'digest'; line.append(code);
+  const zeros = Number.isInteger(difficulty) && difficulty > 0 && difficulty <= hash.length && hash.startsWith('0'.repeat(difficulty)) ? difficulty : 0;
+  if (zeros) chainText(code, 'mark', hash.slice(0, zeros));
+  chainText(code, 'span', hash.length > 24 ? hash.slice(zeros, 12) + '…' + hash.slice(-8) : hash.slice(zeros));
+  code.title = hash;
+  if (zeros) chainText(parent, 'p', `${zeros} ký tự 0 đầu tiên đáp ứng độ khó; các ký tự 0 khác không được tô thêm.`).className = 'hint';
+}
+
 function fillLabExample(id, text) {
   const input = $(id);
   if (input.value === text) return;
@@ -86,6 +106,8 @@ function showLabLearning(name, tab, focusPractice = false) {
     button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
     $(name + '-' + value).hidden = !selected;
   }
+  if (name === 'blocks' && s.tab === 'practice' && !chainLab.result && !chainLab.busy)
+    chainLab.initialization = chainLabAction('init');
   if (focusPractice && s.tab === 'practice') {
     const target = $(labPracticeFocus[name]);
     (target.disabled ? $(name + '-practice') : target).focus();
@@ -132,6 +154,10 @@ async function compareHashes(event) {
     if (token !== hashToken) return;
     $('hash-original').textContent = a; $('hash-edited').textContent = b;
     const bits = changedHashBits(a, b);
+    const metrics = $('hash-metrics'); metrics.replaceChildren();
+    resultMetric(metrics, 'Tỷ lệ bit thay đổi', bits / 256 * 100, '%', 2, 'sha-percent');
+    resultMetric(metrics, 'Số bit thay đổi', bits, '/ 256 bit', undefined, 'sha-bits');
+    $('hash-result-context').textContent = 'Kết quả cho hai văn bản tại thời điểm bấm tính.';
     $('hash-difference').textContent = `${bits}/256 bit khác nhau (${(bits / 256 * 100).toFixed(2)}%). ` +
       (original === edited ? 'Hai đầu vào giống nhau tạo cùng hash SHA-256, vì vậy chênh lệch là 0%.'
         : 'Với hai đầu vào khác nhau, hiệu ứng avalanche thường làm khoảng một nửa số bit hash thay đổi; tỷ lệ không cần đạt 100%.');
@@ -141,10 +167,12 @@ async function compareHashes(event) {
   finally { if (token === hashToken) { hashBusy = false; formBusy('hash-form', false); } }
 }
 function resetHash() {
+  globalThis.TrustCounter?.clear('sha-');
   hashToken++; hashBusy = false; formBusy('hash-form', false);
   $('hash-a').value = ''; $('hash-b').value = '';
   ['hash-original', 'hash-edited', 'hash-difference'].forEach(id => { $(id).textContent = ''; });
   $('hash-result').hidden = true; $('hash-status').textContent = 'Đã reset riêng lab SHA-256.';
+  $('hash-metrics').replaceChildren(); $('hash-result-context').textContent = '';
   labError('hash-error');
 }
 
@@ -233,23 +261,27 @@ function updateProofChoices() {
   select.value = Number(previous) < leaves.length ? previous : '';
 }
 let merkleToken = 0, merkleBusy = false, merklePrevious = null;
+function updateMerkleScrollHint() {
+  const diagram = $('merkle-tree').children[0];
+  $('merkle-scroll-hint').hidden = !(diagram?.scrollWidth > diagram?.clientWidth);
+}
 function merkleControls(busy) {
   formBusy('merkle-form', busy);
   ['merkle-one', 'merkle-odd', 'merkle-empty'].forEach(id => { $(id).disabled = busy; });
 }
 
-function merkleSvg(data, previous, count, inspections) {
+function merkleSvg(data, previous, count, inspections, inputs) {
   const svgElement = (tag, attributes, text) => {
     const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
     for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
     if (text !== undefined) element.textContent = text;
     return element;
   };
-  const width = Math.max(320, data.levels[0].length * 150), height = data.levels.length * 116 + 24;
+  const width = Math.max(360, data.levels[0].length * 184), height = data.levels.length * 156 + 24;
   const svg = svgElement('svg', { viewBox: `0 0 ${width} ${height}`, width, height, role: 'group',
     'aria-label': 'Cây Merkle: root ở trên, lá ở dưới. Chọn node để mở hash đầy đủ.' });
   svg.setAttribute('class', 'merkle-svg');
-  const point = (l, i) => ({ x: (i + .5) * width / data.levels[l].length, y: 20 + (data.levels.length - 1 - l) * 116 });
+  const point = (l, i) => ({ x: (i + .5) * width / data.levels[l].length, y: 20 + (data.levels.length - 1 - l) * 156 });
   const path = new Set(), siblings = new Set();
   if (data.proof && count) {
     let index = data.proof.index;
@@ -269,22 +301,34 @@ function merkleSvg(data, previous, count, inspections) {
           class: 'merkle-edge' + (duplicate ? ' duplicate' : '') + (path.has(to) && (path.has(from) || siblings.has(from)) ? ' proof-edge' : ''),
           'aria-label': `Tầng ${l}, node ${child + 1} → tầng ${l + 1}, node ${parent + 1}${duplicate ? ' · nhân đôi hash cuối' : ''}` });
         edge.dataset.from = from; edge.dataset.to = to; edge.dataset.duplicate = String(duplicate); svg.append(edge);
+        if (duplicate) {
+          const x = Math.min(width - 100, Math.max(100, (a.x + b.x) / 2)), y = b.y + 102;
+          const note = svgElement('g', { class: 'merkle-duplicate-note', 'aria-label': l === 0 ? 'Lặp hash lá cuối để ghép cặp' : 'Lặp hash node cuối để ghép cặp' });
+          note.dataset.duplicateNote = 'true';
+          note.append(svgElement('rect', { x: x - 98, y: y - 14, width: 196, height: 40, rx: 6 }),
+            svgElement('text', { x, y, 'text-anchor': 'middle' }, l === 0 ? 'Lặp hash lá cuối' : 'Lặp hash node cuối'),
+            svgElement('text', { x, y: y + 16, 'text-anchor': 'middle' }, 'để ghép cặp'));
+          svg.append(note);
+        }
       }
     });
   });
   data.levels.forEach((level, l) => level.forEach((hash, i) => {
     const key = `${l}:${i}`, p = point(l, i), changed = previous && previous.levels[l]?.[i] !== hash;
-    const label = l === data.levels.length - 1 ? count === 1 ? 'Lá / Root' : 'Root' : l === 0 ? 'Lá' : 'Cha';
+    const label = l === data.levels.length - 1 ? count === 1 ? 'Lá / Merkle root' : 'Merkle root' : l === 0 ? 'Lá' : 'Hash cha';
+    const input = l === 0 && count ? inputs[i] : undefined;
     const markers = [changed ? 'Đổi / mới' : '', path.has(key) ? l === 0 ? 'Lá chọn' : 'Đường proof' : '', siblings.has(key) ? 'Anh em proof' : ''].filter(Boolean);
-    const group = svgElement('g', { transform: `translate(${p.x - 66},${p.y})`, tabindex: 0, role: 'button',
+    const group = svgElement('g', { transform: `translate(${p.x - 82},${p.y})`, tabindex: 0, role: 'button',
       'aria-label': `${label} ${i + 1}, tầng ${l}. ${markers.join('. ')}. Mở hash đầy đủ`,
       class: 'merkle-visual-node' + (changed ? ' changed' : '') + (path.has(key) ? ' proof-path' : '') + (siblings.has(key) ? ' proof-sibling' : '') });
     group.dataset.node = key; group.dataset.y = String(p.y);
-    group.append(svgElement('title', {}, `${label} ${i + 1}: ${hash}`), svgElement('rect', { width: 132, height: 76, rx: 12 }),
-      svgElement('text', { x: 66, y: 20, 'text-anchor': 'middle' }, `${label} ${i + 1}`),
-      svgElement('text', { x: 66, y: 41, 'text-anchor': 'middle' }, hash.length > 14 ? hash.slice(0, 6) + '…' + hash.slice(-6) : hash),
-      svgElement('text', { x: 66, y: 62, 'text-anchor': 'middle', class: 'merkle-marker' }, markers.join(' · ')));
-    const inspect = () => { inspections.get(key).details.open = true; inspections.get(key).summary.focus(); };
+    group.append(svgElement('title', {}, `${label} ${i + 1}: ${hash}`), svgElement('rect', { width: 164, height: input === undefined ? 76 : 100, rx: 12 }),
+      svgElement('text', { x: 82, y: 20, 'text-anchor': 'middle' }, `${label}${l === data.levels.length - 1 ? count === 1 ? ' · 1' : '' : ' ' + (i + 1)}`),
+      svgElement('text', { x: 82, y: 41, 'text-anchor': 'middle' }, hash.length > 14 ? hash.slice(0, 6) + '…' + hash.slice(-6) : hash));
+    if (input !== undefined) group.append(svgElement('text', { x: 82, y: 63, 'text-anchor': 'middle', class: 'merkle-preview' },
+      input === '' ? '(Dòng rỗng)' : Array.from(input).slice(0, 18).join('') + (Array.from(input).length > 18 ? '…' : '')));
+    group.append(svgElement('text', { x: 82, y: input === undefined ? 62 : 86, 'text-anchor': 'middle', class: 'merkle-marker' }, markers.join(' · ')));
+    const inspect = () => { const entry = inspections.get(key); entry.levels.open = true; entry.details.open = true; entry.summary.focus(); };
     group.onclick = inspect;
     group.onkeydown = event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); inspect(); } };
     svg.append(group);
@@ -292,7 +336,7 @@ function merkleSvg(data, previous, count, inspections) {
   return svg;
 }
 
-function showMerkle(data, previous, count) {
+function showMerkle(data, previous, count, inputs = []) {
   $('merkle-result').hidden = false;
   $('merkle-root').textContent = data.root.length > 20 ? shortHash(data.root) : data.root;
   $('merkle-root').title = data.root; $('merkle-root-full').textContent = data.root;
@@ -303,27 +347,35 @@ function showMerkle(data, previous, count) {
   const legend = document.createElement('p'); legend.className = 'hint';
   legend.textContent = 'Root ở trên, lá ở dưới. Nét đứt: ghép hash cuối với chính nó. Nhãn Đổi / mới so sánh cùng vị trí; nhãn proof chỉ đường được cung cấp, không thay thế kết quả xác minh backend.';
   container.append(legend);
+  const levels = document.createElement('details'), levelsSummary = document.createElement('summary');
+  levelsSummary.textContent = 'Chi tiết các tầng'; levels.append(levelsSummary); container.append(levels);
   const inspections = new Map();
   if (!count) { const note = document.createElement('p'); note.textContent = 'Không có lá. Backend trả về một tầng chứa root của cây rỗng.'; container.append(note); }
   data.levels.forEach((level, l) => {
     const heading = document.createElement('p'); heading.className = 'level-title';
     heading.textContent = `Tầng ${l}${l === 0 && count ? ' / Lá' : l === data.levels.length - 1 ? ' / Root' : ''}`;
-    container.append(heading);
+    levels.append(heading);
     const row = document.createElement('div'); row.className = 'tree-level';
     level.forEach((hash, i) => {
       const node = document.createElement('div'), changed = previous && previous.levels[l]?.[i] !== hash;
       node.className = 'tree-node' + (changed ? ' changed' : '');
       const details = document.createElement('details'), summary = document.createElement('summary'), code = document.createElement('code');
-      details.dataset.fullNode = `${l}:${i}`; inspections.set(`${l}:${i}`, { details, summary });
+      details.dataset.fullNode = `${l}:${i}`; inspections.set(`${l}:${i}`, { details, summary, levels });
       summary.textContent = `${i + 1} · ${shortHash(hash)}`;
       code.textContent = hash; details.append(summary, code); node.append(details);
+      if (l === 0 && count && inputs[i] !== undefined) {
+        const value = document.createElement('pre'); value.textContent = inputs[i];
+        const label = document.createElement('p'); label.textContent = `Dữ liệu đầy đủ của lá ${i + 1}:`;
+        details.append(label, value);
+      }
       if (changed) { const label = document.createElement('small'); label.textContent = 'Đổi / mới'; node.append(label); }
       if (count && i >= Math.ceil(count / (2 ** l))) { const label = document.createElement('small'); label.textContent = 'Bản sao ghép cặp từ backend'; node.append(label); }
       row.append(node);
     });
-    container.append(row);
+    levels.append(row);
   });
-  diagram.append(merkleSvg(data, previous, count, inspections));
+  diagram.append(merkleSvg(data, previous, count, inspections, inputs));
+  updateMerkleScrollHint();
   $('merkle-proof-result').textContent = data.proof
     ? `Lá ${data.proof.index + 1} · Backend kiểm tra proof: ${data.proof.valid ? 'hợp lệ' : 'không hợp lệ'}\n` + JSON.stringify(data.proof.siblings, null, 2)
     : count ? 'Không yêu cầu proof cho lần tính này.' : 'Cây rỗng không có lá để chứng minh.';
@@ -336,7 +388,7 @@ async function computeMerkle(event) {
   try {
     const data = await labPost('/merkle', { leaves, proof_index: selected === '' ? null : Number(selected) });
     if (token !== merkleToken) return;
-    showMerkle(data, merklePrevious, leaves.length); merklePrevious = data;
+    showMerkle(data, merklePrevious, leaves.length, leaves); merklePrevious = data;
     $('merkle-status').textContent = 'Đã tính lại các tầng thật. Dấu “Đổi / mới” so sánh hash ở cùng vị trí với lần trước.';
   } catch (error) { if (token === merkleToken) labError('merkle-error', error.message); }
   finally { if (token === merkleToken) { merkleBusy = false; merkleControls(false); } }
@@ -345,10 +397,11 @@ function resetMerkle() {
   merkleToken++; merkleBusy = false; merklePrevious = null; merkleControls(false);
   $('merkle-leaves').value = ''; updateProofChoices(); $('merkle-root').textContent = '';
   $('merkle-tree').replaceChildren(); $('merkle-proof-result').textContent = ''; $('merkle-result').hidden = true;
+  updateMerkleScrollHint();
   labError('merkle-error'); $('merkle-status').textContent = 'Đã reset riêng lab Merkle; không gọi reset phiên demo.';
 }
 
-function freshChainLab() { return { busy: false, result: null, selected: 0, draft: '', initialization: null }; }
+function freshChainLab() { return { busy: false, result: null, selected: 0, draft: '', lastAdded: null, initialization: null }; }
 let chainLab = freshChainLab();
 
 function chainText(parent, tag, text) {
@@ -403,13 +456,32 @@ function selectChainBlock(height) {
 
 function showChainLab() {
   const s = chainLab, data = s.result, panel = $('chain-result'), track = $('chain-cards');
+  const added = data?.chain.find(block => block.height === s.lastAdded && block.height > 0);
+  $('chain-add-feedback').hidden = !added;
+  $('chain-add-feedback').textContent = added ? `Đã thêm Block #${added.height}` : '';
+  $('chain-show-added').hidden = !added; $('chain-show-added').disabled = s.busy;
+  $('chain-show-added').textContent = added ? `Xem khối vừa thêm — #${added.height}` : '';
+  $('chain-show-added').onclick = () => {
+    if (s !== chainLab || s.busy || !added) return;
+    const card = Array.from(track.children).find(element => element.dataset.height === String(added.height));
+    card?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' }); card?.focus({ preventScroll: true });
+  };
   panel.hidden = !data; track.replaceChildren(); $('chain-summary').replaceChildren(); $('chain-evidence').replaceChildren();
   if (!data) { chainControls(); return; }
   const summary = $('chain-summary');
   summary.className = 'result ' + (data.validation.valid ? 'valid' : 'invalid');
   chainText(summary, 'h2', (data.validation.valid ? '✓ Chuỗi hợp lệ' : '✗ Chuỗi không hợp lệ') + ` · ${data.chain.length - 1} khối ngoài genesis`);
   chainText(summary, 'p', data.validation.reason);
-  if (data.mining) chainText(summary, 'p', `${data.mining.completed ? '✓ Đã thêm khối' : '⏳ Chưa thêm khối: đào chưa hoàn tất'} · ${data.mining.attempts} lần băm · ${Number(data.mining.seconds).toFixed(3)} giây. ${data.mining.reason || ''}`);
+  if (data.mining) {
+    chainText(summary, 'h3', data.mining.completed ? '✓ Đã thêm khối' : 'Chưa thêm khối: đào chưa hoàn tất');
+    if (data.mining.reason) chainText(summary, 'p', data.mining.reason);
+    const metrics = document.createElement('div'); metrics.className = 'result-metrics'; summary.append(metrics);
+    const candidate = data.mining.completed ? data.chain.at(-1) : data.candidate;
+    resultMetric(metrics, data.mining.completed ? 'Nonce tìm được' : 'Nonce ứng viên — chưa đạt', candidate?.header.nonce, 'nonce');
+    resultMetric(metrics, 'Số lần thử', data.mining.attempts, 'lần băm', undefined, 'chain-attempts');
+    resultMetric(metrics, 'Thời gian', data.mining.seconds, 'giây', 3);
+    powHash(summary, candidate?.stored_hash, candidate?.header.difficulty);
+  }
   for (const block of data.chain) {
     const state = data.blocks[block.height];
     if (block.height) {
@@ -426,6 +498,7 @@ function showChainLab() {
     card.className = 'chain-card ' + (!state.own_validation.valid ? 'own-invalid'
       : !state.prefix_valid ? 'prefix-broken' : 'own-valid');
     card.dataset.height = String(block.height); track.append(card);
+    card.tabIndex = -1;
     chainText(card, 'h3', block.height === 0 ? 'Genesis · #0' : 'Block #' + block.height);
     const text = block.transaction?.payload.lab_data;
     const preview = chainText(card, 'p', block.height === 0 ? 'Khối khởi đầu cố định' : text ? text.slice(0, 160) + (text.length > 160 ? '…' : '') : '(Văn bản rỗng)');
@@ -501,6 +574,7 @@ async function chainLabAction(action, event) {
   if (s.busy || (action !== 'init' && !s.result) || (action === 'init' && s.result)) return;
   if (['edit', 'recompute'].includes(action) && !s.selected) return;
   let body = action === 'init' ? {} : { chain: s.result.chain };
+  const previousLength = s.result?.chain.length || 0;
   if (action === 'add') Object.assign(body, { data: $('chain-data').value,
     difficulty: Number($('chain-difficulty').value), version: Number($('chain-version').value),
     timestamp: $('chain-timestamp').value.trim() || null });
@@ -514,7 +588,10 @@ async function chainLabAction(action, event) {
     const data = await labPost('/blockchain/' + action, body);
     if (s !== chainLab) return;
     s.result = data;
-    if (action === 'add') s.selected = 0;
+    if (action === 'add') {
+      s.selected = 0;
+      if (data.mining?.completed && data.chain.length > previousLength) s.lastAdded = data.chain.at(-1).height;
+    }
     s.draft = data.chain[s.selected]?.transaction?.payload.lab_data || '';
     $('chain-status').textContent = data.mining && !data.mining.completed ? 'Đào chưa hoàn tất trong giới hạn; ứng viên chưa được thêm vào chuỗi.'
       : data.validation.valid ? 'Chuỗi đã được kiểm tra. Thêm khối hoặc chọn thẻ khối để thử sửa.'
@@ -528,6 +605,7 @@ async function chainLabAction(action, event) {
 }
 
 function resetChainLab(initialize = true) {
+  globalThis.TrustCounter?.clear('chain-');
   chainLab = freshChainLab(); $('chain-data').value = ''; $('chain-difficulty').value = '2';
   $('chain-version').value = '1'; $('chain-timestamp').value = '';
   labError('chain-error'); showChainLab();
@@ -538,15 +616,38 @@ function resetChainLab(initialize = true) {
 function freshComparison() { return { mode: 'pow', busy: false, results: { pow: null, pos: null } }; }
 let comparison = freshComparison();
 
+function showComparisonSummary() {
+  const c = comparison, modes = ['pow', 'pos'];
+  const number = (value, decimals) => typeof value === 'number' && Number.isFinite(value)
+    ? decimals == null ? String(value) : value.toFixed(decimals) : 'Chưa có số liệu';
+  const rows = [
+    ['Trạng thái', mode => c.busy && c.mode === mode ? 'Đang chạy'
+      : c.results[mode] ? c.results[mode].created ? 'Đã tạo block' : 'Chưa tạo block'
+      : c.mode === mode && !$('comparison-error').hidden ? 'Không nhận được kết quả' : 'Chưa chạy'],
+    ['Thời gian đo (giây)', mode => number(c.results[mode]?.seconds, 4)],
+    ['Nonce tìm được', mode => mode === 'pow' ? number(c.results.pow?.block?.nonce) : 'Không áp dụng'],
+    ['Số lần băm', mode => mode === 'pow' ? number(c.results.pow?.attempts) : 'Không áp dụng'],
+    ['Validator ký block', mode => mode === 'pos' ? c.results.pos?.signer?.name || 'Chưa có dữ liệu' : 'Không áp dụng'],
+    ['Stake của validator', mode => mode === 'pos' ? number(c.results.pos?.signer?.stake) : 'Không áp dụng'],
+  ];
+  const summary = $('comparison-summary'); summary.replaceChildren();
+  for (const [label, value] of rows) {
+    const row = document.createElement('tr'); summary.append(row);
+    chainText(row, 'th', label).setAttribute('scope', 'row');
+    for (const mode of modes) chainText(row, 'td', value(mode));
+  }
+}
+
 function showComparison() {
   const c = comparison;
+  showComparisonSummary();
   formBusy('comparison-form', c.busy);
   $('comparison-pow').checked = c.mode === 'pow'; $('comparison-pos').checked = c.mode === 'pos';
-  $('comparison-submit').textContent = c.busy ? 'Đang tạo block thật trên backend…' : `Chạy ${c.mode === 'pow' ? 'PoW' : 'PoS'} trên mạng lab riêng`;
+  $('comparison-submit').textContent = c.busy ? 'Đang tạo block…' : `Chạy ${c.mode === 'pow' ? 'PoW' : 'PoS'} trên mạng lab riêng`;
   $('comparison-method').textContent = c.mode === 'pow' ? 'PoW: tìm hash đạt mục tiêu' : 'PoS: chọn validator để ký block';
   $('comparison-method-note').textContent = c.mode === 'pow'
-    ? 'Backend tăng nonce cho đến khi hash đạt độ khó. Không có mining giả trong trình duyệt.'
-    : 'Backend chọn validator đủ điều kiện theo trọng số stake. Người dùng không chọn validator thủ công.';
+    ? 'Thử các nonce để tìm hash đạt độ khó. Xem nonce và số lần thử thực sự được đo trong kết quả.'
+    : 'Validator đủ điều kiện được chọn theo trọng số stake. Bạn quan sát người ký thực tế, không chọn thủ công.';
   for (const mode of ['pow', 'pos']) {
     const data = c.results[mode], panel = $('comparison-result-' + mode);
     panel.hidden = !data; panel.replaceChildren();
@@ -557,10 +658,14 @@ function showComparison() {
     panel.append(heading);
     function line(text) { const p = document.createElement('p'); p.textContent = text; panel.append(p); }
     line(`${data.node_id} · ${data.node_status} · ${data.transaction_ids.length} giao dịch trong block · ${data.pending_count} giao dịch còn chờ trước khi dọn mạng lab.`);
-    if (!data.created) line(`Backend từ chối ở ${data.stage === 'submission' ? 'bước gửi giao dịch' : 'bước tạo block'}: ${data.reason}`);
-    if (data.seconds !== null) line(`Thời gian lời gọi Node: ${data.seconds.toFixed(4)} giây.`);
+    if (!data.created) line(`Bị từ chối ở ${data.stage === 'submission' ? 'bước gửi giao dịch' : 'bước tạo block'}: ${data.reason}`);
+    const metrics = document.createElement('div'); metrics.className = 'result-metrics'; panel.append(metrics);
+    resultMetric(metrics, mode === 'pos' ? 'Thời gian tạo block' : 'Thời gian', data.seconds, 'giây', 4);
     if (data.created && mode === 'pow') {
-      line(`Độ khó: ${data.block.difficulty} · Nonce: ${data.block.nonce}${data.attempts == null ? '' : ' · ' + data.attempts + ' lần thử (backend đo).'}`);
+      resultMetric(metrics, 'Nonce tìm được', data.block.nonce, 'nonce');
+      resultMetric(metrics, 'Số lần thử', data.attempts, 'lần băm', undefined, 'comparison-attempts');
+      line(`Độ khó: ${data.block.difficulty}`);
+      powHash(panel, data.block.hash, data.block.difficulty);
     }
     line(`Ví phát hành — ký hồ sơ: ${data.issuer.name} · ${shortHash(data.issuer.address)}`);
     if (data.created && mode === 'pos' && data.signer) {
@@ -569,6 +674,7 @@ function showComparison() {
     }
     line(`Chuỗi lab: ${data.chain_valid ? 'hợp lệ' : 'không hợp lệ'} — ${data.validity_reason}`);
     const details = document.createElement('details'), summary = document.createElement('summary'), pre = document.createElement('pre');
+    details.className = 'technical';
     summary.textContent = 'Chi tiết kỹ thuật — hash, khóa, chữ ký, seed và thời gian chính xác';
     pre.textContent = JSON.stringify(data, null, 2); details.append(summary, pre); panel.append(details);
   }
@@ -595,6 +701,7 @@ async function runComparison(event) {
 }
 
 function resetComparison() {
+  globalThis.TrustCounter?.clear('comparison-');
   comparison = freshComparison();
   $('comparison-holder').value = 'Người học DEMO-001'; $('comparison-title').value = 'Chứng chỉ Phân tích dữ liệu';
   $('comparison-date').value = '2026-01-01'; $('comparison-online').checked = $('comparison-sample').checked = true;
@@ -603,14 +710,22 @@ function resetComparison() {
 }
 
 // A handle belongs only to this lab. Reset/page exit invalidates late responses.
-function freshNetworkLab() {
-  return { handle: null, snapshot: null, busy: false, mutating: false, abort: null, pollFailed: false };
+function freshNetworkLab(transport = 'queue') {
+  return { transport, handle: null, snapshot: null, busy: false, mutating: false, abort: null, pollFailed: false };
 }
 let networkLab = freshNetworkLab();
 const networkPath = s => `/network/${encodeURIComponent(s.handle)}`;
 
 function showNetworkLab() {
   const s = networkLab, data = s.snapshot;
+  $('network-transport').value = s.transport;
+  $('network-transport').disabled = s.busy || !!s.handle;
+  $('network-transport-note').textContent = s.transport === 'http'
+    ? 'HTTP: bật Node-3 chỉ nối lại; cần bấm Đồng bộ để bắt kịp. Đặt lại để đổi chế độ.'
+    : 'Queue: bật Node-3 tự yêu cầu bắt kịp. Đặt lại để đổi chế độ.';
+  $('network-online').textContent = s.transport === 'http' ? '4. Bật Node-3 (chưa đồng bộ)' : '4. Bật Node-3 và bắt kịp';
+  $('network-sync').textContent = '5. Đồng bộ các node đang bật';
+  $('network-transport-result').textContent = data ? `Kết nối thực tế: ${data.transport === 'http' ? 'HTTP' : 'Queue'}` : '';
   $('network-init').disabled = s.busy || !!s.handle;
   $('network-reset').disabled = s.mutating || !s.handle;
   ['refresh', 'sync'].forEach(action => { $('network-' + action).disabled = s.busy || !s.handle; });
@@ -618,6 +733,22 @@ function showNetworkLab() {
   $('network-offline').disabled = s.busy || !node3 || node3.status === 'OFFLINE';
   $('network-online').disabled = s.busy || !node3 || node3.status === 'ONLINE';
   $('network-mine').disabled = s.busy || !s.handle || !!data?.mining;
+  const next = !s.handle ? 'init' : !data?.mining
+    ? node3?.status === 'OFFLINE' ? 'mine' : 'offline'
+    : node3?.status === 'OFFLINE' ? 'online'
+    : !data.all_nodes_synchronized || s.pollFailed ? 'sync' : null;
+  const guidance = {
+    init: 'Khởi tạo để xem ba bản sao ở genesis.',
+    offline: 'Tắt Node-3 để quan sát điều gì xảy ra khi node bỏ lỡ block.',
+    mine: 'Tạo block mẫu trên Node-1, rồi so sánh chiều cao của ba node.',
+    online: 'Bật Node-3 để nối lại. ' + (s.transport === 'http' ? 'Sau đó bấm Đồng bộ ở bước 5.' : 'Queue sẽ tự yêu cầu bắt kịp.'),
+    sync: 'Bấm Đồng bộ để yêu cầu các node đang bật đọc chuỗi từ peer; chỉ kết quả thực mới xác nhận bắt kịp.'
+  };
+  $('network-guidance').dataset.action = s.busy ? '' : next || '';
+  $('network-guidance').textContent = s.busy ? 'Đang chờ kết quả. Các điều khiển sẽ mở lại khi thao tác kết thúc.'
+    : next ? 'Tiếp theo: ' + guidance[next] : 'Đã quan sát các bản sao khớp nhau. Có thể tắt Node-3 để thử lại kết nối, hoặc đặt lại mẫu.';
+  for (const action of ['init', 'offline', 'mine', 'online', 'sync'])
+    $('network-' + action).className = !s.busy && action === next ? 'primary' : 'secondary';
   $('network-control-note').textContent = s.busy ? 'Đang chờ kết quả thực; các thao tác mạng tạm khóa.'
     : !s.handle ? 'Khởi tạo mạng trước để mở các nút điều khiển Node-3 và tạo block.'
     : data?.mining ? 'Mẫu này đã có một block. Thử bật/tắt Node-3, làm mới hoặc đồng bộ; đặt lại lab để tạo mẫu mới.'
@@ -626,17 +757,57 @@ function showNetworkLab() {
   summary.className = 'result';
   summary.textContent = !data ? 'Chưa có mạng lab. Khởi tạo để xem ba node ở block genesis.'
     : s.pollFailed ? 'Chưa xác nhận hoàn tất trong thời hạn. Các thẻ bên dưới là trạng thái cuối đã đọc; hãy làm mới.'
-    : data.all_nodes_synchronized ? '✓ Cả ba node ONLINE: cùng chiều cao và tip hash, các chuỗi hợp lệ.'
-    : data.online_nodes_synchronized ? 'Các node ONLINE đồng thuận về chiều cao và tip hash, chuỗi hợp lệ. Chưa đồng bộ cả ba node.'
-    : !data.online_nodes_valid ? 'Có chuỗi ONLINE không hợp lệ. Xem lý do backend trong chi tiết.'
-    : 'Các node ONLINE chưa có cùng chiều cao và tip hash; đang quan sát trạng thái thực.';
+    : data.all_nodes_synchronized ? '✓ Cả ba node đang bật: cùng chiều cao và hash khối cuối, các chuỗi hợp lệ.'
+    : data.online_nodes_synchronized ? 'Các node đang bật có cùng chiều cao và hash khối cuối, chuỗi hợp lệ. Chưa đồng bộ cả ba node.'
+    : !data.online_nodes_valid ? 'Có chuỗi đang hoạt động không hợp lệ. Xem lý do kiểm tra trong chi tiết.'
+    : 'Các node đang bật chưa có cùng chiều cao và hash khối cuối.';
   if (data?.all_nodes_synchronized && !s.pollFailed) summary.className += ' valid';
-  showLabNodes('network-nodes', data?.nodes || []);
-  $('network-technical').textContent = data ? JSON.stringify(data, null, 2) : '';
+  showNetworkNodes(data);
+  $('network-technical').textContent = data ? JSON.stringify({ ...data,
+    ...(s.syncResults ? { sync_results: s.syncResults } : {}) }, null, 2) : '';
   $('network-credential').textContent = data?.mining
-    ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}; hồ sơ ${data.credential_id}.`
+    ? `Đã tạo block #${data.mining.block.height} bằng PoW trên Node-1. Độ khó ${data.mining.block.difficulty}.`
     : data?.transaction ? 'Hồ sơ mẫu đã ký; chưa tạo được block. Giao dịch được giữ để thử lại.'
-    : 'Thử: tắt Node-3 → tạo block → quan sát NOT_FOUND trên node offline → bật lại Node-3.';
+    : 'Mẫu cố định: một hồ sơ và một block. Ba node chạy trong một server, không phải ba máy tính vật lý.';
+}
+
+function showNetworkNodes(data) {
+  const nodes = data?.nodes || [], container = $('network-nodes'), connections = $('network-connections');
+  container.replaceChildren(); connections.replaceChildren();
+  const highest = nodes.length ? Math.max(...nodes.map(n => n.height)) : null;
+  for (const [i, node] of nodes.entries()) {
+    if (i) {
+      const connected = nodes[i - 1].status === 'ONLINE' && node.status === 'ONLINE';
+      const link = chainText(connections, 'span', `${nodes[i - 1].node_id} ${connected ? '↔' : '╳'} ${node.node_id} · ${connected ? 'Đang kết nối' : 'Ngắt kết nối'}`);
+      link.className = 'network-connection' + (connected ? '' : ' disconnected');
+    }
+    const lag = highest - node.height;
+    const card = document.createElement('article');
+    card.className = 'network-node' + (node.status === 'OFFLINE' ? ' offline' : '') + (lag > 0 ? ' lagging' : '');
+    chainText(card, 'h3', node.node_id);
+    chainText(card, 'p', node.status === 'ONLINE' ? '● Đang bật' : '○ Ngắt kết nối — bản sao cục bộ có thể cũ');
+    const height = chainText(card, 'strong', String(node.height)); height.className = 'metric-number';
+    globalThis.TrustCounter?.render(height, node.height, { key: `network-${networkLab.handle}-${node.node_id}` });
+    chainText(card, 'span', ' chiều cao').className = 'metric-unit';
+    chainText(card, 'p', `Giao dịch chờ: ${node.pending_count}`);
+    chainText(card, 'p', lag > 0 ? `Thiếu ${lag} khối so với node cao nhất đang quan sát.` : 'Chiều cao bằng node cao nhất đang quan sát.');
+    const block = chainText(card, 'p', node.height === 0 ? 'Genesis · #0' : `Genesis → Khối #${node.height}`);
+    block.className = 'network-block';
+    chainText(card, 'p', `Tip: ${shortHash(node.tip_hash)}`).title = node.tip_hash;
+    const others = nodes.filter(n => n !== node && n.status === 'ONLINE');
+    chainText(card, 'p', node.status === 'OFFLINE' ? 'Không tính node ngắt kết nối vào đồng bộ.'
+      : others.length === 0 ? 'Chưa có peer đang bật để so sánh.'
+      : others.every(n => n.height === node.height && n.tip_hash === node.tip_hash)
+        ? '✓ Cùng chiều cao và tip với các peer đang bật.' : '↔ Khác tip hoặc chiều cao với peer đang bật.');
+    chainText(card, 'p', node.chain_valid ? '✓ Chuỗi riêng hợp lệ' : '✗ Chuỗi riêng không hợp lệ');
+    const status = node.verification?.status;
+    const labels = { VERIFIED: '✓ Đã xác minh hồ sơ', NOT_FOUND: 'Chưa tìm thấy tại node này',
+      INVALID: '✗ Xác minh thất bại', REVOKED: 'Hồ sơ đã bị thu hồi' };
+    chainText(card, 'p', status ? labels[status] || 'Xem kết quả xác minh trong chi tiết.' : 'Chưa có hồ sơ mẫu để xác minh.');
+    const details = document.createElement('details');
+    chainText(details, 'summary', 'Chi tiết kỹ thuật'); chainText(details, 'pre', JSON.stringify(node, null, 2));
+    card.append(details); container.append(card);
+  }
 }
 
 function showLabNodes(id, nodes) {
@@ -691,12 +862,13 @@ async function pollNetworkLab(s, complete, {
 async function networkLabAction(action) {
   const s = networkLab;
   if (s.busy || (action === 'init' ? s.handle : !s.handle)) return;
+  if (action === 'init') globalThis.TrustCounter?.clear('network-');
   s.busy = true; s.mutating = action !== 'refresh'; s.pollFailed = false;
   showNetworkLab(); labError('network-error');
-  $('network-status').textContent = action === 'mine' ? 'Đang ký/gửi hồ sơ mẫu và mining PoW thật trên Node-1…' : 'Đang chờ backend…';
+  $('network-status').textContent = action === 'mine' ? 'Đang ký/gửi hồ sơ mẫu và tìm nonce trên Node-1…' : 'Đang thực hiện thao tác…';
   try {
     let data;
-    if (action === 'init') data = await labPost('/network');
+    if (action === 'init') data = await labPost('/network', { transport: s.transport });
     else if (action === 'refresh') data = await readNetworkLab(s);
     else if (action === 'offline' || action === 'online') data = await labPost(networkPath(s) + '/nodes/Node-3/status', { online: action === 'online' });
     else data = await labPost(networkPath(s) + '/' + action);
@@ -705,6 +877,7 @@ async function networkLabAction(action) {
       return;
     }
     s.handle = action === 'init' ? data.lab_handle : s.handle;
+    if (data.node_results) s.syncResults = data.node_results;
     s.snapshot = data.snapshot || data; s.mutating = false;
     if (action === 'mine') {
       if (!data.mined) throw new Error(data.reason);
@@ -713,6 +886,9 @@ async function networkLabAction(action) {
       await pollNetworkLab(s, snapshot => ['Node-1', 'Node-2'].every(id => snapshot.nodes.some(n =>
         n.node_id === id && n.status === 'ONLINE' && n.height === block.height && n.tip_hash === block.hash
         && n.chain_valid && n.verification?.status === 'VERIFIED')));
+    } else if (action === 'online' && s.snapshot.transport === 'http') {
+      $('network-status').textContent = 'Node-3 đã ONLINE; chưa yêu cầu bắt kịp. Bấm Đồng bộ để đọc chuỗi từ peer HTTP.';
+      return;
     } else if (action === 'online' || action === 'sync') {
       if (action === 'sync' && !data.completed && !s.snapshot.online_nodes_valid) {
         s.pollFailed = true;
@@ -744,7 +920,8 @@ async function networkLabAction(action) {
 async function resetNetworkLab() {
   const old = networkLab;
   if (old.mutating || !old.handle) return;
-  old.abort?.abort(); networkLab = freshNetworkLab();
+  globalThis.TrustCounter?.clear('network-');
+  old.abort?.abort(); networkLab = freshNetworkLab(old.transport);
   const s = networkLab; s.busy = s.mutating = true;
   showNetworkLab(); labError('network-error'); $('network-status').textContent = 'Đang dừng worker và reset riêng mạng lab…';
   try {
@@ -852,9 +1029,10 @@ async function resetTamperLab() {
 }
 
 (function setupLabs() {
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateMerkleScrollHint).observe($('merkle-tree'));
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
-    $('theme-toggle').textContent = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+    $('theme-toggle').title = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
     $('theme-toggle').setAttribute('aria-pressed', String(theme === 'light'));
     try { localStorage.setItem('trustmebro-theme', theme); } catch {}
   }
@@ -874,7 +1052,8 @@ async function resetTamperLab() {
     });
     document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
-    if (name === 'blocks' && !chainLab.result && !chainLab.busy) chainLab.initialization = chainLabAction('init');
+    if (name === 'blocks' && labLearning.blocks.tab === 'practice' && !chainLab.result && !chainLab.busy)
+      chainLab.initialization = chainLabAction('init');
   }
   window.addEventListener('hashchange', () => route(true));
   for (const [index, name] of ['theory', 'practice'].entries()) {
@@ -894,14 +1073,20 @@ async function resetTamperLab() {
   showShaTab('theory'); selectShaTopic(0);
   setupLabLearning();
   $('hash-form').onsubmit = compareHashes; $('hash-reset').onclick = resetHash;
-  ['hash-a', 'hash-b'].forEach(id => { $(id).oninput = () => { $('hash-status').textContent = 'Nội dung đã đổi. Bấm tính lại để cập nhật kết quả.'; }; });
+  ['hash-a', 'hash-b'].forEach(id => { $(id).oninput = () => {
+    $('hash-status').textContent = 'Nội dung đã đổi. Bấm tính lại để cập nhật kết quả.';
+    if (!$('hash-result').hidden) $('hash-result-context').textContent = 'Đầu vào đã đổi — số liệu bên dưới thuộc lần tính trước. Bấm tính lại để cập nhật.';
+  }; });
   $('sig-create').onclick = () => signatureAction('create'); $('sig-other').onclick = () => signatureAction('other');
   $('signature-form').onsubmit = event => signatureAction('sign', event);
   $('sig-original').onclick = () => signatureAction('original'); $('sig-verify').onclick = () => signatureAction('verify');
   $('sig-reset').onclick = resetSignature;
   ['sig-presented', 'sig-key-choice'].forEach(id => { $(id).oninput = () => { signature.result = null; showSignature(); $('sig-status').textContent = 'Bản xuất trình hoặc khóa kiểm tra đã đổi. Chữ ký gốc vẫn giữ nguyên.'; }; });
   $('merkle-form').onsubmit = computeMerkle; $('merkle-reset').onclick = resetMerkle;
-  $('merkle-leaves').oninput = () => { updateProofChoices(); $('merkle-status').textContent = 'Lá đã đổi. Bấm tính lại để so sánh các node.'; };
+  $('merkle-leaves').oninput = () => { updateProofChoices(); $('merkle-status').textContent = 'Lá đã đổi — cây và root đang hiển thị thuộc lần tính trước. Bấm tính lại để cập nhật và so sánh các node.'; };
+  $('merkle-proof').onchange = () => {
+    if (merklePrevious) $('merkle-status').textContent = 'Lựa chọn lá đã đổi — proof và đường đi đang hiển thị thuộc lần tính trước. Bấm tính lại để kiểm tra lá đang chọn.';
+  };
   for (const [id, text] of [['merkle-one', 'Hồ sơ An'], ['merkle-odd', 'Hồ sơ An\nHồ sơ Bình\nHồ sơ Chi'], ['merkle-empty', '']]) {
     $(id).onclick = () => { if (merkleBusy) return; fillLabExample('merkle-leaves', text); };
   }
@@ -931,6 +1116,10 @@ async function resetTamperLab() {
     $('network-' + action).onclick = () => networkLabAction(action);
   });
   $('network-reset').onclick = resetNetworkLab; showNetworkLab();
+  $('network-transport').onchange = () => {
+    if (!networkLab.busy && !networkLab.handle) networkLab.transport = $('network-transport').value === 'http' ? 'http' : 'queue';
+    showNetworkLab();
+  };
   ['create', 'refresh', 'sync'].forEach(action => {
     $('tamper-' + action).onclick = () => tamperLabAction(action);
   });
