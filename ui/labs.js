@@ -1252,14 +1252,14 @@ async function resetTamperLab() {
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   window.addEventListener('pageshow', restoreTheme); restoreTheme();
   function route(focus) {
-    const labs = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'tamper'];
+    const labs = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'fork', 'tamper'];
     const requested = ['block', 'blockchain'].includes(location.hash.slice(1)) ? 'blocks' : location.hash.slice(1);
     const name = labs.includes(requested) ? requested : 'sha';
     labs.forEach(id => { $('lab-' + id).hidden = id !== name; });
     document.querySelectorAll('[data-lab]').forEach(a => {
       if (a.dataset.lab === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
+    document.title = `${name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'fork' ? 'Fork & Reorg' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
     if (name === 'blocks' && labLearning.blocks.tab === 'practice' && !chainLab.result && !chainLab.busy)
       chainLab.initialization = chainLabAction('init');
