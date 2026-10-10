@@ -57,16 +57,18 @@ class Node:
 
         # Thread xử lý message — chạy song song thật
         self._state_lock = threading.RLock()
-        self._running = True
+        self._running = getattr(network, "delivery_mode", "queue") != "manual"
         self._worker = threading.Thread(
             target=self._process_loop, daemon=True, name=f"worker-{node_id}",
         )
-        self._worker.start()
+        if self._running:
+            self._worker.start()
 
     def stop(self) -> None:
         """Stop the inbox worker; safe to call more than once."""
         self._running = False
-        self._worker.join(timeout=1.0)
+        if self._worker.is_alive():
+            self._worker.join(timeout=1.0)
 
     @property
     def height(self) -> int:

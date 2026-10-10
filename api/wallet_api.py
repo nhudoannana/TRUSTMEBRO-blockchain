@@ -82,6 +82,9 @@ app = FastAPI(
 
 app.add_middleware(SimulationSessionMiddleware)
 
+from api.fork_lab import router as fork_router
+app.include_router(fork_router)
+
 # Allow localhost origins during development only.
 # In production, tighten allowed_origins to the actual serving domain.
 app.add_middleware(

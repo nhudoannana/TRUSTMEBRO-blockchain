@@ -41,6 +41,7 @@ def bind_session(context):
 class SimulationSession:
     last_used: float
     generation: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    fork_owner: str = field(default_factory=lambda: secrets.token_urlsafe(16))
     lock: object = field(default_factory=threading.RLock, repr=False)
     wallets: WalletStore = field(default_factory=WalletStore, repr=False)
     network: object = field(default=None, repr=False)
