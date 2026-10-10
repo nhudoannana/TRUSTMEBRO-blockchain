@@ -52,6 +52,8 @@ class Node:
 
         self.inbox: queue.Queue = queue.Queue()
         self._seen_tx_ids: set[str] = set()
+        self.last_transition = None
+        self.state_revision = 0
 
         # Thread xử lý message — chạy song song thật
         self._state_lock = threading.RLock()
@@ -112,12 +114,73 @@ class Node:
         )
         return ok, reason
 
-    def _best_known_valid_branch(self, candidate_branch):
+    def _prepare_branch_storage(self, branch):
+        """Bản sao container để lỗi chuẩn bị không làm đổi storage đang dùng."""
+        prepared = copy.copy(self.blockchain)
+        prepared.chain = list(self.blockchain.chain)
+        prepared.side_branches = [list(path) for path in self.blockchain.side_branches]
+        prepared.block_pool = dict(self.blockchain.block_pool)
+        prepared.block_pool[branch[0].compute_hash()] = branch[0]
+        for block in branch[1:]:
+            ok, reason, _ = prepared.add_side_branch_block(block)
+            if not ok:
+                raise ValueError(reason)
+        return prepared
+
+    def _apply_valid_branch(self, new_branch, selection_reason, storage=None):
+        """Validate/prepare trước, publish tất cả dưới cùng node lock."""
+        with self._state_lock:
+            candidate = Blockchain()
+            candidate.chain = list(new_branch)
+            ok, _, reason = candidate.is_chain_valid(
+                pos_registry=self.network.pos_registry,
+                authorized_issuers=self.mempool.authorized_issuers,
+            )
+            if not ok:
+                return False, reason
+            prepared = storage if storage is not None else self._prepare_branch_storage(new_branch)
+            current_ok, _, _ = self.blockchain.is_chain_valid(
+                pos_registry=self.network.pos_registry,
+                authorized_issuers=self.mempool.authorized_issuers,
+            )
+            if current_ok and [b.compute_hash() for b in self.blockchain.chain] == [b.compute_hash() for b in new_branch]:
+                self.blockchain.side_branches = prepared.side_branches
+                self.blockchain.block_pool = prepared.block_pool
+                return True, "Chuỗi active không đổi"
+            transition = prepared.plan_reorg(new_branch)
+            confirmed_ids = {tx.tx_id for block in new_branch for tx in block.transactions}
+            candidates = [{"transaction": tx, "origin": "retained"} for tx in self.mempool.get_transactions()]
+            candidates += [{"transaction": tx, "origin": "detached"} for tx in transition["detached_transactions"]]
+            reconciliation = self.mempool.plan_reconciliation(candidate, candidates, confirmed_ids)
+            pool = {tx.tx_id: tx for tx in reconciliation["pending"]}
+            seen = confirmed_ids | set(pool)
+            report = {
+                "old_tip": self.blockchain.get_latest_block().compute_hash() if self.blockchain.chain else None,
+                "new_tip": candidate.get_latest_block().compute_hash(),
+                "old_work": self.blockchain.total_work(), "new_work": candidate.total_work(),
+                "selection_reason": selection_reason,
+                "common_ancestor": transition["common_ancestor"],
+                "detached_hashes": [b.compute_hash() for b in transition["detached_blocks"]],
+                "attached_hashes": [b.compute_hash() for b in transition["attached_blocks"]],
+                "transactions": reconciliation["transactions"], "counts": reconciliation["counts"],
+            }
+            revision = self.state_revision + 1
+            self.blockchain.chain = transition["chain"]
+            self.blockchain.side_branches = transition["side_branches"]
+            self.blockchain.block_pool = transition["block_pool"]
+            self.mempool._pool = pool
+            self._seen_tx_ids = seen
+            self.last_transition = report
+            self.state_revision = revision
+            return True, "Đã cập nhật chain và đối soát mempool"
+
+    def _best_known_valid_branch(self, candidate_branch, storage=None):
         """Khi chain hiện tại lỗi, không bỏ qua nhánh hợp lệ mạnh hơn đã biết."""
         best = candidate_branch
-        for branch in self.blockchain.side_branches:
+        source = storage if storage is not None else self.blockchain
+        for branch in source.side_branches:
             candidate = Blockchain()
-            candidate.chain = self.blockchain.branch_to_tip(branch[-1].compute_hash()) or []
+            candidate.chain = source.branch_to_tip(branch[-1].compute_hash()) or []
             ok, _, _ = candidate.is_chain_valid(
                 pos_registry=self.network.pos_registry,
                 authorized_issuers=self.mempool.authorized_issuers,
@@ -169,12 +232,9 @@ class Node:
             if not ok:
                 return None, reason
 
-            # Thêm vào chain của chính mình
-            self.blockchain.add_block(block)
-
-            # Xoá Tx đã đóng gói khỏi Mempool
-            tx_ids = [tx.tx_id for tx in txs]
-            self.mempool.remove_transactions(tx_ids)
+            ok, reason = self._apply_valid_branch(self.blockchain.chain + [block], "local_pow")
+            if not ok:
+                return None, reason
 
             self.network.log_event(
                 self.node_id,
@@ -262,12 +322,9 @@ class Node:
             if not ok:
                 return None, reason
 
-            # Thêm vào chuỗi của chính mình
-            self.blockchain.add_block(block)
-
-            # Xoá Tx đã đóng gói khỏi Mempool
-            tx_ids = [tx.tx_id for tx in txs]
-            self.mempool.remove_transactions(tx_ids)
+            ok, reason = self._apply_valid_branch(self.blockchain.chain + [block], "local_pos")
+            if not ok:
+                return None, reason
 
             self.network.log_event(
                 self.node_id,
@@ -433,11 +490,12 @@ class Node:
                 return
 
             my_tip = self.blockchain.get_latest_block().compute_hash()
+            candidate_branch = self.blockchain.branch_to_tip(block.header.previous_hash) + [block]
             if block.header.previous_hash == my_tip:
-                self.blockchain.add_block(block)
-                tx_ids = [tx.tx_id for tx in block.transactions]
-                self.mempool.remove_transactions(tx_ids)
-
+                ok, reason = self._apply_valid_branch(candidate_branch, "tip_extension")
+                if not ok:
+                    self.network.log_event(self.node_id, f"❌ BLOCK REJECTED: {reason}")
+                    return
                 self.network.log_event(
                     self.node_id,
                     f"✅ BLOCK ACCEPTED from {msg.sender_id}: "
@@ -447,48 +505,35 @@ class Node:
                 )
                 return
 
-            # Trường hợp 2: previous_hash khác my_tip -> Xử lý Fork / Side Branch
-            success, fork_msg, candidate_branch = self.blockchain.add_side_branch_block(block)
-            if not success or candidate_branch is None:
-                self.network.log_event(
-                    self.node_id,
-                    f"⚠️ STALE/ORPHAN block from {msg.sender_id}: "
-                    f"prev_hash không tìm thấy trong pool → triggering sync",
-                )
-                self.request_sync()
-                return
-
-            # Tính tổng công việc PoW của 2 nhánh
+            storage = self._prepare_branch_storage(candidate_branch)
             current_ok, _, _ = self.blockchain.is_chain_valid(
                 pos_registry=self.network.pos_registry,
                 authorized_issuers=self.mempool.authorized_issuers,
             )
             if not current_ok:
-                candidate_branch = self._best_known_valid_branch(candidate_branch)
+                candidate_branch = self._best_known_valid_branch(candidate_branch, storage)
             work_candidate = calculate_chain_work(candidate_branch)
             work_current = self.blockchain.total_work()
 
             # Hòa work: giữ nhánh hợp lệ hiện tại trong mô phỏng.
             if not current_ok or work_candidate > work_current:
                 selection_reason = "higher_work" if current_ok else "invalid_current_recovery"
-                reverted_txs, disconnected_blocks = self.blockchain.reorganize(candidate_branch)
-
-                # Hoàn trả các giao dịch ở nhánh cũ về Mempool
-                for r_tx in reverted_txs:
-                    self.mempool.add_transaction(r_tx, self.blockchain)
-
-                # Loại bỏ các giao dịch đã được đóng gói trong nhánh mới khỏi Mempool
-                for b in candidate_branch:
-                    self.mempool.remove_transactions([t.tx_id for t in b.transactions])
-
+                ok, reason = self._apply_valid_branch(candidate_branch, selection_reason, storage)
+                if not ok:
+                    self.network.log_event(self.node_id, f"❌ BLOCK REJECTED: {reason}")
+                    return
+                report = self.last_transition
                 self.network.log_event(
                     self.node_id,
                     f"🔄 REORG COMPLETED: {selection_reason}. "
                     f"(Work mới: {work_candidate:,}; work cũ: {work_current:,}). "
-                    f"Đã gỡ {len(disconnected_blocks)} block, hoàn trả {len(reverted_txs)} TX về Mempool. "
-                    f"Height mới: {self.height}",
+                    f"Đã gỡ {len(report['detached_hashes'])} block, "
+                    f"hoàn trả {report['counts']['restored']} TX về Mempool, "
+                    f"từ chối {report['counts']['rejected']} TX. Height mới: {self.height}",
                 )
             else:
+                self.blockchain.side_branches = storage.side_branches
+                self.blockchain.block_pool = storage.block_pool
                 self.network.log_event(
                     self.node_id,
                     f"🔱 FORK STORED: Đã lưu nhánh phụ tại height {block.height} "
@@ -526,9 +571,7 @@ class Node:
             if not ok:
                 self.network.log_event(self.node_id, f"CHAIN REJECTED from {msg.sender_id}: {reason}")
                 return
-            self.blockchain.block_pool[peer_bc.chain[0].compute_hash()] = peer_bc.chain[0]
-            for block in peer_bc.chain[1:]:
-                self.blockchain.add_side_branch_block(block)
+            storage = self._prepare_branch_storage(peer_bc.chain)
             peer_work = peer_bc.total_work()
             my_work = self.blockchain.total_work()
             current_ok, _, _ = self.blockchain.is_chain_valid(
@@ -536,6 +579,8 @@ class Node:
                 authorized_issuers=self.mempool.authorized_issuers,
             )
             if current_ok and (peer_work < my_work or (peer_work == my_work and not prefer_equal)):
+                self.blockchain.side_branches = storage.side_branches
+                self.blockchain.block_pool = storage.block_pool
                 self.network.log_event(
                     self.node_id,
                     f"SYNC SKIP from {msg.sender_id}: peer work {peer_work:,}, my work {my_work:,}",
@@ -544,21 +589,22 @@ class Node:
 
             candidate_branch = peer_bc.chain
             if not current_ok and not prefer_equal:
-                candidate_branch = self._best_known_valid_branch(candidate_branch)
-            reverted_txs, disconnected_blocks = self.blockchain.reorganize(candidate_branch)
-            for r_tx in reverted_txs:
-                self.mempool.add_transaction(r_tx, self.blockchain)
-            for b in self.blockchain.chain:
-                self.mempool.remove_transactions([t.tx_id for t in b.transactions])
-
+                candidate_branch = self._best_known_valid_branch(candidate_branch, storage)
+            selection_reason = ("invalid_current_recovery" if not current_ok else
+                                "coordinator_equal_work" if peer_work == my_work else "higher_work")
+            old_revision = self.state_revision
+            ok, reason = self._apply_valid_branch(candidate_branch, selection_reason, storage)
+            if not ok:
+                self.network.log_event(self.node_id, f"CHAIN REJECTED from {msg.sender_id}: {reason}")
+                return
+            restored = self.last_transition["counts"]["restored"] if self.state_revision != old_revision else 0
+            rejected = self.last_transition["counts"]["rejected"] if self.state_revision != old_revision else 0
             self.network.log_event(
                 self.node_id,
                 f"🔄 CHAIN SYNCED & REORG from {msg.sender_id}: "
                 f"Height: {self.height}, Total Work: {self.blockchain.total_work():,}, "
-                f"Hoàn trả {len(reverted_txs)} TX về Mempool.",
+                f"đã hoàn trả {restored} TX về Mempool, từ chối {rejected} TX.",
             )
-
-
 
 
 class Network:
