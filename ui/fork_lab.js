@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const base = '/api/labs/fork';
-  const fresh = () => ({snapshot:null, busy:false, uncertain:false, notice:'Chưa tạo lab.', report:null, continuation:null});
+  const fresh = () => ({snapshot:null, busy:false, uncertain:false, token:0, pendingMutation:false, notice:'Chưa tạo lab.', report:null, continuation:null});
   let owner = fresh();
   const goals = {
     E1:'Dự đoán nhánh nào được giữ khi hòa; sau đó đào trên Node-3 và giao block mới để so sánh.',
@@ -29,13 +29,13 @@
   async function cleanup(handle) {
     return request(base+'/'+encodeURIComponent(handle),'DELETE');
   }
-  async function read(o) {
+  async function read(o, token) {
     const data = await request(base+'/'+encodeURIComponent(o.snapshot.lab_handle));
-    if (owner !== o) return;
+    if (owner !== o || o.token !== token) return;
     o.snapshot=data; o.uncertain=false;
   }
-  async function recover(o, error) {
-    if (owner !== o) return;
+  async function recover(o, error, token) {
+    if (owner !== o || o.token !== token) return;
     if (error.status === 404) {
       o.snapshot=null; o.continuation=null; o.notice='Handle hết hạn hoặc không còn thuộc phiên. Tạo lab mới; '+error.message;
       return;
@@ -43,9 +43,9 @@
     o.notice='Lỗi: '+error.message+'; không tự gửi lại thao tác.';
     if (o.snapshot && (error.code==='stale_revision' || !error.status)) {
       o.uncertain=true;
-      try { await read(o); if(owner===o) o.notice+=' Đã refresh state thật; hãy kiểm tra trước khi thử lại.'; }
+      try { await read(o,token); if(owner===o && o.token===token) o.notice+=' Đã refresh state thật; hãy kiểm tra trước khi thử lại.'; }
       catch (e) {
-        if(owner!==o)return;
+        if(owner!==o || o.token!==token)return;
         if(e.status===404){o.snapshot=null;o.continuation=null;}
         o.notice+=' Refresh thất bại: '+e.message+'; cần refresh hoặc tạo lại lab.';
       }
@@ -54,11 +54,12 @@
   async function action(path, body={}) {
     const o=owner;
     if(o.busy || (path!=='create' && (!o.snapshot || o.uncertain)))return;
+    const token=++o.token; o.pendingMutation=path!=='create';
     o.busy=true; render();
     try {
       const result=await request(path==='create' ? base : base+'/'+encodeURIComponent(o.snapshot.lab_handle)+'/'+path,
         'POST',path==='create' ? {} : {...body,expected_revision:o.snapshot.revision});
-      if(owner!==o) {
+      if(owner!==o || o.token!==token) {
         if(path==='create') {
           try { await cleanup(result.lab_handle); }
           catch(e) { owner.notice='Cleanup handle tạo muộn chưa xác nhận: '+e.message+'; expiry 15 phút là dự phòng.';render(); }
@@ -69,15 +70,23 @@
       o.uncertain=false; o.report=path==='create' ? null : result;
       o.notice=path==='create' ? 'Đã tạo ba node riêng; chưa tự giao tin.' : result.outcome.code+' — '+result.outcome.message;
       if(path==='scenario'){o.continuation=result.continuation || null;o.scenario=body.scenario;}
-    } catch(error) { await recover(o,error); }
-    finally { if(owner===o){o.busy=false;render();} }
+    } catch(error) { await recover(o,error,token); }
+    finally { if(owner===o && o.token===token){o.busy=false;o.pendingMutation=false;render();} }
   }
   async function refresh() {
     const o=owner;if(o.busy || !o.snapshot)return;
+    const token=++o.token;
     o.busy=true;render();
-    try {await read(o);if(owner===o)o.notice='Đã đọc state thật, không gửi lại mutation.';}
-    catch(e){await recover(o,e);}
-    finally{if(owner===o){o.busy=false;render();}}
+    try {await read(o,token);if(owner===o && o.token===token)o.notice='Đã đọc state thật, không gửi lại mutation.';}
+    catch(e){await recover(o,e,token);}
+    finally{if(owner===o && o.token===token){o.busy=false;render();}}
+  }
+  function edit() {
+    const o=owner;
+    if(!o.busy || !o.pendingMutation)return;
+    ++o.token;o.busy=false;o.pendingMutation=false;o.uncertain=true;o.report=null;
+    o.notice='Input đã đổi; đã bỏ lượt chờ cũ trên giao diện. Backend có thể đã thực hiện. Bấm Refresh state trước khi thử lại; không tự gửi lại thao tác.';
+    render();
   }
   async function reset() {
     const old=owner, next=fresh();owner=next;render();
@@ -156,7 +165,7 @@
     // Reset stays available while a request is pending.
     $('fork-reset').disabled=false;
     $('fork-controls').querySelectorAll('button').forEach(b=>b.disabled=locked());
-    $('fork-meta').textContent=s ? 'Revision '+s.revision+' · manual queue · hết hạn sau khoảng '+Math.ceil(s.expires_in_seconds)+'s' : 'Chưa có owned handle.';
+    $('fork-meta').textContent=s ? 'Revision '+s.revision+' · manual queue · hết hạn sau khoảng '+Math.ceil(s.expires_in_seconds)+'s'+(o.uncertain?' · snapshot cũ; cần Refresh trước thao tác mới':'') : 'Chưa có owned handle.';
     $('fork-nodes').replaceChildren(...(s?.nodes||[]).map(renderNode));
     $('fork-links').replaceChildren(...(s?.links||[]).map(link=> {
       const b=button(link.a+' ↔ '+link.b+' · '+(link.connected?'Nối':'Ngắt'),
@@ -204,6 +213,8 @@
     if(old.snapshot)fetch(base+'/'+encodeURIComponent(old.snapshot.lab_handle),{method:'DELETE',credentials:'same-origin',keepalive:true}).catch(()=>{});
   }
   // Bind the independent lab.
+  $('fork-controls').addEventListener('input',edit);
+  $('fork-controls').addEventListener('change',edit);
   $('fork-create').onclick=()=>action('create');
   $('fork-refresh').onclick=refresh;
   $('fork-reset').onclick=reset;

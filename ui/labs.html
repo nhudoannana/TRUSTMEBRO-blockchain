@@ -297,7 +297,7 @@ Node-3 offline: chuỗi cũ → có thể NOT_FOUND</pre></div><p class="sha-tak
 <form id="fork-mine-form"><label for="fork-parent">Block cha đã biết trên node</label><select id="fork-parent" required></select>
 <label for="fork-difficulty">Độ khó PoW (1–3)</label><select id="fork-difficulty"><option>1</option><option selected>2</option><option>3</option></select>
 <fieldset><legend>TX trong mempool · bỏ chọn hết để đào block rỗng</legend><div id="fork-txs"></div></fieldset>
-<button class="primary" type="submit">Đào block có giới hạn</button><p class="hint">Tối đa 200.000 lần thử / 3 giây; không đảm bảo tìm được nonce. Đổi input khi đang gửi chỉ áp dụng lần sau, không hủy thao tác backend. Reset có thể dùng khi đang chờ.</p></form>
+<button class="primary" type="submit">Đào block có giới hạn</button><p class="hint">Tối đa 200.000 lần thử / 3 giây; không đảm bảo tìm được nonce. Sửa input khi đang gửi bỏ lượt chờ trên giao diện, không hủy thao tác backend. Bấm Refresh state để đối chiếu revision trước khi tự thử lại. Reset có thể dùng khi đang chờ.</p></form>
 </div>
 </div>
 <div class="panel"><h2>Pending messages · không tự giao</h2><p class="hint">Bị chặn vẫn có thể thử giao để đọc outcome thật, hoặc bỏ tin. Sync cần giao cả request và response.</p><div id="fork-pending"></div></div>

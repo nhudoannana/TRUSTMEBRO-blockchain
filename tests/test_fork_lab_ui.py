@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 import pytest
 
-@pytest.mark.parametrize("case", ["duplicate", "reset", "late_create", "stale", "domain", "transport", "expired", "scenario_draft", "mining_draft", "page_restore"])
+@pytest.mark.parametrize("case", ["duplicate", "reset", "late_create", "stale", "domain", "transport", "expired", "scenario_draft", "mining_draft", "page_restore", "edit_success", "edit_error", "edit_retry"])
 def test_fork_frontend_lifecycle(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -16,18 +16,35 @@ const context=vm.createContext({document:{getElementById:$,createElement:elem},w
 fetch:async(url,options={})=>{
  calls.push({url,method:options.method||'GET'});
  if(options.method==='DELETE')return {ok:true,json:async()=>({cleared:true})};
+ const responseError=fail;fail=0;
  if(hold){const h=hold;hold=null;await h;}
- if(fail===-1){fail=0;throw Error('network lost');}
- if(fail){const status=fail;fail=0;return {ok:false,status,json:async()=>({detail:{code:'stale_revision',message:'old revision'}})};}
+ if(responseError===-1){throw Error('network lost');}
+ if(responseError){const status=responseError;return {ok:false,status,json:async()=>({detail:{code:'stale_revision',message:'old revision'}})};}
  return {ok:true,json:async()=>options.method==='POST'&&url==='/api/labs/fork'?snap('new'):
  options.method==='POST'?{snapshot:snap('old'),outcome:{code:nextOutcome,message:'domain detail'}}:snap('old')};
 }});
 let source=fs.readFileSync('ui/fork_lab.js','utf8').split('// Bind the independent lab.')[0];
-vm.runInContext(source+'\nlet renders=0;render=()=>{renders++};globalThis.test={action,reset,refresh,mineChoices,leave,state:()=>owner,renders:()=>renders};})();',context);
+vm.runInContext(source+'\nlet renders=0;render=()=>{renders++};globalThis.test={action,reset,refresh,mineChoices,leave,edit:typeof edit==="function"?edit:()=>{},state:()=>owner,renders:()=>renders};})();',context);
 const api=context.test,tick=()=>new Promise(r=>setImmediate(r));
 (async()=>{
  await api.action('create');assert.equal(api.state().snapshot.lab_handle,'new');
- if(process.argv[1]==='duplicate'){
+ if(process.argv[1].startsWith('edit_')){
+  let oldRelease,readRelease,newRelease;const before=api.state().snapshot;
+  if(process.argv[1]==='edit_error')fail=500;
+  hold=new Promise(r=>oldRelease=r);const old=api.action('transactions',{node_id:'Node-1',label:'old'});await tick();
+  api.edit();assert.equal(api.state().busy,false,'editing must release local loading');assert.equal(api.state().uncertain,true);
+  assert.equal(api.state().snapshot,before);assert.equal(api.state().report,null);
+  const count=calls.length;await api.action('transactions',{node_id:'Node-1',label:'new'});assert.equal(calls.length,count,'mutation must wait for refresh');
+  hold=new Promise(r=>readRelease=r);const read=api.refresh();await tick();assert.equal(api.state().busy,true);
+  if(process.argv[1]==='edit_retry'){
+   readRelease();await read;hold=new Promise(r=>newRelease=r);const retry=api.action('transactions',{node_id:'Node-1',label:'new'});await tick();
+   oldRelease();await old;assert.equal(api.state().busy,true,'old finally must not unlock newer mutation');newRelease();await retry;
+  }else{
+   oldRelease();await old;assert.equal(api.state().busy,true,'old success/error/finally must not unlock refresh');assert.equal(api.state().report,null);
+   readRelease();await read;
+  }
+  assert.equal(api.state().busy,false);assert.equal(api.state().uncertain,false);
+ }else if(process.argv[1]==='duplicate'){
   let release;hold=new Promise(r=>release=r);const p=api.action('sync',{node_id:'Node-1'});await tick();
   const n=calls.length;await api.action('sync',{});assert.equal(calls.length,n);release();await p;assert.equal(api.state().busy,false);
  }else if(process.argv[1]==='reset'){
