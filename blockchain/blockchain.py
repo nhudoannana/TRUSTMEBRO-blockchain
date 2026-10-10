@@ -90,30 +90,43 @@ class Blockchain:
         self.chain.append(block)
         self.block_pool[block.compute_hash()] = block
 
+    def branch_to_tip(self, tip_hash: str) -> list[Block] | None:
+        """Dựng đường về genesis cố định; từ chối vòng lặp, thiếu cha và sai height."""
+        path = []
+        seen = set()
+        genesis_hash = self._create_genesis().compute_hash()
+        while tip_hash not in seen:
+            block = self.block_pool.get(tip_hash)
+            if block is None or block.compute_hash() != tip_hash:
+                return None
+            if path and path[-1].height != block.height + 1:
+                return None
+            path.append(block)
+            if block.height == 0:
+                return list(reversed(path)) if tip_hash == genesis_hash else None
+            seen.add(tip_hash)
+            tip_hash = block.header.previous_hash
+        return None
+
     def add_side_branch_block(self, block: Block) -> tuple[bool, str, list[Block] | None]:
-        """Thêm một block phân nhánh (fork/side branch) vào bộ lưu trữ.
-
-        Returns:
-            (success, message, candidate_branch)
-        """
+        """Lưu nhánh đã được caller xác minh, kể cả rẽ từ cha giữa nhánh phụ."""
+        parent_branch = self.branch_to_tip(block.header.previous_hash)
+        if parent_branch is None or block.height != parent_branch[-1].height + 1:
+            return False, "Không tìm thấy đường cha hợp lệ về genesis", None
         block_hash = block.compute_hash()
-        self.block_pool[block_hash] = block
+        candidate = parent_branch + [block]
+        if block_hash in self.block_pool:
+            # Header hash không chứa chữ ký TX: giữ bản vừa được xác minh.
+            self.block_pool[block_hash] = block
+            return True, "Block đã được lưu", candidate
 
-        # 1. Thử nối vào một side_branch đã có
+        self.block_pool[block_hash] = block
         for branch in self.side_branches:
             if branch[-1].compute_hash() == block.header.previous_hash:
                 branch.append(block)
                 return True, f"Nối block vào nhánh phụ đã có (chiều dài {len(branch)})", branch
-
-        # 2. Thử nối vào một block cũ trong self.chain
-        for idx, main_block in enumerate(self.chain):
-            if main_block.compute_hash() == block.header.previous_hash:
-                new_branch = list(self.chain[:idx + 1])
-                new_branch.append(block)
-                self.side_branches.append(new_branch)
-                return True, f"Tạo nhánh rẽ mới từ Block {idx}", new_branch
-
-        return False, "Không tìm thấy block cha (orphan block)", None
+        self.side_branches.append(candidate)
+        return True, f"Tạo nhánh rẽ mới từ Block {parent_branch[-1].height}", candidate
 
     def reorganize(self, new_branch: list[Block]) -> tuple[list, list[Block]]:
         """Thực hiện tái tổ chức chuỗi (Chain Reorganization) sang new_branch.

@@ -101,17 +101,30 @@ class Node:
 
     def _validate_candidate(self, block):
         """Kiểm tra cả nhánh ứng viên trước khi thay đổi chain/pool."""
-        for branch in [self.blockchain.chain, *self.blockchain.side_branches]:
-            for i, parent in enumerate(branch):
-                if parent.compute_hash() == block.header.previous_hash:
-                    candidate = Blockchain()
-                    candidate.chain = branch[:i + 1] + [block]
-                    ok, _, reason = candidate.is_chain_valid(
-                        pos_registry=self.network.pos_registry,
-                        authorized_issuers=self.mempool.authorized_issuers,
-                    )
-                    return ok, reason
-        return False, "Không tìm thấy block cha trong nhánh đã biết"
+        parent_branch = self.blockchain.branch_to_tip(block.header.previous_hash)
+        if parent_branch is None:
+            return False, "Không tìm thấy đường cha hợp lệ về genesis"
+        candidate = Blockchain()
+        candidate.chain = parent_branch + [block]
+        ok, _, reason = candidate.is_chain_valid(
+            pos_registry=self.network.pos_registry,
+            authorized_issuers=self.mempool.authorized_issuers,
+        )
+        return ok, reason
+
+    def _best_known_valid_branch(self, candidate_branch):
+        """Khi chain hiện tại lỗi, không bỏ qua nhánh hợp lệ mạnh hơn đã biết."""
+        best = candidate_branch
+        for branch in self.blockchain.side_branches:
+            candidate = Blockchain()
+            candidate.chain = self.blockchain.branch_to_tip(branch[-1].compute_hash()) or []
+            ok, _, _ = candidate.is_chain_valid(
+                pos_registry=self.network.pos_registry,
+                authorized_issuers=self.mempool.authorized_issuers,
+            )
+            if ok and candidate.total_work() > calculate_chain_work(best):
+                best = candidate.chain
+        return best
 
     def mine_pending(self, max_txs: int = 10, difficulty: int = 3) -> tuple:
         """Lấy Tx từ Mempool, tạo Block, mine (PoW), broadcast.
@@ -446,11 +459,18 @@ class Node:
                 return
 
             # Tính tổng công việc PoW của 2 nhánh
+            current_ok, _, _ = self.blockchain.is_chain_valid(
+                pos_registry=self.network.pos_registry,
+                authorized_issuers=self.mempool.authorized_issuers,
+            )
+            if not current_ok:
+                candidate_branch = self._best_known_valid_branch(candidate_branch)
             work_candidate = calculate_chain_work(candidate_branch)
             work_current = self.blockchain.total_work()
 
-            if work_candidate > work_current:
-                # REORGANIZATION: Nhánh phụ có tổng công việc PoW lớn hơn
+            # Hòa work: giữ nhánh hợp lệ hiện tại trong mô phỏng.
+            if not current_ok or work_candidate > work_current:
+                selection_reason = "higher_work" if current_ok else "invalid_current_recovery"
                 reverted_txs, disconnected_blocks = self.blockchain.reorganize(candidate_branch)
 
                 # Hoàn trả các giao dịch ở nhánh cũ về Mempool
@@ -463,8 +483,8 @@ class Node:
 
                 self.network.log_event(
                     self.node_id,
-                    f"🔄 REORG COMPLETED: Chuyển sang nhánh mới có tổng PoW lớn hơn! "
-                    f"(Work: {work_candidate:,} > {work_current:,}). "
+                    f"🔄 REORG COMPLETED: {selection_reason}. "
+                    f"(Work mới: {work_candidate:,}; work cũ: {work_current:,}). "
                     f"Đã gỡ {len(disconnected_blocks)} block, hoàn trả {len(reverted_txs)} TX về Mempool. "
                     f"Height mới: {self.height}",
                 )
@@ -493,7 +513,8 @@ class Node:
         """Nhận chain từ peer — chấp nhận nếu có tổng công việc PoW lớn hơn và hợp lệ.
 
         Điểm mô phỏng: PoW dùng 16^difficulty, PoS dùng 1 điểm/khối.
-        prefer_equal chỉ dùng cho nút Sync all để chọn thống nhất khi bằng điểm.
+        Hòa điểm giữ nhánh hợp lệ hiện tại; chain lỗi được phục hồi bằng nhánh hợp lệ.
+        prefer_equal chỉ dùng cho nút Sync all với chính sách coordinator riêng.
         Khi chuyển chuỗi, các TX ở chuỗi cũ được hoàn trả lại Mempool.
         """
         with self._state_lock:
@@ -505,6 +526,9 @@ class Node:
             if not ok:
                 self.network.log_event(self.node_id, f"CHAIN REJECTED from {msg.sender_id}: {reason}")
                 return
+            self.blockchain.block_pool[peer_bc.chain[0].compute_hash()] = peer_bc.chain[0]
+            for block in peer_bc.chain[1:]:
+                self.blockchain.add_side_branch_block(block)
             peer_work = peer_bc.total_work()
             my_work = self.blockchain.total_work()
             current_ok, _, _ = self.blockchain.is_chain_valid(
@@ -518,7 +542,10 @@ class Node:
                 )
                 return
 
-            reverted_txs, disconnected_blocks = self.blockchain.reorganize(peer_bc.chain)
+            candidate_branch = peer_bc.chain
+            if not current_ok and not prefer_equal:
+                candidate_branch = self._best_known_valid_branch(candidate_branch)
+            reverted_txs, disconnected_blocks = self.blockchain.reorganize(candidate_branch)
             for r_tx in reverted_txs:
                 self.mempool.add_transaction(r_tx, self.blockchain)
             for b in self.blockchain.chain:
