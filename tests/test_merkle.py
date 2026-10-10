@@ -95,3 +95,23 @@ def test_proof_length_log_n():
     leaves = [sha256_hex(f"tx{i}") for i in range(8)]  # 8 lá → log2(8) = 3
     proof = generate_merkle_proof(leaves, 0)
     assert len(proof) == 3  # chỉ cần 3 hash anh em
+
+
+def test_verification_trace_records_ordered_operands_without_changing_boolean():
+    import hashlib
+    h = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()
+    leaf, left, right = h("text"), h("left"), h("right")
+    first = h(left + leaf)
+    root = h(first + right)
+    trace = []
+    assert verify_merkle_proof(leaf, [(left, "left"), (right, "right")], root, trace=trace)
+    assert trace == [
+        {"step": 1, "current_hash": leaf, "sibling_hash": left, "direction": "left", "parent_hash": first},
+        {"step": 2, "current_hash": first, "sibling_hash": right, "direction": "right", "parent_hash": root},
+    ]
+    assert verify_merkle_proof(leaf, [(left, "left"), (right, "right")], root)
+    empty = []
+    assert verify_merkle_proof(leaf, [], leaf, trace=empty) and empty == []
+    mismatch = []
+    assert not verify_merkle_proof(leaf, [(right, "right")], root, trace=mismatch)
+    assert mismatch[-1]["parent_hash"] == h(leaf + right)

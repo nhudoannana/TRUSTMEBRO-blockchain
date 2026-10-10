@@ -16,6 +16,7 @@ Design decisions:
 """
 
 import os
+import json
 import logging
 import uuid
 import time
@@ -31,7 +32,7 @@ from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, StrictBool, StrictInt, field_validator
+from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr, AfterValidator, field_validator, model_validator
 from api.network_store import get_session_info, reset_network
 from api import session_store
 from api.session_store import current_session, bind_session, SimulationSessionMiddleware
@@ -850,6 +851,45 @@ class LabMerkleResponse(BaseModel):
     levels: list[list[str]]
     root: str
     proof: LabMerkleProof | None
+
+
+LabMerkleHex = Annotated[StrictStr, Field(min_length=64, max_length=64,
+                                         pattern=r"^[0-9a-fA-F]{64}$"),
+                          AfterValidator(str.lower)]
+
+
+class LabMerkleVerifyRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    leaf_text: Annotated[StrictStr, Field(max_length=2000)]
+    proof: list[tuple[LabMerkleHex, Literal["left", "right"]]] = Field(max_length=4)
+    expected_root: LabMerkleHex
+
+    @model_validator(mode="before")
+    @classmethod
+    def utf8_request(cls, value):
+        # Default validation errors echo input; lone surrogates cannot be encoded in that response.
+        try:
+            json.dumps(value, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:
+            raise HTTPException(422, detail=[{"loc": ["body"], "type": "value_error",
+                                             "msg": "Dữ liệu phải mã hóa được bằng UTF-8."}])
+        return value
+
+
+class LabMerkleTraceStep(BaseModel):
+    step: int
+    current_hash: LabMerkleHex
+    sibling_hash: LabMerkleHex
+    direction: Literal["left", "right"]
+    parent_hash: LabMerkleHex
+
+
+class LabMerkleVerifyResponse(BaseModel):
+    leaf_hash: LabMerkleHex
+    computed_root: LabMerkleHex
+    expected_root: LabMerkleHex
+    valid: bool
+    trace: list[LabMerkleTraceStep]
 
 
 class LabConsensusRequest(BaseModel):
@@ -1892,6 +1932,16 @@ def lab_merkle(body: LabMerkleRequest):
         proof = {"index": body.proof_index, "siblings": siblings,
                  "valid": verify_merkle_proof(hashes[body.proof_index], siblings, root)}
     return {"leaf_hashes": hashes, "levels": levels, "root": root, "proof": proof}
+
+
+@app.post("/api/labs/merkle/verify", response_model=LabMerkleVerifyResponse)
+def lab_verify_merkle(body: LabMerkleVerifyRequest):
+    """Verify exact text against an explicit root; this does not authenticate the root."""
+    leaf_hash = sha256_hex(body.leaf_text)
+    trace = []
+    valid = verify_merkle_proof(leaf_hash, body.proof, body.expected_root, trace=trace)
+    return {"leaf_hash": leaf_hash, "computed_root": trace[-1]["parent_hash"] if trace else leaf_hash,
+            "expected_root": body.expected_root, "valid": valid, "trace": trace}
 
 
 if _UI_DIR.exists():

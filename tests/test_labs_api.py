@@ -135,3 +135,92 @@ def test_merkle_levels_root_and_proofs_match_existing_backend(client, leaves):
 ])
 def test_lab_validation(client, path, body):
     assert client.post('/api/labs/' + path, json=body).status_code == 422
+
+
+@pytest.mark.parametrize("count", [1, 3, 5, 8, 16])
+def test_custom_merkle_verification_trace_and_tampering(client, count):
+    import hashlib
+    from copy import deepcopy
+    h = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()
+    leaves = [f"Leaf {i + 1}" for i in range(count)]
+    index = 2 if count >= 5 else 0
+    generated = client.post("/api/labs/merkle", json={"leaves": leaves, "proof_index": index}).json()
+    body = {"leaf_text": leaves[index], "proof": generated["proof"]["siblings"],
+            "expected_root": generated["root"]}
+    response = client.post("/api/labs/merkle/verify", json=body)
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == {"leaf_hash", "computed_root", "expected_root", "valid", "trace"}
+    assert data["valid"] and data["leaf_hash"] == h(leaves[index])
+    current = h(leaves[index])
+    for step, ((sibling, direction), row) in enumerate(zip(body["proof"], data["trace"]), 1):
+        parent = h(sibling + current if direction == "left" else current + sibling)
+        assert row == {"step": step, "current_hash": current, "sibling_hash": sibling,
+                       "direction": direction, "parent_hash": parent}
+        current = parent
+    assert len(data["trace"]) == len(body["proof"])
+    assert data["computed_root"] == current == data["expected_root"]
+    if count == 8:
+        assert [row[1] for row in body["proof"]] == ["right", "left", "right"]
+    uppercase = deepcopy(body)
+    uppercase["expected_root"] = uppercase["expected_root"].upper()
+    uppercase["proof"] = [[value.upper(), direction] for value, direction in uppercase["proof"]]
+    assert client.post("/api/labs/merkle/verify", json=uppercase).json() == data
+    for field in ["leaf_text", "expected_root", "sibling", "direction"]:
+        if not body["proof"] and field in ["sibling", "direction"]:
+            continue
+        changed = deepcopy(body)
+        if field == "leaf_text":
+            changed[field] += " changed"
+        elif field == "expected_root":
+            changed[field] = h("another root")
+        elif field == "sibling":
+            changed["proof"][0][0] = h("another sibling")
+        else:
+            changed["proof"][0][1] = "left" if changed["proof"][0][1] == "right" else "right"
+        result = client.post("/api/labs/merkle/verify", json=changed)
+        assert result.status_code == 200 and result.json()["valid"] is False
+
+
+def test_custom_merkle_empty_text_and_unicode_limit(client):
+    import hashlib
+    for text in ["", "  a\n ", "🌏" * 2000]:
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        result = client.post("/api/labs/merkle/verify",
+                             json={"leaf_text": text, "proof": [], "expected_root": digest})
+        assert result.status_code == 200
+        assert result.json() == {"leaf_hash": digest, "computed_root": digest,
+                                "expected_root": digest, "valid": True, "trace": []}
+    empty = client.post("/api/labs/merkle", json={"leaves": []}).json()
+    one_empty = client.post("/api/labs/merkle", json={"leaves": [""], "proof_index": 0}).json()
+    assert empty["root"] == one_empty["root"] and empty["proof"] is None
+    assert one_empty["proof"]["siblings"] == []
+
+
+@pytest.mark.parametrize("override", [
+    {"leaf_text": 1}, {"leaf_text": None}, {"leaf_text": "x" * 2001}, {"leaf_text": "\ud800"},
+    {"proof": None}, {"proof": "bad"}, {"proof": [["a" * 64, "left"]] * 5},
+    {"proof": [["a" * 64]]}, {"proof": [["a" * 64, "right", "extra"]]},
+    {"proof": [{"hash": "a" * 64, "direction": "left"}]},
+    {"proof": [["a" * 64, "LEFT"]]}, {"proof": [["a" * 64, 1]]},
+    {"proof": [["a" * 63, "right"]]}, {"proof": [["g" * 64, "right"]]},
+    {"proof": [[1, "right"]]}, {"proof": [[" " + "a" * 64, "right"]]},
+    {"expected_root": "a" * 65}, {"expected_root": "a" * 63},
+    {"expected_root": "0x" + "a" * 64}, {"expected_root": "z" * 64},
+    {"expected_root": 1}, {"expected_root": None}, {"expected_root": "a" * 64 + "\n"},
+    {"leaf_hash": "a" * 64}, {"extra": True},
+])
+def test_custom_merkle_rejects_malformed_not_mismatch(client, override):
+    body = {"leaf_text": "text", "proof": [], "expected_root": "a" * 64, **override}
+    # Escaped JSON allows the invalid Unicode test to reach request validation.
+    result = client.post("/api/labs/merkle/verify", content=json.dumps(body),
+                         headers={"Content-Type": "application/json"})
+    assert result.status_code == 422
+    assert "detail" in result.json() and "valid" not in result.json()
+
+
+@pytest.mark.parametrize("missing", ["leaf_text", "proof", "expected_root"])
+def test_custom_merkle_requires_all_fields(client, missing):
+    body = {"leaf_text": "text", "proof": [], "expected_root": "a" * 64}
+    del body[missing]
+    assert client.post("/api/labs/merkle/verify", json=body).status_code == 422

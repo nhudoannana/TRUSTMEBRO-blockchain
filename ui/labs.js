@@ -261,13 +261,34 @@ function updateProofChoices() {
   select.value = Number(previous) < leaves.length ? previous : '';
 }
 let merkleToken = 0, merkleBusy = false, merklePrevious = null;
+function freshMerkleExperiment() {
+  return { revision: 0, current: null, savedA: null,
+    verification: { token: 0, busy: false, proof: [], source: 'Người dùng nhập — chưa được xác thực độc lập', sourceRoot: null } };
+}
+let merkleExperiment = freshMerkleExperiment();
+function currentMerkleFresh() {
+  return !merkleBusy && merklePrevious && merkleExperiment.current?.revision === merkleExperiment.revision;
+}
 function updateMerkleScrollHint() {
-  const diagram = $('merkle-tree').children[0];
-  $('merkle-scroll-hint').hidden = !(diagram?.scrollWidth > diagram?.clientWidth);
+  for (const prefix of ['merkle', 'merkle-a']) {
+    const diagram = $(prefix + '-tree').children[0];
+    $(prefix + '-scroll-hint').hidden = !(diagram?.scrollWidth > diagram?.clientWidth);
+  }
 }
 function merkleControls(busy) {
   formBusy('merkle-form', busy);
-  ['merkle-one', 'merkle-odd', 'merkle-empty'].forEach(id => { $(id).disabled = busy; });
+  // Editing cancels this input revision locally, without waiting for the old response.
+  $('merkle-leaves').disabled = false; $('merkle-proof').disabled = false;
+  $('merkle-submit').disabled = busy;
+  ['merkle-one', 'merkle-odd', 'merkle-empty', 'merkle-eight'].forEach(id => { $(id).disabled = busy; });
+  const fresh = currentMerkleFresh();
+  $('merkle-keep-a').disabled = !fresh || !merklePrevious.proof;
+  $('merkle-load-current').disabled = !fresh || !merklePrevious.proof;
+  $('merkle-load-a').disabled = !merkleExperiment.savedA;
+  const leaves = readLeaves($('merkle-leaves').value), selected = $('merkle-proof').value;
+  $('merkle-add-leaf').disabled = leaves.length >= 16;
+  $('merkle-remove-leaf').disabled = selected === '' || Number(selected) >= leaves.length;
+  $('merkle-copy-leaf').disabled = selected === '' || Number(selected) >= leaves.length;
 }
 
 function merkleSvg(data, previous, count, inspections, inputs) {
@@ -298,7 +319,7 @@ function merkleSvg(data, previous, count, inspections, inputs) {
         const raw = parent * 2 + side, child = Math.min(raw, level.length - 1), duplicate = raw >= level.length;
         const a = point(l, child), b = point(l + 1, parent), from = `${l}:${child}`, to = `${l + 1}:${parent}`;
         const edge = svgElement('path', { d: `M ${a.x + (duplicate ? 18 : 0)} ${a.y} L ${b.x + (duplicate ? 18 : 0)} ${b.y + 76}`,
-          class: 'merkle-edge' + (duplicate ? ' duplicate' : '') + (path.has(to) && (path.has(from) || siblings.has(from)) ? ' proof-edge' : ''),
+          role: 'img', class: 'merkle-edge' + (duplicate ? ' duplicate' : '') + (path.has(to) && (path.has(from) || siblings.has(from)) ? ' proof-edge' : ''),
           'aria-label': `Tầng ${l}, node ${child + 1} → tầng ${l + 1}, node ${parent + 1}${duplicate ? ' · nhân đôi hash cuối' : ''}` });
         edge.dataset.from = from; edge.dataset.to = to; edge.dataset.duplicate = String(duplicate); svg.append(edge);
         if (duplicate) {
@@ -336,14 +357,15 @@ function merkleSvg(data, previous, count, inspections, inputs) {
   return svg;
 }
 
-function showMerkle(data, previous, count, inputs = []) {
-  $('merkle-result').hidden = false;
-  $('merkle-root').textContent = data.root.length > 20 ? shortHash(data.root) : data.root;
-  $('merkle-root').title = data.root; $('merkle-root-full').textContent = data.root;
-  $('merkle-summary').textContent = `${count} lá · ${previous ? previous.root === data.root ? 'Root giữ nguyên' : 'Root đã thay đổi' : 'Đã tính root'}.`;
-  const container = $('merkle-tree'); container.replaceChildren();
+function showMerkle(data, previous, count, inputs = [], saved = false) {
+  const target = id => $(saved ? id.replace('merkle-', 'merkle-a-') : id);
+  target('merkle-result').hidden = false;
+  target('merkle-root').textContent = data.root.length > 20 ? shortHash(data.root) : data.root;
+  target('merkle-root').title = data.root; target('merkle-root-full').textContent = data.root;
+  target('merkle-summary').textContent = `${count} lá · ${previous ? previous.root === data.root ? 'Root giữ nguyên' : 'Root đã thay đổi' : 'Đã tính root'}.`;
+  const container = target('merkle-tree'); container.replaceChildren();
   const diagram = document.createElement('div'); diagram.className = 'merkle-diagram'; diagram.tabIndex = 0;
-  diagram.setAttribute('role', 'region'); diagram.setAttribute('aria-label', 'Sơ đồ cây có thể cuộn ngang'); container.append(diagram);
+  diagram.setAttribute('role', 'region'); diagram.setAttribute('aria-label', saved ? 'Sơ đồ cây A đã giữ có thể cuộn ngang' : 'Sơ đồ cây hiện tại có thể cuộn ngang'); container.append(diagram);
   const legend = document.createElement('p'); legend.className = 'hint';
   legend.textContent = 'Root ở trên, lá ở dưới. Nét đứt: ghép hash cuối với chính nó. Nhãn Đổi / mới so sánh cùng vị trí; nhãn proof chỉ đường được cung cấp, không thay thế kết quả xác minh backend.';
   container.append(legend);
@@ -376,29 +398,216 @@ function showMerkle(data, previous, count, inputs = []) {
   });
   diagram.append(merkleSvg(data, previous, count, inspections, inputs));
   updateMerkleScrollHint();
-  $('merkle-proof-result').textContent = data.proof
+  target('merkle-proof-result').textContent = data.proof
     ? `Lá ${data.proof.index + 1} · Backend kiểm tra proof: ${data.proof.valid ? 'hợp lệ' : 'không hợp lệ'}\n` + JSON.stringify(data.proof.siblings, null, 2)
     : count ? 'Không yêu cầu proof cho lần tính này.' : 'Cây rỗng không có lá để chứng minh.';
 }
 
+function merkleInputChanged(leavesChanged = false) {
+  merkleExperiment.revision++; merkleToken++; merkleBusy = false;
+  if (leavesChanged) updateProofChoices();
+  merkleControls(false); labError('merkle-error');
+  $('merkle-status').textContent = 'Đầu vào đã đổi — cây và proof đang hiển thị thuộc lần tính trước. Đã bỏ lượt chờ cũ; bấm tính lại.';
+  $('merkle-result').dataset.stale = 'true';
+}
+function addMerkleLeaf() {
+  const leaves = readLeaves($('merkle-leaves').value);
+  if (leaves.length >= 16) return;
+  leaves.push('Lá ' + (leaves.length + 1));
+  $('merkle-leaves').value = leaves.join('\n'); merkleInputChanged(true);
+}
+function removeMerkleLeaf() {
+  const leaves = readLeaves($('merkle-leaves').value), selected = $('merkle-proof').value;
+  if (selected === '' || Number(selected) >= leaves.length) return;
+  leaves.splice(Number(selected), 1);
+  if (leaves.length === 1 && leaves[0] === '') {
+    $('merkle-status').textContent = 'Không thể biểu diễn riêng một lá văn bản rỗng bằng ô này. Sửa lá còn lại hoặc dùng ví dụ 0 lá để xóa cây.'; return;
+  }
+  $('merkle-leaves').value = leaves.join('\n'); merkleInputChanged(true);
+}
+function showMerkleCause(data, leaves, reference) {
+  const count = reference ? data.levels.reduce((total, level, l) =>
+    total + level.filter((hash, i) => reference.data.levels[l]?.[i] !== hash).length, 0) : 0;
+  $('merkle-cause').textContent = !reference ? 'Đã dựng cây từ đúng văn bản gửi đi. Chọn một lá, tính lại rồi giữ A để thử so sánh.'
+    : reference.leaves.length !== leaves.length
+    ? `Cấu trúc đã đổi: ${reference.leaves.length} → ${leaves.length} lá. Nhãn đổi so sánh cùng vị trí, không phải danh tính hoặc đường đi ổn định của lá cũ.`
+    : `${count} giá trị hash khác ở cùng vị trí so với ${merkleExperiment.savedA ? 'A đã giữ' : 'lần tính trước'}. Với 8 lá khác nhau, sửa riêng lá 3 làm đổi lá và ba tổ tiên (4 hash), không phải chỉ 4 phép băm; server dựng lại cây/proof.`;
+}
 async function computeMerkle(event) {
   event.preventDefault(); if (merkleBusy) return;
-  const token = ++merkleToken, leaves = readLeaves($('merkle-leaves').value), selected = $('merkle-proof').value;
-  merkleBusy = true; merkleControls(true); labError('merkle-error'); $('merkle-status').textContent = 'Đang tính trên backend…';
+  const s = merkleExperiment, revision = s.revision, token = ++merkleToken;
+  const leaves = readLeaves($('merkle-leaves').value), selected = $('merkle-proof').value;
+  const previous = s.savedA || (merklePrevious && s.current ? { data: merklePrevious, leaves: s.current.leaves } : null);
+  merkleBusy = true; merkleControls(true); labError('merkle-error');
+  $('merkle-status').textContent = 'Đang tính trên backend… Có thể sửa đầu vào để bỏ lượt chờ này.';
   try {
     const data = await labPost('/merkle', { leaves, proof_index: selected === '' ? null : Number(selected) });
-    if (token !== merkleToken) return;
-    showMerkle(data, merklePrevious, leaves.length, leaves); merklePrevious = data;
-    $('merkle-status').textContent = 'Đã tính lại các tầng thật. Dấu “Đổi / mới” so sánh hash ở cùng vị trí với lần trước.';
-  } catch (error) { if (token === merkleToken) labError('merkle-error', error.message); }
-  finally { if (token === merkleToken) { merkleBusy = false; merkleControls(false); } }
+    if (s !== merkleExperiment || token !== merkleToken || revision !== s.revision) return;
+    showMerkle(data, previous?.data || merklePrevious, leaves.length, leaves);
+    merklePrevious = data; s.current = { leaves: [...leaves], revision };
+    $('merkle-result').dataset.stale = 'false'; showMerkleCause(data, leaves, previous);
+    $('merkle-status').textContent = 'Đã tính các tầng thật cho đầu vào lúc bấm nút. Root kỳ vọng của vùng xác minh giữ nguyên.';
+  } catch (error) {
+    if (s === merkleExperiment && token === merkleToken && revision === s.revision) {
+      labError('merkle-error', error.message);
+      $('merkle-status').textContent = 'Không tính được; kiểm tra đầu vào hoặc thử lại. Kết quả cũ chưa được cập nhật.';
+    }
+  } finally {
+    if (s === merkleExperiment && token === merkleToken && revision === s.revision) { merkleBusy = false; merkleControls(false); }
+  }
+}
+function keepMerkleA() {
+  if (!currentMerkleFresh() || !merklePrevious.proof) return;
+  if (merkleExperiment.savedA && !window.confirm('Thay cây và proof A đã giữ? Vùng xác minh hiện có không bị thay.')) return;
+  const v = merkleExperiment.verification;
+  if (v.sourceRoot && v.source === 'Cây A đã giữ tại trình duyệt — chưa được xác thực độc lập') {
+    v.source = 'Bản sao từ A trước đây — chưa được xác thực độc lập'; showMerkleSource();
+  }
+  merkleExperiment.savedA = structuredClone({ data: merklePrevious, leaves: merkleExperiment.current.leaves });
+  $('merkle-saved').hidden = false;
+  $('merkle-saved-root').textContent = merklePrevious.root;
+  $('merkle-saved-data').textContent = JSON.stringify(merkleExperiment.savedA, null, 2);
+  showMerkle(merklePrevious, null, merkleExperiment.current.leaves.length, merkleExperiment.current.leaves, true);
+  $('merkle-saved-note').textContent = `Đã giữ A: ${merkleExperiment.current.leaves.length} lá · proof lá ${merklePrevious.proof.index + 1}. Tính cây mới không thay mốc này.`;
+  merkleControls(merkleBusy);
+}
+function showMerkleSource() {
+  $('merkle-root-source').textContent = 'Nguồn root kỳ vọng: ' + merkleExperiment.verification.source;
+}
+function merkleVerifyChanged() {
+  const v = merkleExperiment.verification; v.token++; v.busy = false;
+  $('merkle-verify-submit').disabled = false;
+  $('merkle-verify-form').setAttribute('aria-busy', 'false');
+  $('merkle-verify-result').dataset.stale = 'true';
+  labError('merkle-verify-error');
+  $('merkle-verify-status').textContent = 'Bằng chứng đã đổi — kết quả cũ hết hiệu lực. Đã bỏ lượt chờ cũ; bấm xác minh để thử lại.';
+  showMerkleSource();
+}
+function drawMerkleProofRows() {
+  const v = merkleExperiment.verification, container = $('merkle-proof-rows'); container.replaceChildren();
+  v.proof.forEach(([hash, direction], i) => {
+    const row = document.createElement('div'); row.className = 'merkle-proof-row';
+    const field = document.createElement('div'); field.className = 'field';
+    const label = chainText(field, 'label', `Bước ${i + 1} — hash anh em (64 ký tự hex)`);
+    const input = document.createElement('input'); input.id = 'merkle-sibling-' + i; input.value = hash;
+    input.autocomplete = 'off'; input.spellcheck = false; label.setAttribute('for', input.id); field.append(input); row.append(field);
+    const sideField = document.createElement('div'); sideField.className = 'field';
+    const sideLabel = chainText(sideField, 'label', 'Vị trí anh em');
+    const select = document.createElement('select'); select.id = 'merkle-direction-' + i; sideLabel.setAttribute('for', select.id);
+    select.add(new Option('Trái (left)', 'left')); select.add(new Option('Phải (right)', 'right')); select.value = direction;
+    sideField.append(select); row.append(sideField);
+    input.oninput = () => { v.proof[i][0] = input.value; merkleVerifyChanged(); };
+    select.onchange = () => { v.proof[i][1] = select.value; merkleVerifyChanged(); };
+    const remove = chainText(row, 'button', `Xóa bước ${i + 1}`); remove.type = 'button'; remove.className = 'secondary';
+    remove.onclick = () => { v.proof.splice(i, 1); merkleVerifyChanged(); drawMerkleProofRows(); $('merkle-proof-add').focus(); };
+    container.append(row);
+  });
+  $('merkle-proof-add').disabled = v.proof.length >= 4;
+  $('merkle-proof-empty').hidden = v.proof.length > 0;
+}
+function addMerkleProofRow() {
+  const v = merkleExperiment.verification; if (v.proof.length >= 4) return;
+  v.proof.push(['', 'right']); merkleVerifyChanged(); drawMerkleProofRows();
+  $('merkle-sibling-' + (v.proof.length - 1)).focus();
+}
+function loadMerkleProof(source) {
+  const snapshot = source === 'A' ? merkleExperiment.savedA
+    : currentMerkleFresh() ? { data: merklePrevious, leaves: merkleExperiment.current.leaves } : null;
+  if (!snapshot?.data.proof) return;
+  const v = merkleExperiment.verification;
+  if (($('merkle-expected-root').value || $('merkle-verify-text').value || v.proof.length)
+      && !window.confirm('Thay văn bản, proof và root kỳ vọng đang chỉnh bằng bản được chọn? Không tự xác minh.')) return;
+  merkleVerifyChanged();
+  v.proof = structuredClone(snapshot.data.proof.siblings);
+  $('merkle-verify-text').value = snapshot.leaves[snapshot.data.proof.index];
+  $('merkle-expected-root').value = snapshot.data.root;
+  v.sourceRoot = snapshot.data.root;
+  v.source = source === 'A' ? 'Cây A đã giữ tại trình duyệt — chưa được xác thực độc lập'
+    : 'Bản sao cây tại lúc nạp (B khi so với A) — chưa được xác thực độc lập';
+  drawMerkleProofRows(); showMerkleSource();
+  $('merkle-verify-status').textContent = 'Đã chép văn bản, proof và root theo thao tác của bạn; bấm xác minh. Không thay A.';
+}
+function copyMerkleLeaf() {
+  const leaves = readLeaves($('merkle-leaves').value), selected = $('merkle-proof').value;
+  if (selected === '' || Number(selected) >= leaves.length) return;
+  $('merkle-verify-text').value = leaves[Number(selected)]; merkleVerifyChanged();
+  $('merkle-verify-status').textContent = 'Chỉ chép văn bản lá đang chọn. Proof và root kỳ vọng giữ nguyên; bấm xác minh.';
+}
+function merkleVerificationResponse(data, body) {
+  const hex = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+  if (!data || !hex(data.leaf_hash) || !hex(data.computed_root) || !hex(data.expected_root)
+      || data.expected_root !== body.expected_root.toLowerCase() || typeof data.valid !== 'boolean'
+      || !Array.isArray(data.trace) || data.trace.length !== body.proof.length
+      || data.valid !== (data.computed_root === data.expected_root)) throw new Error('Phản hồi xác minh không đầy đủ.');
+  let current = data.leaf_hash;
+  data.trace.forEach((row, i) => {
+    if (!row || row.step !== i + 1 || row.current_hash !== current
+        || row.sibling_hash !== body.proof[i][0].toLowerCase() || row.direction !== body.proof[i][1]
+        || !hex(row.parent_hash)) throw new Error('Trace xác minh không đầy đủ.');
+    current = row.parent_hash;
+  });
+  if (current !== data.computed_root) throw new Error('Root tính được không khớp trace.');
+  return data;
+}
+async function verifyMerkle(event) {
+  event.preventDefault();
+  const s = merkleExperiment, v = s.verification; if (v.busy) return;
+  const token = ++v.token, body = { leaf_text: $('merkle-verify-text').value,
+    proof: structuredClone(v.proof), expected_root: $('merkle-expected-root').value };
+  v.busy = true; $('merkle-verify-submit').disabled = true; $('merkle-verify-form').setAttribute('aria-busy', 'true');
+  $('merkle-verify-result').hidden = true; $('merkle-verify-trace').textContent = ''; labError('merkle-verify-error');
+  $('merkle-verify-status').textContent = 'Đang xác minh trên backend… Có thể sửa bằng chứng để bỏ lượt chờ.';
+  try {
+    const response = await labPost('/merkle/verify', body);
+    if (s !== merkleExperiment || token !== v.token) return;
+    const data = merkleVerificationResponse(response, body), result = $('merkle-verify-result');
+    result.className = 'result ' + (data.valid ? 'valid' : 'invalid'); result.dataset.stale = 'false';
+    result.textContent = `${data.valid ? 'Khớp root kỳ vọng' : 'Không khớp root kỳ vọng'} — văn bản và proof gửi đi ${data.valid ? 'tính ra đúng root đã chọn' : 'tính ra root khác'}. Không kết luận nội dung đúng, chữ ký hợp lệ hay thuộc chain hợp lệ.\nRoot tính được: ${data.computed_root}\nRoot kỳ vọng: ${data.expected_root}`;
+    const lines = [`Văn bản đã gửi: ${JSON.stringify(body.leaf_text)}`, `Hash lá (SHA-256 UTF-8): ${data.leaf_hash}`];
+    data.trace.forEach(row => {
+      const concat = row.direction === 'left' ? row.sibling_hash + row.current_hash : row.current_hash + row.sibling_hash;
+      lines.push(`Bước ${row.step}: anh em ${row.direction === 'left' ? 'trái (left)' : 'phải (right)'}`,
+        `Hash đang tích lũy: ${row.current_hash}`, `Hash anh em: ${row.sibling_hash}`,
+        `Ghép hex theo thứ tự (128 ký tự): ${concat}`, `SHA-256 của UTF-8 chuỗi ghép: ${row.parent_hash}`);
+    });
+    if (!data.trace.length) lines.push('Proof rỗng: root tính được bằng hash lá. Không suy ra cây rỗng chứa một lá.');
+    lines.push(`Root tính được: ${data.computed_root}`, `Root kỳ vọng: ${data.expected_root}`);
+    $('merkle-verify-trace').textContent = lines.join('\n'); result.hidden = false;
+    $('merkle-verify-status').textContent = 'Đã kiểm tra đúng bản gửi lúc bấm nút. Nguồn root không tự trở thành cam kết đáng tin cậy.';
+  } catch (error) {
+    if (s === merkleExperiment && token === v.token) {
+      labError('merkle-verify-error', error.status === 422
+        ? 'Không xác minh được: lỗi định dạng đầu vào. Kiểm tra văn bản, từng bước và root. ' + error.message
+        : 'Xác minh không khả dụng; giữ bản nháp và thử lại. ' + error.message);
+      $('merkle-verify-status').textContent = 'Chưa có kết luận mới; lỗi truyền tải/đầu vào không phải proof không khớp.';
+    }
+  } finally {
+    if (s === merkleExperiment && token === v.token) {
+      v.busy = false; $('merkle-verify-submit').disabled = false; $('merkle-verify-form').setAttribute('aria-busy', 'false');
+    }
+  }
+}
+function revealMerklePrediction() {
+  const answer = $('merkle-prediction-answer').value;
+  $('merkle-prediction-feedback').textContent = `${answer === '4' ? 'Đúng: ' : 'Đáp án: '}4 hash đổi — lá thứ 3 và ba tổ tiên trong cây 8 lá khác nhau. Proof có 3 anh em. Đây là số giá trị thay đổi, không phải số phép băm server thực hiện. Thêm/xóa lá là thí nghiệm cấu trúc khác.`;
 }
 function resetMerkle() {
-  merkleToken++; merkleBusy = false; merklePrevious = null; merkleControls(false);
-  $('merkle-leaves').value = ''; updateProofChoices(); $('merkle-root').textContent = '';
-  $('merkle-tree').replaceChildren(); $('merkle-proof-result').textContent = ''; $('merkle-result').hidden = true;
-  updateMerkleScrollHint();
-  labError('merkle-error'); $('merkle-status').textContent = 'Đã reset riêng lab Merkle; không gọi reset phiên demo.';
+  merkleToken++; merkleBusy = false; merklePrevious = null;
+  merkleExperiment.verification.token++; merkleExperiment = freshMerkleExperiment();
+  $('merkle-leaves').value = ''; updateProofChoices(); merkleControls(false);
+  ['merkle-root', 'merkle-root-full', 'merkle-proof-result', 'merkle-summary', 'merkle-cause',
+    'merkle-saved-root', 'merkle-saved-data', 'merkle-saved-note', 'merkle-verify-result', 'merkle-verify-trace',
+    'merkle-prediction-feedback', 'merkle-a-root', 'merkle-a-root-full', 'merkle-a-summary', 'merkle-a-proof-result'].forEach(id => { $(id).textContent = ''; });
+  $('merkle-root').title = ''; $('merkle-a-root').title = '';
+  $('merkle-a-tree').replaceChildren(); $('merkle-a-result').hidden = true;
+  ['merkle-verify-text', 'merkle-expected-root', 'merkle-prediction-answer'].forEach(id => { $(id).value = ''; });
+  $('merkle-tree').replaceChildren(); $('merkle-result').hidden = true; $('merkle-saved').hidden = true;
+  $('merkle-verify-result').hidden = true; $('merkle-verify-submit').disabled = false;
+  $('merkle-verify-form').setAttribute('aria-busy', 'false');
+  drawMerkleProofRows(); showMerkleSource(); updateMerkleScrollHint();
+  labError('merkle-error'); labError('merkle-verify-error');
+  $('merkle-verify-status').textContent = 'Chưa xác minh.';
+  $('merkle-status').textContent = 'Đã reset riêng lab Merkle; không gọi reset phiên demo.';
 }
 
 function freshChainLab() { return { busy: false, result: null, selected: 0, draft: '', lastAdded: null, initialization: null }; }
@@ -1083,13 +1292,25 @@ async function resetTamperLab() {
   $('sig-reset').onclick = resetSignature;
   ['sig-presented', 'sig-key-choice'].forEach(id => { $(id).oninput = () => { signature.result = null; showSignature(); $('sig-status').textContent = 'Bản xuất trình hoặc khóa kiểm tra đã đổi. Chữ ký gốc vẫn giữ nguyên.'; }; });
   $('merkle-form').onsubmit = computeMerkle; $('merkle-reset').onclick = resetMerkle;
-  $('merkle-leaves').oninput = () => { updateProofChoices(); $('merkle-status').textContent = 'Lá đã đổi — cây và root đang hiển thị thuộc lần tính trước. Bấm tính lại để cập nhật và so sánh các node.'; };
-  $('merkle-proof').onchange = () => {
-    if (merklePrevious) $('merkle-status').textContent = 'Lựa chọn lá đã đổi — proof và đường đi đang hiển thị thuộc lần tính trước. Bấm tính lại để kiểm tra lá đang chọn.';
-  };
-  for (const [id, text] of [['merkle-one', 'Hồ sơ An'], ['merkle-odd', 'Hồ sơ An\nHồ sơ Bình\nHồ sơ Chi'], ['merkle-empty', '']]) {
+  $('merkle-leaves').oninput = () => merkleInputChanged(true);
+  $('merkle-proof').onchange = () => merkleInputChanged();
+  for (const [id, text] of [['merkle-one', 'Hồ sơ An'], ['merkle-odd', 'Hồ sơ An\nHồ sơ Bình\nHồ sơ Chi'], ['merkle-empty', ''],
+      ['merkle-eight', Array.from({ length: 8 }, (_, i) => 'Lá ' + (i + 1)).join('\n')]]) {
     $(id).onclick = () => { if (merkleBusy) return; fillLabExample('merkle-leaves', text); };
   }
+  $('merkle-add-leaf').onclick = addMerkleLeaf; $('merkle-remove-leaf').onclick = removeMerkleLeaf;
+  $('merkle-keep-a').onclick = keepMerkleA; $('merkle-load-a').onclick = () => loadMerkleProof('A');
+  $('merkle-load-current').onclick = () => loadMerkleProof('current'); $('merkle-copy-leaf').onclick = copyMerkleLeaf;
+  $('merkle-proof-add').onclick = addMerkleProofRow; $('merkle-verify-form').onsubmit = verifyMerkle;
+  $('merkle-verify-text').oninput = merkleVerifyChanged;
+  $('merkle-expected-root').oninput = () => {
+    merkleExperiment.verification.source = 'Người dùng nhập — chưa được xác thực độc lập';
+    merkleExperiment.verification.sourceRoot = null; merkleVerifyChanged();
+  };
+  $('merkle-prediction-reveal').onclick = revealMerklePrediction;
+  $('merkle-more-theory').onclick = () => { showLabLearning('merkle', 'theory'); $('merkle-tab-theory').focus(); };
+  drawMerkleProofRows(); showMerkleSource(); merkleControls(false);
+  showLabLearning('merkle', 'practice');
   $('comparison-form').onsubmit = runComparison; $('comparison-reset').onclick = resetComparison;
   $('chain-init').onclick = () => chainLabAction('init');
   $('chain-form').onsubmit = event => chainLabAction('add', event);
