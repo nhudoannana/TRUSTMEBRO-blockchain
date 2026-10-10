@@ -84,6 +84,8 @@ app.add_middleware(SimulationSessionMiddleware)
 
 from api.fork_lab import router as fork_router
 app.include_router(fork_router)
+from api.rsa_lab import router as rsa_router
+app.include_router(rsa_router)
 
 # Allow localhost origins during development only.
 # In production, tighten allowed_origins to the actual serving domain.

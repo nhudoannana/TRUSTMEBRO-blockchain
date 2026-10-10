@@ -75,5 +75,6 @@ def test_native_theme_controls_and_lab_order():
             expected = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'tamper', 'attacks']
             if filename == 'ui/labs.html':
                 expected.insert(6, 'fork')
+                expected.insert(1, 'rsa-oaep')
             actual = [link.split('#')[-1] if '#' in link else 'attacks' for link in parser.labs]
             assert actual == expected
