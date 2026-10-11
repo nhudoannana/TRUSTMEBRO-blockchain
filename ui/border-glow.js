@@ -171,3 +171,4 @@
   window.initBorderGlow = initBorderGlow;
   window.triggerBorderSweep = triggerSweep;
 })();
+

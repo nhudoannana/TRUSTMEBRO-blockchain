@@ -17,8 +17,15 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-off
 .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.mode-card{display:block;text-decoration:none;padding:38px;border:1px solid #60799566;border-radius:20px;background:linear-gradient(135deg,#16253c,#101726 80%);box-shadow:0 12px 35px #0006;transition:transform 200ms ease,border-color 200ms ease}
 .mode-card:nth-child(2){background:var(--surface);border-color:var(--line)}.mode-card:hover{border-color:var(--accent);transform:translateY(-3px)}.mode-card h2{font-size:38px;font-weight:500;line-height:1.15;letter-spacing:-.04em;margin:24px 0}.mode-card p{color:var(--muted);max-width:440px;font-size:15px;line-height:1.8}.mode-action{display:block;color:var(--accent);margin-top:30px;font-weight:500}.mode-card small{display:block;margin-top:20px;color:var(--muted);line-height:1.7}
 .placeholder{max-width:760px;padding:38px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}.placeholder p{color:var(--muted)}.actions{display:flex;flex-wrap:wrap;gap:18px;margin-top:30px}.primary{display:inline-block;background:var(--accent);color:#0a0e17;padding:14px 22px;border-radius:12px;text-decoration:none;font-weight:600}.note{margin-top:38px;color:var(--muted);font-size:12px}
-html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#20354f;--muted:#465b74;--line:#839ab435;--accent:#876338}html[data-theme="light"] .mode-card{background:linear-gradient(135deg,#e3eaf3,#fff 80%);box-shadow:0 12px 35px #29446312}html[data-theme="light"] .brand em{color:#876338}html[data-theme="light"] .primary{background:#294463;color:white}
-@media(max-width:700px){.shell{padding:12px 20px 30px}.masthead{padding:14px;border-radius:16px;gap:14px;flex-wrap:wrap}.utilities{gap:12px}.intro{padding:44px 0 28px}.mode-grid{grid-template-columns:1fr;gap:18px}.mode-card,.placeholder{padding:26px}.mode-card h2{font-size:32px}}
+.lab-groups{display:flex;flex-direction:column;gap:44px;margin:28px 0 16px}
+.lab-group{display:flex;flex-direction:column;gap:18px}
+.lab-group-header{display:flex;align-items:center;gap:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.lab-group-num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--surface);border:1px solid var(--line);color:var(--accent);font:600 12px/1 'JetBrains Mono',monospace;flex-shrink:0}
+.lab-group-meta{display:flex;flex-direction:column;gap:2px}
+.lab-group-title{font-size:18px;font-weight:600;margin:0;color:var(--text);letter-spacing:-.01em}
+.lab-group-sub{font-size:12.5px;color:var(--muted);margin:0;line-height:1.4}
+html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--surface:#fff;--text:#20354f;--muted:#465b74;--line:#839ab435;--accent:#876338}html[data-theme="light"] .mode-card{background:linear-gradient(135deg,#e3eaf3,#fff 80%);box-shadow:0 12px 35px #29446312}html[data-theme="light"] .brand em{color:#876338}html[data-theme="light"] .primary{background:#294463;color:white}html[data-theme="light"] .lab-group-num{background:#fff;border-color:var(--line);color:var(--accent)}
+@media(max-width:700px){.shell{padding:12px 20px 30px}.masthead{padding:14px;border-radius:16px;gap:14px;flex-wrap:wrap}.utilities{gap:12px}.intro{padding:44px 0 28px}.mode-grid{grid-template-columns:1fr;gap:18px}.mode-card,.placeholder{padding:26px}.mode-card h2{font-size:30px}.lab-groups{gap:32px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 section.mode-card:hover{transform:none;border-color:var(--line)}
 </style>
@@ -35,20 +42,70 @@ section.mode-card:hover{transform:none;border-color:var(--line)}
       <div class="intro"><p class="eyebrow">TRUSTMEBRO / CHỌN CHẾ ĐỘ</p><h1 id="mode-title" tabindex="-1">Bạn muốn bắt đầu<br>theo cách nào?</h1><p class="lead">Đi từng bước với hành trình có hướng dẫn, hoặc tự thử các phép tính trong phòng thí nghiệm.</p></div>
       <div class="mode-grid">
         <a class="mode-card" id="guided-mode" href="/ui/trustmebro.html"><span class="eyebrow">01 / TỪNG BƯỚC</span><h2>Có hướng dẫn</h2><p>Từ chọn ví đến xác minh. Tự phát hành hồ sơ mẫu, tạo block và quan sát các bước kiểm tra.</p><span class="mode-action">Bắt đầu hành trình <span aria-hidden="true">↗</span></span><small>Ví → Hồ sơ → Mempool → PoW / PoS → Đồng bộ → Xác minh</small></a>
-        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Tự nhập dữ liệu và lặp lại các thí nghiệm độc lập. Mỗi lab giữ ví, giao dịch, mạng và reset riêng; không có mạng sandbox dùng chung.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>Tám thí nghiệm độc lập có sẵn.</small></a>
+        <a class="mode-card" id="labs-mode" href="/ui/modes.html#labs"><span class="eyebrow">02 / TỰ KHÁM PHÁ</span><h2>Phòng thí nghiệm</h2><p>Tự nhập dữ liệu và lặp lại các thí nghiệm độc lập. Mỗi lab giữ ví, giao dịch, mạng và reset riêng; không có mạng sandbox dùng chung.</p><span class="mode-action">Mở phòng thí nghiệm <span aria-hidden="true">↗</span></span><small>11 thí nghiệm độc lập thuộc 4 nhóm chủ đề.</small></a>
       </div>
     </section>
     <section id="labs-placeholder" hidden aria-labelledby="labs-title">
-      <div class="intro"><p class="eyebrow">TRUSTMEBRO / PHÒNG THÍ NGHIỆM</p><h1 id="labs-title" tabindex="-1">Một thay đổi nhỏ.<br>Tự xem kết quả thật.</h1><p class="lead">Mỗi lab có dữ liệu và nút đặt lại riêng. Explorer chỉ đọc hành trình có hướng dẫn.</p><p class="note">Gợi ý: thử theo thứ tự từ mã băm đến mạng và tấn công; bạn vẫn có thể mở bất kỳ lab nào.</p></div>
-      <div class="mode-grid">
-        <a class="mode-card" href="/ui/labs.html#sha"><span class="eyebrow">01 · Mã băm</span><h2>SHA-256</h2><p>So sánh hai văn bản, toàn bộ hash và số bit thực sự thay đổi.</p><span class="mode-action">Thử phép băm ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#signatures"><span class="eyebrow">02 · Xác thực</span><h2>Chữ ký số</h2><p>Tạo khóa tạm, ký và sửa thông điệp để tự kiểm tra chữ ký ECDSA.</p><span class="mode-action">Thử ký và xác minh ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#merkle"><span class="eyebrow">03 · Bằng chứng dữ liệu</span><h2>Cây Merkle</h2><p>Sửa một lá, xem nhánh và root thay đổi; kiểm tra bằng chứng một lá thuộc cây.</p><span class="mode-action">Thử cây Merkle ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#blocks"><span class="eyebrow">04 · Liên kết dữ liệu</span><h2>Khối &amp; Chuỗi khối</h2><p>Tự nhập văn bản, thêm các khối nối từ genesis, mở header và thử sửa ngay trên thẻ khối.</p><span class="mode-action">Thử khối và chuỗi khối ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#consensus"><span class="eyebrow">05 · Đồng thuận</span><h2>So sánh PoW–PoS</h2><p>Cùng nội dung hồ sơ mẫu, hai mạng riêng. Xem nonce PoW, validator PoS và thời gian đo thật.</p><span class="mode-action">Đối chiếu hai cách tạo block ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#network"><span class="eyebrow">06 · Mạng phân tán</span><h2>Đồng bộ mạng</h2><p>Tắt Node-3, tạo block và quan sát bản sao bị chậm. Queue tự bắt kịp khi bật lại; HTTP cần bấm đồng bộ.</p><span class="mode-action">Thử node offline và đồng bộ ↗</span></a>
-        <a class="mode-card" href="/ui/labs.html#tamper"><span class="eyebrow">07 · Toàn vẹn dữ liệu</span><h2>Sửa dữ liệu</h2><p>Sửa tiêu đề trong bản sao Node-2, kiểm tra lỗi và chủ động phục hồi từ node có chuỗi hợp lệ.</p><span class="mode-action">Thử phát hiện và phục hồi ↗</span></a>
-        <a class="mode-card" href="/ui/attacks.html"><span class="eyebrow">08 · Tấn công &amp; Phòng vệ</span><h2>Tấn công &amp; Phòng vệ</h2><p>Sửa sau khi ký, giả danh đơn vị phát hành hoặc gửi trùng giao dịch; đọc lớp kiểm tra và lý do từ chối.</p><span class="mode-action">Thử ba tình huống ↗</span></a>
+      <div class="intro"><p class="eyebrow">TRUSTMEBRO / PHÒNG THÍ NGHIỆM</p><h1 id="labs-title" tabindex="-1">Một thay đổi nhỏ.<br>Tự xem kết quả thật.</h1><p class="lead">Mỗi lab có dữ liệu và nút đặt lại riêng. Explorer chỉ đọc hành trình có hướng dẫn.</p><p class="note">Lộ trình 4 nhóm: <strong>Mật mã &amp; Bằng chứng</strong> → <strong>Giao dịch &amp; Khối</strong> → <strong>Mạng &amp; Đồng thuận</strong> → <strong>Tấn công &amp; Giới hạn</strong>. Bạn có thể mở bất kỳ lab nào bất cứ lúc nào.</p></div>
+      <div class="lab-groups">
+        <section class="lab-group" aria-labelledby="group-01-title">
+          <div class="lab-group-header">
+            <span class="lab-group-num">01</span>
+            <div class="lab-group-meta">
+              <h2 id="group-01-title" class="lab-group-title">Mật mã &amp; Bằng chứng</h2>
+              <p class="lab-group-sub">Kiểm tra toàn vẹn &amp; người ký</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <a class="mode-card" href="/ui/labs.html#sha"><span class="eyebrow">01.1 · Mã băm</span><h2>SHA-256</h2><p>So sánh hai văn bản, toàn bộ hash và số bit thực sự thay đổi.</p><span class="mode-action">Thử phép băm ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#rsa-oaep"><span class="eyebrow">01.2 · Mã hóa bất đối xứng</span><h2>RSA · Mã hóa</h2><p>Tạo cặp khóa RSA, mã hóa văn bản với OAEP padding và kiểm tra tính ngẫu nhiên cipher.</p><span class="mode-action">Thử mã hóa OAEP ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#rsa-pss"><span class="eyebrow">01.3 · Chữ ký RSA</span><h2>RSA · Chữ ký</h2><p>Ký thông điệp với private key và PSS padding, xác minh bằng public key độc lập.</p><span class="mode-action">Thử ký và xác minh PSS ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#signatures"><span class="eyebrow">01.4 · Xác thực ví</span><h2>Chữ ký số</h2><p>Tạo khóa tạm, ký và sửa thông điệp để tự kiểm tra chữ ký ECDSA.</p><span class="mode-action">Thử ký và xác minh ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#merkle"><span class="eyebrow">01.5 · Bằng chứng dữ liệu</span><h2>Cây Merkle</h2><p>Sửa một lá, xem nhánh và root thay đổi; kiểm tra bằng chứng một lá thuộc cây.</p><span class="mode-action">Thử cây Merkle ↗</span></a>
+          </div>
+        </section>
+
+        <section class="lab-group" aria-labelledby="group-02-title">
+          <div class="lab-group-header">
+            <span class="lab-group-num">02</span>
+            <div class="lab-group-meta">
+              <h2 id="group-02-title" class="lab-group-title">Giao dịch &amp; Khối</h2>
+              <p class="lab-group-sub">Kiểm tra &amp; ghi nhận dữ liệu</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <a class="mode-card" href="/ui/labs.html#blocks"><span class="eyebrow">02.1 · Liên kết dữ liệu</span><h2>Khối &amp; Chuỗi khối</h2><p>Tự nhập văn bản, thêm các khối nối từ genesis, mở header và thử sửa ngay trên thẻ khối.</p><span class="mode-action">Thử khối và chuỗi khối ↗</span></a>
+          </div>
+        </section>
+
+        <section class="lab-group" aria-labelledby="group-03-title">
+          <div class="lab-group-header">
+            <span class="lab-group-num">03</span>
+            <div class="lab-group-meta">
+              <h2 id="group-03-title" class="lab-group-title">Mạng &amp; Đồng thuận</h2>
+              <p class="lab-group-sub">Thống nhất giữa các node</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <a class="mode-card" href="/ui/labs.html#consensus"><span class="eyebrow">03.1 · Đồng thuận</span><h2>So sánh PoW–PoS</h2><p>Cùng nội dung hồ sơ mẫu, hai mạng riêng. Xem nonce PoW, validator PoS và thời gian đo thật.</p><span class="mode-action">Đối chiếu hai cách tạo block ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#network"><span class="eyebrow">03.2 · Mạng phân tán</span><h2>Đồng bộ mạng</h2><p>Tắt Node-3, tạo block và quan sát bản sao bị chậm. Queue tự bắt kịp khi bật lại; HTTP cần bấm đồng bộ.</p><span class="mode-action">Thử node offline và đồng bộ ↗</span></a>
+            <a class="mode-card" href="/ui/labs.html#fork"><span class="eyebrow">03.3 · Rẽ nhánh &amp; Tái cấu trúc</span><h2>Fork &amp; Reorg</h2><p>Mô phỏng chuỗi rẽ nhánh cạnh tranh, kích hoạt tái cấu trúc (reorg) tự chọn chuỗi có công việc lớn nhất.</p><span class="mode-action">Thử nghiệm Fork &amp; Reorg ↗</span></a>
+          </div>
+        </section>
+
+        <section class="lab-group" aria-labelledby="group-04-title">
+          <div class="lab-group-header">
+            <span class="lab-group-num">04</span>
+            <div class="lab-group-meta">
+              <h2 id="group-04-title" class="lab-group-title">Tấn công &amp; Giới hạn</h2>
+              <p class="lab-group-sub">Tác động &amp; phòng vệ</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <a class="mode-card" href="/ui/labs.html#tamper"><span class="eyebrow">04.1 · Toàn vẹn dữ liệu</span><h2>Sửa dữ liệu</h2><p>Sửa tiêu đề trong bản sao Node-2, kiểm tra lỗi và chủ động phục hồi từ node có chuỗi hợp lệ.</p><span class="mode-action">Thử phát hiện và phục hồi ↗</span></a>
+            <a class="mode-card" href="/ui/attacks.html"><span class="eyebrow">04.2 · Tấn công &amp; Phòng vệ</span><h2>Tấn công &amp; Phòng vệ</h2><p>Sửa sau khi ký, giả danh đơn vị phát hành hoặc gửi trùng giao dịch; đọc lớp kiểm tra và lý do từ chối.</p><span class="mode-action">Thử ba tình huống ↗</span></a>
+          </div>
+        </section>
       </div>
       <div class="actions"><a class="primary" href="/ui/trustmebro.html">Hành trình có hướng dẫn →</a><a class="back" id="back-to-modes" href="/ui/modes.html#">← Chọn lại chế độ</a><a class="back" href="/landing.html">Trang chủ</a><a class="back" id="explorer-mode" href="/ui/explorer.html">Block Explorer — đọc riêng phiên có hướng dẫn ↗</a></div>
     </section>

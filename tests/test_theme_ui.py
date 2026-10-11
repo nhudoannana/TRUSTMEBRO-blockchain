@@ -73,9 +73,8 @@ def test_native_theme_controls_and_lab_order():
         assert not any(re.search(r'/(?:api/)?(?:docs|redoc|openapi\.json)(?:$|[?#])', link) for link in parser.links)
         if filename in {'ui/modes.html', 'ui/labs.html'}:
             expected = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'tamper', 'attacks']
-            if filename == 'ui/labs.html':
-                expected.insert(6, 'fork')
-                expected.insert(1, 'rsa-oaep')
-                expected.insert(2, 'rsa-pss')
+            expected.insert(6, 'fork')
+            expected.insert(1, 'rsa-oaep')
+            expected.insert(2, 'rsa-pss')
             actual = [link.split('#')[-1] if '#' in link else 'attacks' for link in parser.labs]
             assert actual == expected
