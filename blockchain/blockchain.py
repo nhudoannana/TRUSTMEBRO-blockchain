@@ -90,66 +90,80 @@ class Blockchain:
         self.chain.append(block)
         self.block_pool[block.compute_hash()] = block
 
+    def branch_to_tip(self, tip_hash: str) -> list[Block] | None:
+        """Dựng đường về genesis cố định; từ chối vòng lặp, thiếu cha và sai height."""
+        path = []
+        seen = set()
+        genesis_hash = self._create_genesis().compute_hash()
+        while tip_hash not in seen:
+            block = self.block_pool.get(tip_hash)
+            if block is None or block.compute_hash() != tip_hash:
+                return None
+            if path and path[-1].height != block.height + 1:
+                return None
+            path.append(block)
+            if block.height == 0:
+                return list(reversed(path)) if tip_hash == genesis_hash else None
+            seen.add(tip_hash)
+            tip_hash = block.header.previous_hash
+        return None
+
     def add_side_branch_block(self, block: Block) -> tuple[bool, str, list[Block] | None]:
-        """Thêm một block phân nhánh (fork/side branch) vào bộ lưu trữ.
-
-        Returns:
-            (success, message, candidate_branch)
-        """
+        """Lưu nhánh đã được caller xác minh, kể cả rẽ từ cha giữa nhánh phụ."""
+        parent_branch = self.branch_to_tip(block.header.previous_hash)
+        if parent_branch is None or block.height != parent_branch[-1].height + 1:
+            return False, "Không tìm thấy đường cha hợp lệ về genesis", None
         block_hash = block.compute_hash()
-        self.block_pool[block_hash] = block
+        candidate = parent_branch + [block]
+        if block_hash in self.block_pool:
+            # Header hash không chứa chữ ký TX: giữ bản vừa được xác minh.
+            self.block_pool[block_hash] = block
+            return True, "Block đã được lưu", candidate
 
-        # 1. Thử nối vào một side_branch đã có
+        self.block_pool[block_hash] = block
         for branch in self.side_branches:
             if branch[-1].compute_hash() == block.header.previous_hash:
                 branch.append(block)
                 return True, f"Nối block vào nhánh phụ đã có (chiều dài {len(branch)})", branch
+        self.side_branches.append(candidate)
+        return True, f"Tạo nhánh rẽ mới từ Block {parent_branch[-1].height}", candidate
 
-        # 2. Thử nối vào một block cũ trong self.chain
-        for idx, main_block in enumerate(self.chain):
-            if main_block.compute_hash() == block.header.previous_hash:
-                new_branch = list(self.chain[:idx + 1])
-                new_branch.append(block)
-                self.side_branches.append(new_branch)
-                return True, f"Tạo nhánh rẽ mới từ Block {idx}", new_branch
-
-        return False, "Không tìm thấy block cha (orphan block)", None
+    def plan_reorg(self, new_branch: list[Block]) -> dict:
+        """Chuẩn bị đổi lịch sử, không sửa chain/archive/index đang dùng."""
+        common_idx = -1
+        for i in range(min(len(self.chain), len(new_branch))):
+            if self.chain[i].compute_hash() != new_branch[i].compute_hash():
+                break
+            common_idx = i
+        detached = list(self.chain[common_idx + 1:]) if common_idx >= 0 else list(self.chain[1:])
+        attached = list(new_branch[common_idx + 1:]) if common_idx >= 0 else list(new_branch[1:])
+        attached_ids = {tx.tx_id for block in attached for tx in block.transactions}
+        detached_txs = [tx for block in detached for tx in block.transactions]
+        new_hashes = [block.compute_hash() for block in new_branch]
+        branches = [list(branch) for branch in self.side_branches
+                    if [block.compute_hash() for block in branch] != new_hashes]
+        old_hashes = [block.compute_hash() for block in self.chain]
+        if detached and not any([block.compute_hash() for block in branch] == old_hashes
+                                for branch in branches):
+            branches.append(list(self.chain))
+        pool = dict(self.block_pool)
+        pool.update({block.compute_hash(): block for block in new_branch})
+        ancestor = self.chain[common_idx] if common_idx >= 0 else None
+        return {
+            "common_ancestor": {"hash": ancestor.compute_hash(), "height": ancestor.height} if ancestor else None,
+            "detached_blocks": detached, "attached_blocks": attached,
+            "detached_transactions": detached_txs,
+            "reverted_transactions": [tx for tx in detached_txs if tx.tx_id not in attached_ids],
+            "chain": list(new_branch), "side_branches": branches, "block_pool": pool,
+        }
 
     def reorganize(self, new_branch: list[Block]) -> tuple[list, list[Block]]:
-        """Thực hiện tái tổ chức chuỗi (Chain Reorganization) sang new_branch.
-
-        Returns:
-            (reverted_transactions, disconnected_blocks)
-        """
-        common_idx = -1
-        min_len = min(len(self.chain), len(new_branch))
-        for i in range(min_len):
-            if self.chain[i].compute_hash() == new_branch[i].compute_hash():
-                common_idx = i
-            else:
-                break
-
-        disconnected_blocks = self.chain[common_idx + 1:] if common_idx != -1 else list(self.chain[1:])
-        connected_blocks = new_branch[common_idx + 1:] if common_idx != -1 else list(new_branch[1:])
-
-        new_tx_ids = set()
-        for b in connected_blocks:
-            for tx in b.transactions:
-                new_tx_ids.add(tx.tx_id)
-
-        reverted_txs = []
-        for b in disconnected_blocks:
-            for tx in b.transactions:
-                if tx.tx_id not in new_tx_ids:
-                    reverted_txs.append(tx)
-
-        old_chain = list(self.chain)
-        self.side_branches = [b for b in self.side_branches if b != new_branch]
-        self.side_branches.append(old_chain)
-        self.chain = list(new_branch)
-        self.block_pool.update({b.compute_hash(): b for b in self.chain})
-
-        return reverted_txs, disconnected_blocks
+        """Giữ hợp đồng legacy (reverted_transactions, disconnected_blocks)."""
+        plan = self.plan_reorg(new_branch)
+        self.chain = plan["chain"]
+        self.side_branches = plan["side_branches"]
+        self.block_pool = plan["block_pool"]
+        return plan["reverted_transactions"], plan["detached_blocks"]
 
     def get_latest_block(self) -> Block:
         """Trả về block mới nhất (cuối chuỗi).

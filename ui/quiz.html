@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('trustmebro-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}</script>
+<title>Quiz — TrustMeBro</title>
+<link rel="stylesheet" href="/ui/quiz.css"><link rel="stylesheet" href="/ui/theme-toggle.css"><link rel="stylesheet" href="/ui/stars.css">
+<script defer src="/ui/quiz.js"></script>
+<script defer src="/ui/stars.js"></script>
+</head>
+<body>
+<div id="stars-bg" class="stars-bg" aria-hidden="true"></div>
+<a class="skip-link" href="#practice">Đến phần thực hành</a>
+<div class="shell">
+<header class="masthead"><a class="brand" href="/landing.html"><span class="symbol" aria-hidden="true">⌘</span>TrustMe<em>Bro</em></a>
+<nav class="utilities" aria-label="Điều hướng"><a href="/ui/theory.html">Lý thuyết</a><a href="/ui/modes.html">Chọn chế độ</a><a href="/ui/modes.html#labs">Các lab</a>
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Chế độ sáng" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg></button></nav></header>
+<main>
+<div class="intro"><h1>Quiz: hiểu kết quả,<br>không chỉ nhớ đáp án.</h1><p class="lead">Luyện theo chủ đề hoặc làm bài hỗn hợp. Khi chưa chắc, đọc nguyên nhân và thử lại trong lab.</p></div>
+<div class="learning-strip">
+<section id="objectives"><h2>Bạn sẽ hiểu gì?</h2><p>Phân biệt mã băm, bằng chứng và chữ ký; đọc đúng giới hạn của kết luận; chọn thí nghiệm để tự kiểm chứng.</p></section>
+<section id="knowledge"><h2>Kiến thức cần biết</h2><p><strong>36 câu là tập ban đầu đã review</strong> bám 7 nhóm lab, không bao phủ toàn bộ lab đã triển khai. Điểm chỉ để tự đánh giá, không phải chứng chỉ.</p></section>
+<section id="prediction"><h2>Dự đoán trước khi thử</h2><label for="prediction-text">Bạn muốn kiểm tra điều gì? (tùy chọn, không chấm điểm)</label><input id="prediction-text" type="text" maxlength="500" placeholder="Ví dụ: chữ ký đúng có chứng minh nội dung đúng?"></section>
+</div>
+<section id="practice" aria-labelledby="practice-title">
+<h2 id="practice-title" tabindex="-1">Tự thực hành</h2>
+<p id="quiz-notice" class="notice" role="status" aria-live="polite"></p>
+<div id="setup" class="workspace">
+<div class="panel">
+<h3>Luyện theo chủ đề</h3><label for="topic">Chủ đề trong tập đã review</label><select id="topic"></select>
+<label for="level">Mức câu hỏi</label><select id="level"><option value="">Tất cả mức</option><option>Dễ</option><option>Vừa</option><option>Khó</option></select>
+<p id="filter-notice" class="notice" role="status"></p><button id="start-practice" class="primary" type="button" disabled>Bắt đầu luyện</button>
+<p class="hint">Không tính giờ. Chọn rồi bấm Kiểm tra để xem đáp án và nguyên nhân. Câu đã kiểm tra được giữ nguyên trong lượt này.</p>
+</div>
+<div class="panel"><h3>Bài hỗn hợp</h3><p>20 câu khác nhau từ tập đã review; chưa hiện đáp án đến khi kết thúc.</p>
+<label class="check"><input id="timed" type="checkbox" checked>Tính giờ 20 phút (bỏ chọn để không tính giờ)</label>
+<button id="start-exam" class="primary" type="button" disabled>Bắt đầu bài hỗn hợp</button>
+<button id="continue-attempt" type="button" hidden>Tiếp tục bài / xem kết quả</button>
+<p class="hint">Thời gian vẫn trôi khi rời trang. Bài đang làm được lưu riêng trong tab này.</p></div>
+</div>
+<div id="attempt-view" class="workspace" hidden>
+<div class="panel"><p id="question-position" class="hint"></p>
+<fieldset><legend id="question" tabindex="-1"></legend><div id="options"></div></fieldset>
+<div class="actions"><button id="check-answer" class="primary" type="button">Kiểm tra</button><button id="clear-answer" type="button">Xóa lựa chọn</button></div>
+<div id="question-feedback" class="feedback" tabindex="-1" hidden></div>
+<div class="actions"><button id="prev-question" type="button">Câu trước</button><button id="next-question" type="button">Câu tiếp</button><button id="skip-question" type="button">Bỏ qua</button></div>
+</div>
+<aside class="panel"><p id="timer" class="timer"></p><p id="time-notice" role="status" aria-live="polite"></p>
+<nav id="question-nav" class="question-nav" aria-label="Đi đến câu hỏi"></nav>
+<button id="submit-attempt" class="primary" type="button">Kết thúc bài</button><button id="leave-attempt" type="button">Lưu bài, về lựa chọn</button>
+<p class="hint">Bỏ qua vẫn giữ câu trong tổng điểm. Có thể quay lại trước khi kết thúc.</p></aside>
+</div>
+<div class="actions"><button id="retry-bank" type="button">Tải lại câu hỏi</button><button id="reset-quiz" type="button">Xóa tiến độ Quiz và bài trong tab này</button></div>
+<p id="progress-summary" class="hint"></p>
+</section>
+<section id="results" aria-labelledby="results-title"><h2 id="results-title" tabindex="-1">Kết quả và nguyên nhân</h2>
+<p>Đúng, sai và chưa trả lời được tính riêng. Khi luyện, giải thích xuất hiện ngay dưới câu đã kiểm tra; sau khi kết thúc, xem lại mọi câu bên dưới.</p>
+<div id="result-view" hidden><p id="score" class="score"></p><p id="finish-reason"></p><button id="new-attempt" type="button">Chọn lượt mới</button><ol id="review-list"></ol></div>
+</section>
+<details id="limits"><summary>Đi sâu và giới hạn</summary>
+<h3>Lab đã triển khai · tập ban đầu đã review</h3><p>SHA-256, ECDSA, khối/chuỗi, Merkle, Fork/Reorg Node/queue, RSA-OAEP và RSA-PSS. Câu hỏi PoW/PoS/Tamper được hoãn sang đợt nội dung sau. Không tuyên bố bao phủ toàn bộ lab.</p>
+<h3>Khóa học mở rộng · chưa phát hành</h3><p>Bitcoin, địa chỉ/UTXO, SPV, Ethereum, hợp đồng thông minh và các chủ đề khóa học rộng hơn cần review riêng. Ngân hàng 400 câu nguồn chưa được xác minh toàn bộ và không được dùng trong bài này; các câu 31, 74 và 386 cần chỉnh ngữ cảnh trước khi xét phát hành.</p>
+<p>Lab mô phỏng không phải mạng production. Merkle inclusion không chứng minh sự thật; chữ ký hợp lệ không chứng minh danh tính ngoài đời. RSA xử lý khóa và nội dung ở backend, không cung cấp mã hóa đầu cuối.</p>
+<p>Tiến độ lưu trong trình duyệt, dùng chung cùng origin; không phải tài khoản hay phiên blockchain. Bài đang làm lưu theo tab. Reset tab này không đóng bài trong tab khác. Tiến độ là đáp án đã chấm gần nhất, không phải mức độ thành thạo.</p>
+<p>Timer dùng đồng hồ thiết bị, không chống gian lận. Có thể chọn không tính giờ trước khi bắt đầu. Hai tab ghi đồng thời có thể ghi đè tiến độ; trang tự học không dùng để thi có giám sát.</p>
+<p>Đáp án có trong tài nguyên tĩnh của trang, không phải bí mật. Dữ liệu lưu cũ khác phiên bản được bỏ qua có thông báo. Không nhập khóa hoặc dữ liệu cá nhân vào ghi chú Quiz.</p>
+</details>
+</main>
+</div>
+</body></html>

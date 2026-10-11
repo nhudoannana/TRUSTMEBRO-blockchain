@@ -102,7 +102,7 @@ if(testCase==='comparison_summary'){
  const snapshot=run('JSON.stringify([signature,chainLab,networkLab,comparison])');
  $('sig-message').value='Keep my message';$('merkle-leaves').value='Keep my leaves';$('chain-data').value='Keep my draft';
  for(const name of ['signatures','merkle','blocks','consensus','network']){
-  assert.equal(run('labLearning["'+name+'"].tab'),'theory');
+  assert.equal(run('labLearning["'+name+'"].tab'),name==='merkle'?'practice':'theory');
   assert.equal($(name+'-previous').disabled,true);$(name+'-previous').onclick();
   assert.equal(run('labLearning["'+name+'"].topic'),0);
   for(let i=1;i<4;i++){$(name+'-next').onclick();assert.equal($(name+'-lesson-'+i).hidden,false);assert.equal($(name+'-topic-'+i)['aria-pressed'],'true');}

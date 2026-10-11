@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.parametrize('page', ['landing', 'modes', 'labs', 'journey', 'explorer', 'attacks'])
+@pytest.mark.parametrize('page', ['landing', 'modes', 'labs', 'journey', 'explorer', 'attacks', 'quiz'])
 def test_theme_control_preserves_icons_and_simulation_state(page):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -20,7 +20,7 @@ if(['landing','modes'].includes(page)){
  const html=fs.readFileSync(page==='landing'?'landing.html':'ui/modes.html','utf8');
  source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]).find(s=>s.includes('const toggle=document.getElementById'));
 }else{
- source=fs.readFileSync({labs:'ui/labs.js',journey:'ui/trustmebro.html',explorer:'ui/explorer.js',attacks:'ui/attacks.js'}[page],'utf8');
+ source=fs.readFileSync({labs:'ui/labs.js',journey:'ui/trustmebro.html',explorer:'ui/explorer.js',attacks:'ui/attacks.js',quiz:'ui/quiz.js'}[page],'utf8');
  if(page==='journey')source=source.slice(source.indexOf('(function initTheme()'),source.indexOf('})();',source.indexOf('(function initTheme()'))+5);
  else if(page==='attacks')source=source.slice(source.indexOf('function theme(value)'),source.indexOf("attackElement('attack-form').onsubmit"));
  else{
@@ -64,7 +64,7 @@ def test_native_theme_controls_and_lab_order():
                     self.labs.append(attrs['href'])
 
     for filename in ['landing.html', 'ui/modes.html', 'ui/labs.html', 'ui/trustmebro.html',
-                     'ui/explorer.html', 'ui/attacks.html']:
+                     'ui/explorer.html', 'ui/attacks.html', 'ui/quiz.html']:
         parser = Navigation()
         parser.feed(Path(filename).read_text(encoding='utf-8'))
         assert parser.toggle['type'] == 'button'
@@ -73,5 +73,8 @@ def test_native_theme_controls_and_lab_order():
         assert not any(re.search(r'/(?:api/)?(?:docs|redoc|openapi\.json)(?:$|[?#])', link) for link in parser.links)
         if filename in {'ui/modes.html', 'ui/labs.html'}:
             expected = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'tamper', 'attacks']
+            expected.insert(6, 'fork')
+            expected.insert(1, 'rsa-oaep')
+            expected.insert(2, 'rsa-pss')
             actual = [link.split('#')[-1] if '#' in link else 'attacks' for link in parser.labs]
             assert actual == expected

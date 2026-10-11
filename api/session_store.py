@@ -41,6 +41,7 @@ def bind_session(context):
 class SimulationSession:
     last_used: float
     generation: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    fork_owner: str = field(default_factory=lambda: secrets.token_urlsafe(16))
     lock: object = field(default_factory=threading.RLock, repr=False)
     wallets: WalletStore = field(default_factory=WalletStore, repr=False)
     network: object = field(default=None, repr=False)
@@ -55,9 +56,14 @@ class SimulationSession:
     lab_networks: dict = field(default_factory=dict, repr=False)
     lab_network_lock: object = field(default_factory=threading.RLock, repr=False)
 
+    rsa_owner: str = field(default_factory=lambda: secrets.token_urlsafe(16))
+    rsa_keys: dict = field(default_factory=dict, repr=False)
+    rsa_key_lock: object = field(default_factory=threading.RLock, repr=False)
+    rsa_generation_lock: object = field(default_factory=threading.Lock, repr=False)
+
     def close(self):
         # No registry/node lock while joining workers. Timers use this lab lock.
-        with self.lock, self.lab_network_lock, self.lab_key_lock:
+        with self.lock, self.lab_network_lock, self.lab_key_lock, self.rsa_key_lock:
             networks = [entry['network'] for entry in self.lab_networks.values()]
             for entry in self.lab_networks.values():
                 entry['timer'].cancel()
@@ -72,6 +78,7 @@ class SimulationSession:
             self.network = None
             self.lab_networks.clear()
             self.lab_keys.clear()
+            self.rsa_keys.clear()
             self.signed_credentials.clear()
             self.wallets.reset_wallets()
 
