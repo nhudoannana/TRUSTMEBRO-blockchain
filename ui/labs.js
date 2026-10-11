@@ -817,6 +817,9 @@ function resetChainLab(initialize = true) {
   globalThis.TrustCounter?.clear('chain-');
   chainLab = freshChainLab(); $('chain-data').value = ''; $('chain-difficulty').value = '2';
   $('chain-version').value = '1'; $('chain-timestamp').value = '';
+  document.querySelectorAll('input[name="blocks-hypo"]').forEach(r => r.checked = false);
+  const hypoFeedback = $('blocks-hypo-feedback');
+  if (hypoFeedback) { hypoFeedback.textContent = ''; hypoFeedback.className = 'hypothesis-feedback'; }
   labError('chain-error'); showChainLab();
   $('chain-status').textContent = 'Đã đặt lại riêng lab Khối & Chuỗi khối. Các lab khác và mạng có hướng dẫn giữ nguyên.';
   if (initialize) chainLab.initialization = chainLabAction('init');
@@ -1318,6 +1321,22 @@ async function resetTamperLab() {
   $('chain-validate').onclick = () => chainLabAction('validate');
   $('chain-reset').onclick = () => resetChainLab();
   $('chain-example').onclick = () => { if (!chainLab.busy) fillLabExample('chain-data', 'Ghi chú của tôi: mỗi block nối với block trước.'); };
+  document.querySelectorAll('input[name="blocks-hypo"]').forEach(radio => {
+    radio.onchange = () => {
+      const feedback = $('blocks-hypo-feedback');
+      if (!feedback) return;
+      if (radio.value === 'broken') {
+        feedback.className = 'hypothesis-feedback correct';
+        feedback.textContent = '✓ Chính xác! Khối 2 lưu previous_hash trỏ vào hash cũ của Khối 1. Khi Khối 1 bị đổi dữ liệu và đổi hash, liên kết trỏ về quá khứ bị gãy ngay lập tức (link_valid = false). Dù dữ liệu Khối 2 chưa bị chạm vào, nó vẫn mất hiệu lực tiền tố (prefix_valid = false). Khối 2 không thể tự đào lại mà phải có thợ đào can thiệp.';
+      } else {
+        feedback.className = 'hypothesis-feedback incorrect';
+        feedback.textContent = '✗ Chưa chính xác. Blockchain là chuỗi liên kết mật mã: mỗi khối bảo chứng cho toàn bộ lịch sử trước đó. Khi Khối 1 bị đổi hash, Khối 2 sẽ không thể liên kết được và blockchain không bao giờ tự động đào lại cho bạn.';
+      }
+    };
+  });
+  if ($('chain-preset-alice')) $('chain-preset-alice').onclick = () => { if (!chainLab.busy) fillLabExample('chain-data', 'Alice trả Bob 50 LD (Giao dịch mẫu 3Blue1Brown)'); };
+  if ($('chain-preset-smart')) $('chain-preset-smart').onclick = () => { if (!chainLab.busy) fillLabExample('chain-data', 'Khối cấp bằng: Người học DEMO-001 đạt chứng chỉ Blockchain'); };
+  if ($('chain-preset-hash')) $('chain-preset-hash').onclick = () => { if (!chainLab.busy) fillLabExample('chain-data', 'Bob trả Charlie 30 LD; Charlie trả Dave 15 LD'); };
   resetChainLab(false);
   for (const mode of ['pow', 'pos']) {
     $('comparison-' + mode).onchange = () => {
