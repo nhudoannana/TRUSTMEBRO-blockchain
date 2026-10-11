@@ -1206,6 +1206,14 @@ function showTamperLab() {
   $('tamper-credential').textContent = data?.credential_id ? `Hồ sơ mẫu: ${data.credential_id}` : '';
   $('tamper-reason').textContent = data?.reason || '';
   showLabNodes('tamper-nodes', data?.nodes || []);
+  const checks = $('tamper-checks'); checks.replaceChildren();
+  const node2 = data?.nodes.find(n => n.node_id === 'Node-2');
+  if (node2) {
+    chainText(checks, 'p', 'Node-2 · Validator: ' + (node2.validity_reason || data.reason || 'Đọc trạng thái chuỗi bên trên.'));
+    for (const check of node2.verification?.checks || []) {
+      chainText(checks, 'p', (check[1] ? '✓ ' : '✗ ') + check[0] + ' — ' + check[2]);
+    }
+  }
   $('tamper-technical').textContent = data ? JSON.stringify(data, null, 2) : '';
 }
 
@@ -1258,7 +1266,7 @@ async function resetTamperLab() {
   if (old.mutating || !old.handle) return;
   old.abort?.abort(); tamperLab = freshNetworkLab();
   const s = tamperLab; s.busy = s.mutating = true;
-  $('tamper-input').value = ''; labError('tamper-error'); showTamperLab();
+  $('tamper-input').value = ''; $('tamper-prediction-input').value = ''; labError('tamper-error'); showTamperLab();
   $('tamper-status').textContent = 'Đang dừng worker và reset riêng lab sửa dữ liệu…';
   try {
     await closeTamperLab(old);

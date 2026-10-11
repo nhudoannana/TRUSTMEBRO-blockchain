@@ -52,7 +52,13 @@ function showAttackResult(data) {
     attackText(panel, 'p', 'Hash tính lại: ' + short(record.verification.computed_hash)).title = record.verification.computed_hash;
     attackText(panel, 'p', 'Xác minh giao dịch: ' + (record.verification.valid ? '✓ Hợp lệ' : '✗ Không hợp lệ'));
     attackText(panel, 'p', record.verification.reason);
-    attackText(panel, 'p', record.verification.signature_checked ? 'Backend đã kiểm tra chữ ký ECDSA.' : 'Chưa chạy kiểm tra ECDSA: hash giao dịch không khớp trước đó.');
+    attackText(panel, 'p', 'Hash so với TxID đã ghi: ' + (tx.tx_id === record.verification.computed_hash ? '✓ Khớp' : '✗ Không khớp'));
+    attackText(panel, 'p', !record.verification.signature_checked
+      ? 'ECDSA: chưa kiểm tra — backend dừng ở bước hash.'
+      : record.verification.valid ? 'ECDSA: ✓ chữ ký hợp lệ với khóa gửi trong lượt này.'
+      : 'ECDSA: đã kiểm tra; giao dịch không hợp lệ — đọc lý do backend.');
+    attackText(panel, 'p', 'Khóa gửi so với khóa được phép trong lượt này: ' +
+      (tx.sender_public_key === data.authorized_issuer.public_key_hex ? 'trùng' : 'khác'));
     attackText(panel, 'p', 'Gửi vào mempool: ' + (record.submission.accepted ? '✓ Chấp nhận' : '✗ Từ chối'));
     attackText(panel, 'p', record.submission.reason);
   }
@@ -94,6 +100,7 @@ async function runAttack(event) {
   } finally { if (s === attackState) { s.busy = false; attackControls(); } }
 }
 function resetAttack() {
+  attackElement('attack-prediction-input').value = '';
   attackState = { busy: false, result: null }; clearAttackResult();
   attackElement('attack-error').hidden = true; attackElement('attack-error').textContent = '';
   attackElement('attack-status').textContent = 'Đã đặt lại riêng lab này. Không reset phiên có hướng dẫn hoặc lab khác.';

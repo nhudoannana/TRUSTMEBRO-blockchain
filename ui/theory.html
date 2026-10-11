@@ -168,7 +168,7 @@
             </div>
 
             <p>
-              Điểm kỳ diệu của toán học mật mã nằm ở chỗ: Bất kỳ ai có Public Key của bạn đều có thể <strong>xác minh 100%</strong> rằng chữ ký đó thực sự được tạo ra bởi chủ nhân của Private Key, nhưng <em>hoàn toàn không thể suy ngược ra Private Key</em> từ chữ ký đó! Thậm chí nếu một ký tự trong giao dịch bị sửa đổi dù chỉ 1 chữ số, chữ ký sẽ lập tức trở nên vô giá trị.
+              Điểm kỳ diệu của toán học mật mã nằm ở chỗ: Người có Public Key có thể kiểm tra chữ ký có khớp chính xác dữ liệu và khóa đó hay không. Độ an toàn phụ thuộc thuật toán, cách triển khai và việc giữ bí mật Private Key. Sửa dữ liệu thường làm xác minh chữ ký cũ thất bại; chữ ký hợp lệ không chứng minh nội dung đúng sự thật hay danh tính ngoài đời.
             </p>
 
             <div class="lab-bridge-card">
@@ -207,7 +207,7 @@
             </div>
 
             <p>
-              Chính vì tính chất này, mã băm đóng vai trò như một <strong>dấu vân tay số (digital fingerprint)</strong> không thể làm giả. Nếu ai đó tải về cuốn sổ cái và đổi số tiền từ 1 BTC thành 100 BTC, mã băm của dữ liệu đó sẽ biến đổi hoàn toàn, báo động ngay lập tức cho toàn bộ các máy tính khác trong mạng lưới.
+              Chính vì tính chất này, mã băm đóng vai trò như một <strong>dấu vân tay số (digital fingerprint)</strong> để đối chiếu dữ liệu với giá trị hash đã cam kết; không tự xác thực nguồn gốc hay ngăn người khác ghi hash mới. Nếu ai đó tải về cuốn sổ cái và đổi số tiền từ 1 BTC thành 100 BTC, hash tính lại thường khác giá trị đã cam kết. Node phải thực sự kiểm tra dữ liệu và các quy tắc liên quan; sửa bản cục bộ không tự báo động cho toàn mạng.
             </p>
 
             <div class="lab-bridge-card">
@@ -383,41 +383,20 @@
           <div class="chapter-badge">CHƯƠNG 07</div>
           <h2 class="chapter-title">An ninh & Giới hạn thực tế: Tấn công 51% & Giả mạo</h2>
           <div class="prose">
-            <p>
-              Dù blockchain có thiết kế toán học tinh xảo, nó không phải là bất khả xâm phạm nếu các giả định về kinh tế và sức mạnh tính toán bị phá vỡ. Có hai hiểu lầm rất phổ biến về các cuộc tấn công mạng blockchain:
-            </p>
-            <ul>
-              <li>
-                <strong>Hiểu lầm 1: "Kẻ tấn công nắm 51% sức mạnh có thể ăn cắp tiền từ ví của bạn"</strong><br>
-                <em>Sự thật:</em> Kẻ tấn công <strong>không thể</strong> cướp tiền của bạn, bởi vì mọi giao dịch hợp lệ đều bắt buộc phải có Chữ ký số từ Private Key của bạn. Toán học mã hóa vẫn bảo vệ tài sản của bạn tuyệt đối.
-              </li>
-              <li>
-                <strong>Hiểu lầm 2: "Kẻ tấn công nắm 51% có thể tạo ra tiền từ hư vô"</strong><br>
-                <em>Sự thật:</em> Các nút mạng trung thực (Full Nodes) sẽ tự động từ chối bất kỳ khối nào vi phạm quy tắc phát hành tiền, bất kể khối đó có chứa bao nhiêu Proof of Work đi chăng nữa.
-              </li>
-            </ul>
-
-            <div class="callout">
-              <div class="callout-title">Vậy kẻ tấn công 51% thực sự làm được gì?</div>
-              <p>
-                Kẻ chiếm trên 51% sức mạnh tính toán (Hashrate) có thể <strong>âm thầm đào một chuỗi bí mật dài hơn chuỗi công khai</strong>. Sau khi chi tiêu tiền trên chuỗi công khai để mua hàng hóa (như xe hơi hoặc rút tiền fiat), kẻ đó phát sóng chuỗi bí mật của mình để kích hoạt Reorg, xóa bỏ giao dịch vừa thực hiện. Đây chính là cuộc tấn công <strong>Chi tiêu kép (Double Spending Attack)</strong>.
-              </p>
-            </div>
-
-            <p>
-              Trên thực tế đối với các mạng lưới khổng lồ như Bitcoin, chi phí phần cứng và tiền điện để chiếm 51% sức mạnh tính toán lên tới hàng chục tỷ USD — đắt hơn nhiều so với bất kỳ khoản lợi nhuận nào mà kẻ gian có thể thu được từ việc gian lận!
-            </p>
-
+            <h3>Ba lớp kiểm tra không thay thế nhau</h3>
+            <p>Hash khớp chưa chứng minh chữ ký hợp lệ. Chữ ký hợp lệ chưa cấp quyền phát hành: lab kiểm tra khóa công khai trong danh sách được phép. Nộp lại một giao dịch đã nhận có thể bị từ chối vì TxID trùng. Chữ ký không chứng minh sự thật của nội dung hay danh tính ngoài đời.</p>
+            <p>Lab sửa bản sao giữ TxID, chữ ký và header cũ; validator phát hiện nội dung không khớp. Người học phải yêu cầu phục hồi từ peer hợp lệ. Lab Attack thử sửa sau ký, giả danh issuer và replay vào mempool; không có sổ cái tiền tệ hay double-spend.</p>
+            <h3>51% — lý thuyết, chưa mô phỏng</h3>
+            <p>Đa số hashrate có thể tác động cuộc đua nhánh, gây kiểm duyệt hoặc reorg. Nó không tự cho phép giả chữ ký hoặc làm full node chấp nhận block vi phạm quy tắc. Nhánh hợp lệ được so bằng tổng work, không chỉ số block. Dưới 50% vẫn có xác suất bắt kịp; trên 50% không bảo đảm thắng mọi lượt hữu hạn. Bảo vệ tài sản còn phụ thuộc khóa, phần mềm và giả định mạng.</p>
+            <p>Double-spend tiền tệ cần các giao dịch chi tiêu xung đột trong mô hình tài sản cụ thể; gửi lại cùng TxID ở lab này không minh họa điều đó. Không có đo chi phí tấn công hay bảo đảm lợi nhuận. <a href="https://bitcoin.org/bitcoin.pdf">Nguồn: Bitcoin whitepaper, mục 6 và 11</a>.</p>
+            <h3>Sybil/Eclipse — lý thuyết, chưa mô phỏng</h3>
+            <p>Sybil dùng nhiều danh tính do cùng một bên kiểm soát. Eclipse cô lập kết nối để giới hạn thông tin node nhìn thấy. Danh tính không tự tạo work; thông tin bị giới hạn không bỏ qua kiểm tra chữ ký và ledger. Lab này không tạo peer giả hay mô phỏng chiếm kết nối. <a href="https://www.microsoft.com/en-us/research/publication/the-sybil-attack/">Nguồn: Douceur, 2002</a>; <a href="https://www.usenix.org/conference/usenixsecurity15/technical-sessions/presentation/heilman">Heilman et al., USENIX 2015</a>.</p>
+            <h3>Timejacking — lý thuyết, chưa mô phỏng</h3>
+            <p>Thông tin giờ từ peer có thể là nguồn tin không đáng tin khi một mô hình dùng nó để điều chỉnh mốc thời gian. Tác động phụ thuộc luật timestamp và clock cụ thể. Bitcoin Core 27.0 đã bỏ network-adjusted time khỏi consensus và dùng giờ hệ thống: không mô tả rủi ro lịch sử như cơ chế chung mọi phiên bản. Lab không điều khiển clock/offset hay thử tấn công thời gian. <a href="https://bitcoincore.org/en/releases/27.0/">Nguồn: Bitcoin Core 27.0, P2P and network changes</a>.</p>
             <div class="lab-bridge-card">
-              <div class="lab-bridge-info">
-                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
-                <h3 class="lab-bridge-title">Thử nghiệm kịch bản tấn công & phòng vệ</h3>
-                <p class="lab-bridge-desc">Thử chỉnh sửa dữ liệu của một node trong mạng hoặc gửi trùng giao dịch xem hệ thống phòng vệ phát hiện và từ chối ra sao.</p>
-              </div>
-              <a href="/ui/attacks.html" class="lab-bridge-cta">
-                <span>Vào Lab Tấn công & Phòng vệ</span>
-                <span aria-hidden="true">&rarr;</span>
-              </a>
+              <div class="lab-bridge-info"><span class="lab-bridge-badge">Thực hành đang có</span><h3 class="lab-bridge-title">Đối chiếu kết quả thật và lý do từ chối</h3><p class="lab-bridge-desc">Tạo nền hợp lệ, thử ba kiểu giao dịch; hoặc sửa riêng Node-2 rồi yêu cầu phục hồi. Không phải công cụ tấn công mạng production.</p></div>
+              <a href="/ui/attacks.html" class="lab-bridge-cta"><span>Lab Tấn công &amp; Phòng vệ</span><span aria-hidden="true">&rarr;</span></a>
+              <a href="/ui/labs.html#tamper" class="lab-bridge-cta"><span>Lab sửa dữ liệu &amp; phục hồi</span><span aria-hidden="true">&rarr;</span></a>
             </div>
           </div>
         </section>
