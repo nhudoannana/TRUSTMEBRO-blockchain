@@ -54,6 +54,7 @@ class Node:
         self._seen_tx_ids: set[str] = set()
         self.last_transition = None
         self.state_revision = 0
+        self._publication_guard = None
 
         # Thread xử lý message — chạy song song thật
         self._state_lock = threading.RLock()
@@ -132,6 +133,10 @@ class Node:
                 raise ValueError(reason)
         return prepared
 
+    def _guard_publication(self):
+        if self._publication_guard is not None:
+            self._publication_guard()
+
     def _apply_valid_branch(self, new_branch, selection_reason, storage=None):
         """Validate/prepare trước, publish tất cả dưới cùng node lock."""
         with self._state_lock:
@@ -149,6 +154,7 @@ class Node:
                 authorized_issuers=self.mempool.authorized_issuers,
             )
             if current_ok and [b.compute_hash() for b in self.blockchain.chain] == [b.compute_hash() for b in new_branch]:
+                self._guard_publication()
                 self.blockchain.side_branches = prepared.side_branches
                 self.blockchain.block_pool = prepared.block_pool
                 return True, "Chuỗi active không đổi"
@@ -170,6 +176,7 @@ class Node:
                 "transactions": reconciliation["transactions"], "counts": reconciliation["counts"],
             }
             revision = self.state_revision + 1
+            self._guard_publication()  # Check caller deadline after preparation, at the commit point.
             self.blockchain.chain = transition["chain"]
             self.blockchain.side_branches = transition["side_branches"]
             self.blockchain.block_pool = transition["block_pool"]
@@ -403,10 +410,13 @@ class Node:
             tx = msg.payload
             if tx.tx_id in self._seen_tx_ids:
                 return
-            self._seen_tx_ids.add(tx.tx_id)
-
-            # Dùng blockchain thật làm ledger_view
-            ok, reason = self.mempool.add_transaction(tx, self.blockchain)
+            guard = self._publication_guard
+            if guard is None:
+                self._seen_tx_ids.add(tx.tx_id)
+                ok, reason = self.mempool.add_transaction(tx, self.blockchain)
+            else:
+                ok, reason = self.mempool.add_transaction(tx, self.blockchain, admission_guard=guard)
+                self._seen_tx_ids.add(tx.tx_id)
             if ok:
                 self.network.log_event(
                     self.node_id,
@@ -537,6 +547,7 @@ class Node:
                     f"từ chối {report['counts']['rejected']} TX. Height mới: {self.height}",
                 )
             else:
+                self._guard_publication()
                 self.blockchain.side_branches = storage.side_branches
                 self.blockchain.block_pool = storage.block_pool
                 self.network.log_event(

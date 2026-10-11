@@ -125,7 +125,7 @@ class SyncRequest(Revision):
 
 
 class ScenarioRequest(Revision):
-    scenario: Literal["E1", "E2", "E4", "E5"]
+    scenario: Literal["E1", "E2", "E4", "E5", "C1", "C2", "C3"]
 
 
 def conflict(code, message):
@@ -303,10 +303,122 @@ class ForkLab:
                     events_truncated=network.events_truncated)
 
 
+def load_credential_scenario(lab, scenario, entry):
+    network = lab.network
+    completed = []
+    credential_id = uuid.uuid4().hex
+
+    def alive():
+        if network.closed or time.monotonic() >= entry["expires"]:
+            raise HTTPException(404, detail="Lab đã hết hạn hoặc reset trong lúc nạp kịch bản")
+
+    def link(a, b, connected):
+        alive()
+        network.set_link(a, b, connected)
+        completed.append(dict(operation="link", a=a, b=b, connected=connected))
+
+    def transaction(action, text):
+        alive()
+        tx = lab.credential_transaction("Node-1", action, credential_id, text, entry=entry)
+        completed.append(dict(operation="transaction", node_id="Node-1", tx_id=tx.tx_id, action=action))
+        return tx
+
+    def mine(key, difficulty, txs=()):
+        alive()
+        parent = network.nodes[key].blockchain.chain[-1].compute_hash()
+        result = lab.mine(key, parent, difficulty, [t.tx_id for t in txs], entry)
+        if result["code"] != "accepted_block":
+            raise HTTPException(409, detail=dict(operation="mine", node_id=key, **result))
+        completed.append(dict(operation="mine", node_id=key, block_hash=result["block_hash"],
+                              mining=result["mining"]))
+        return result["block_hash"]
+
+    def message(kind, reference, recipient):
+        match = next((e for e in network.pending.values() if e["to"] == recipient
+                      and e["message"].msg_type == kind
+                      and network.reference(e["message"]) == reference), None)
+        if match is None:
+            raise HTTPException(409, detail=dict(code="message_not_scheduled",
+                message="Tin cần giao chưa được xếp hàng; xem sự kiện giới hạn hoặc kết nối",
+                kind=kind, reference=reference, recipient=recipient))
+        return match["id"]
+
+    def deliver(kind, reference, recipient):
+        alive()
+        message_id = message(kind, reference, recipient)
+        result = network.deliver(message_id)
+        if result["code"] != ("accepted_block" if kind == "BLOCK" else "accepted_tx"):
+            raise HTTPException(409, detail=dict(operation="deliver", message_id=message_id, **result))
+        completed.append(dict(operation="deliver", message_id=message_id, **result))
+
+    previous_guards = {key: node._publication_guard for key, node in network.nodes.items()}
+    for node in network.nodes.values():
+        node._publication_guard = alive
+    try:
+        for a, b in (("Node-1", "Node-2"), ("Node-1", "Node-3"), ("Node-2", "Node-3")):
+            link(a, b, False)
+        if scenario != "C2":
+            link("Node-1", "Node-3", True)
+        issue = transaction("ISSUE", scenario + " — hồ sơ")
+        common = mine("Node-1", 1, [issue])
+        if scenario != "C2":
+            deliver("BLOCK", common, "Node-3")
+        revoke = transaction("REVOKE", scenario + " — thu hồi")
+        if scenario == "C3":
+            deliver("TX", revoke.tx_id, "Node-3")
+        # Discard redundant setup broadcasts through the real queue, before partition.
+        for message_id in list(network.pending):
+            alive()
+            result = network.discard(message_id)
+            completed.append(dict(operation="discard", message_id=message_id, **result))
+        link("Node-1", "Node-3", False)
+        mine("Node-1", 1, [revoke])
+        winning_hash = mine("Node-3", 2, [revoke] if scenario == "C3" else [])
+        link("Node-1", "Node-3", True)
+        alive()
+        if not network.send("Node-3", "Node-1",
+                            Message("BLOCK", "Node-3", network.nodes["Node-3"].blockchain.chain[-1])):
+            raise HTTPException(409, detail=dict(code="message_not_scheduled",
+                message="Block quyết định chưa được xếp hàng; xem sự kiện giới hạn hoặc kết nối"))
+        message_id = message("BLOCK", winning_hash, "Node-1")
+        completed.append(dict(operation="schedule", message_id=message_id, block_hash=winning_hash))
+        alive()
+        goals = {
+            "C1": "REVOKE rời nhánh chọn: quan sát ACTIVE, giao dịch chờ và đào lại REVOKE",
+            "C2": "ISSUE và REVOKE rời nhánh chọn: ISSUE đang chờ chưa phải đã xác nhận",
+            "C3": "Cùng TxID REVOKE vẫn được xác nhận trên nhánh mới; số restored bằng 0",
+        }
+        continuation = dict(message_id=message_id, node_id="Node-1", peer_node_id="Node-3",
+                            credential_id=credential_id, issue_tx_id=issue.tx_id, revoke_tx_id=revoke.tx_id,
+                            winning_block_hash=winning_hash, learning_goal=goals[scenario],
+                            next_steps=["Giao tin có ID được trả về tới Node-1; xem trạng thái và lý do đối soát thực tế"])
+        if scenario == "C1":
+            continuation["remine_tx_ids"] = [revoke.tx_id]
+            continuation["next_steps"].append("Đào REVOKE đang chờ trên tip hiện tại mới của Node-1")
+        network.event("Network", "scenario_ready", f"{scenario}: dừng trước thao tác giao tin quyết định")
+        return dict(code="scenario_ready", message="Đã nạp bằng ký, đào, xác minh và giao tin thật",
+                    credential_id=credential_id, continuation=continuation, setup_completed_steps=completed)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            raise
+        failure = exc.detail if isinstance(exc.detail, dict) else dict(code="setup_error", message=str(exc.detail))
+    except Exception as exc:
+        failure = dict(code="setup_error", message=str(exc))
+    finally:
+        for key, node in network.nodes.items():
+            node._publication_guard = previous_guards[key]
+    network.event("Network", "scenario_incomplete", f"{scenario}: {failure}")
+    return dict(code="scenario_incomplete", message=f"Nạp chưa hoàn tất: {failure['message']}",
+                credential_id=credential_id, continuation=None, setup_completed_steps=completed,
+                setup_failure=failure)
+
+
 def load_scenario(lab, scenario, entry):
     network = lab.network
     if lab.transactions or network.admitted_hashes() or network.pending:
         conflict("scenario_requires_empty", "Nạp kịch bản cần lab mới; reset handle cũ trước")
+    if scenario in ("C1", "C2", "C3"):
+        return load_credential_scenario(lab, scenario, entry)
     completed = []
 
     def mine(key, difficulty, txs=()):
