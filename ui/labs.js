@@ -95,9 +95,9 @@ function selectShaTopic(index) {
 }
 
 // Presentation state only: practice owners and their lifecycle stay unchanged.
-const labLearning = Object.fromEntries(['signatures', 'merkle', 'blocks', 'consensus', 'network', 'rsa-oaep']
-  .map(name => [name, { tab: name === 'rsa-oaep' ? 'practice' : 'theory', topic: 0 }]));
-const labPracticeFocus = { 'rsa-oaep': 'rsa-message', signatures: 'sig-message', merkle: 'merkle-leaves',
+const labLearning = Object.fromEntries(['signatures', 'merkle', 'blocks', 'consensus', 'network', 'rsa-oaep', 'rsa-pss']
+  .map(name => [name, { tab: ['rsa-oaep', 'rsa-pss'].includes(name) ? 'practice' : 'theory', topic: 0 }]));
+const labPracticeFocus = { 'rsa-pss': 'pss-message', 'rsa-oaep': 'rsa-message', signatures: 'sig-message', merkle: 'merkle-leaves',
   blocks: 'chain-data', consensus: 'comparison-pow', network: 'network-init' };
 function showLabLearning(name, tab, focusPractice = false) {
   const s = labLearning[name]; s.tab = tab === 'practice' ? 'practice' : 'theory';
@@ -1252,14 +1252,14 @@ async function resetTamperLab() {
   $('theme-toggle').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   window.addEventListener('pageshow', restoreTheme); restoreTheme();
   function route(focus) {
-    const labs = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'fork', 'tamper', 'rsa-oaep'];
+    const labs = ['sha', 'signatures', 'merkle', 'blocks', 'consensus', 'network', 'fork', 'tamper', 'rsa-oaep', 'rsa-pss'];
     const requested = ['block', 'blockchain'].includes(location.hash.slice(1)) ? 'blocks' : location.hash.slice(1);
     const name = labs.includes(requested) ? requested : 'sha';
     labs.forEach(id => { $('lab-' + id).hidden = id !== name; });
     document.querySelectorAll('[data-lab]').forEach(a => {
       if (a.dataset.lab === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.title = `${name === 'rsa-oaep' ? 'RSA · Mã hóa' : name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'fork' ? 'Fork & Reorg' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
+    document.title = `${name === 'rsa-pss' ? 'RSA · Chữ ký' : name === 'rsa-oaep' ? 'RSA · Mã hóa' : name === 'sha' ? 'SHA-256' : name === 'merkle' ? 'Cây Merkle' : name === 'blocks' ? 'Khối & Chuỗi khối' : name === 'consensus' ? 'PoW–PoS' : name === 'network' ? 'Đồng bộ mạng' : name === 'fork' ? 'Fork & Reorg' : name === 'tamper' ? 'Sửa dữ liệu' : 'Chữ ký số'} — TrustMeBro`;
     if (focus) $(name + '-title').focus();
     if (name === 'blocks' && labLearning.blocks.tab === 'practice' && !chainLab.result && !chainLab.busy)
       chainLab.initialization = chainLabAction('init');

@@ -95,12 +95,12 @@ def test_key_ownership_reset_expiry_and_public_encrypt(client,monkeypatch):
     assert client.get('/api/labs/rsa/keys/'+new['key_handle']).status_code==404
     assert session_store.current_session().rsa_keys=={}
 
-def test_key_capacity_no_lost_keys_and_purpose_not_pss(client):
+def test_key_capacity_no_lost_keys_and_unsupported_purpose(client):
     keys=[key(client) for _ in range(4)]
     assert client.post('/api/labs/rsa/keys',json={'purpose':'oaep'}).status_code==429
     assert all(client.get('/api/labs/rsa/keys/'+k['key_handle']).status_code==200 for k in keys)
-    assert client.post('/api/labs/rsa/keys',json={'purpose':'pss'}).status_code==422
-    assert client.post('/api/labs/rsa/sign',json={}).status_code==404
+    assert client.post('/api/labs/rsa/keys',json={'purpose':'unsupported'}).status_code==422
+    assert client.post('/api/labs/rsa/sign',json={}).status_code==422
 
 def test_key_and_crypto_operational_failures_release_guards(client,monkeypatch):
     k=key(client)
@@ -213,3 +213,143 @@ def test_encrypt_schema_extra_type_and_oversized_public_key(client):
                  {'message':'','public_key_pem':k['public_key_pem'],'padding':'none'},
                  {'message':'','public_key_pem':'x'*2049}]:
         assert client.post('/api/labs/rsa/encrypt',json=body).status_code==422
+
+# RSA2: actual PSS, independent of OAEP/Wallet contracts.
+def pss_key(c):
+    r=c.post('/api/labs/rsa/keys',json={'purpose':'pss'})
+    assert r.status_code==201,r.text
+    return r.json()
+
+def pss_sign(c,k,text='TrustMeBro'):
+    return c.post('/api/labs/rsa/sign',content=json.dumps({'key_handle':k['key_handle'],'message':text}),headers={'Content-Type':'application/json'})
+
+def pss_verify(c,k,sig,text='TrustMeBro'):
+    return c.post('/api/labs/rsa/verify',content=json.dumps({'message':text,'signature_b64':sig,'public_key_pem':k['public_key_pem']}),headers={'Content-Type':'application/json'})
+
+@pytest.mark.parametrize('text',['','TrustMeBro','  H\u1ed3 s\u01a1\n\u4f60\u597d \U0001f30f  ','a'*4096,'\U0001f30f'*1024,'a\r\nb'])
+def test_pss_actual_exact_text_and_parameters(client,text):
+    k=pss_key(client);r=pss_sign(client,k,text);assert r.status_code==200,r.text
+    d=r.json();raw=text.encode('utf-8');sig=base64.b64decode(d['signature_b64'],validate=True)
+    assert len(sig)==256 and d['signature_bytes']==256
+    assert d['message']==text and d['message_utf8_bytes']==len(raw)
+    assert d['message_sha256']==hashlib.sha256(raw).hexdigest()
+    assert d['salt_bytes']==32 and d['scheme']=='RSA-PSS' and d['hash']==d['mgf1_hash']=='SHA-256'
+    public=serialization.load_pem_public_key(k['public_key_pem'].encode())
+    public.verify(sig,raw,padding.PSS(padding.MGF1(hashes.SHA256()),32),hashes.SHA256())
+    result=pss_verify(client,k,d['signature_b64'],text)
+    assert result.status_code==200 and result.json()['valid'] is True
+    assert result.json()['message_sha256']==d['message_sha256']
+
+@pytest.mark.parametrize('text',['a'*4097,'\U0001f30f'*1025,'\ud800'])
+def test_pss_utf8_limits_before_sign_or_verify(client,text):
+    k=pss_key(client)
+    assert pss_sign(client,k,text).status_code==422
+    assert pss_verify(client,k,base64.b64encode(bytes(256)).decode(),text).status_code==422
+
+def test_pss_changed_text_key_signature_and_randomness(client):
+    a,b=pss_key(client),pss_key(client)
+    first=pss_sign(client,a).json()['signature_b64'];second=pss_sign(client,a).json()['signature_b64']
+    assert first!=second  # Observe real randomized output; never pin a signature fixture.
+    raw=bytearray(base64.b64decode(first));raw[20]^=1
+    for k,sig,text in [(a,first,'changed'),(b,first,'TrustMeBro'),(a,base64.b64encode(raw).decode(),'TrustMeBro')]:
+        r=pss_verify(client,k,sig,text);assert r.status_code==200 and r.json()['valid'] is False
+        assert r.json()['outcome']['code']=='signature_invalid'
+    assert pss_verify(client,a,second).json()['valid']
+
+@pytest.mark.parametrize('kind',['pkcs1','salt20','mgf1sha1'])
+def test_pss_rejects_actual_wrong_padding_parameters(client,kind):
+    private=rsa.generate_private_key(65537,2048)
+    public={'public_key_pem':private.public_key().public_bytes(serialization.Encoding.PEM,serialization.PublicFormat.SubjectPublicKeyInfo).decode()}
+    pad=padding.PKCS1v15() if kind=='pkcs1' else padding.PSS(padding.MGF1(hashes.SHA1() if kind=='mgf1sha1' else hashes.SHA256()),20 if kind=='salt20' else 32)
+    signature=base64.b64encode(private.sign(b'TrustMeBro',pad,hashes.SHA256())).decode()
+    r=pss_verify(client,public,signature);assert r.status_code==200 and r.json()['valid'] is False
+
+@pytest.mark.parametrize('sig',['','bad!',' '*344,base64.b64encode(bytes(255)).decode(),base64.urlsafe_b64encode(b'\xff'*256).decode()])
+def test_pss_malformed_signature_is_422(client,sig):
+    k=pss_key(client);r=pss_verify(client,k,sig)
+    assert r.status_code==422
+    assert 'signature_b64' in r.text
+
+def test_pss_format_and_operational_failures_remain_distinct(client,monkeypatch):
+    k=pss_key(client);sig=pss_sign(client,k).json()['signature_b64']
+    assert pss_verify(client,{'public_key_pem':'private or invalid'},sig).status_code==422
+    from api import rsa_lab
+    for function,operation in [('verify_text',lambda:pss_verify(client,k,sig)),('sign_text',lambda:pss_sign(client,k))]:
+        with monkeypatch.context() as m:
+            m.setattr(rsa_lab,function,lambda *a:(_ for _ in ()).throw(RuntimeError('do not leak secret')))
+            r=operation();assert r.status_code==500
+            assert r.json()['detail']['code']=='rsa_operation_failed' and 'do not leak' not in r.text
+
+def test_pss_purpose_ownership_and_public_after_delete(client):
+    a=key(client);p=pss_key(client);sig=pss_sign(client,p).json()['signature_b64']
+    assert pss_sign(client,a).status_code==409
+    assert decrypt(client,p,base64.b64encode(bytes(256)).decode()).status_code==409
+    other=SessionTestClient(app)
+    try: assert pss_sign(other,p).status_code==404
+    finally: other.close()
+    assert client.delete('/api/labs/rsa/keys/'+p['key_handle']).json()['cleared']
+    assert pss_sign(client,p).status_code==404 and pss_verify(client,p,sig).json()['valid']
+    assert client.get('/api/labs/rsa/keys/'+a['key_handle']).status_code==200
+
+def test_combined_rsa_capacity_is_per_purpose_and_total(client):
+    oaep=[key(client) for _ in range(3)];pss=[pss_key(client) for _ in range(4)]
+    assert client.post('/api/labs/rsa/keys',json={'purpose':'pss'}).status_code==429
+    oaep.append(key(client))
+    for purpose in ['pss','oaep']:
+        assert client.post('/api/labs/rsa/keys',json={'purpose':purpose}).status_code==429
+    assert len(session_store.current_session().rsa_keys)==8
+    client.delete('/api/labs/rsa/keys/'+pss[0]['key_handle'])
+    assert pss_key(client)
+    assert all(client.get('/api/labs/rsa/keys/'+k['key_handle']).status_code==200 for k in oaep)
+
+def test_pss_absolute_expiry_and_expiry_during_sign(client,monkeypatch):
+    from api import rsa_lab
+    k=pss_key(client);sig=pss_sign(client,k).json()['signature_b64'];now=rsa_lab.time.monotonic()
+    original=rsa_lab.sign_text
+    def slow(*args):
+        result=original(*args)
+        monkeypatch.setattr(rsa_lab.time,'monotonic',lambda:now+901)
+        return result
+    monkeypatch.setattr(rsa_lab,'sign_text',slow)
+    assert pss_sign(client,k).status_code==404
+    assert pss_verify(client,k,sig).json()['valid']
+    assert client.get('/api/labs/rsa/keys/'+k['key_handle']).status_code==404
+
+def test_pss_delete_serializes_with_sign(client,monkeypatch):
+    from api import rsa_lab
+    k=pss_key(client);context=session_store.current_session();entered=threading.Event();release=threading.Event()
+    original=rsa_lab.sign_text
+    def held(*args):entered.set();assert release.wait(5);return original(*args)
+    monkeypatch.setattr(rsa_lab,'sign_text',held)
+    with ThreadPoolExecutor(2) as pool:
+        signing=pool.submit(lambda:pss_sign(client,k))
+        assert entered.wait(5)
+        deleting=pool.submit(lambda:client.delete('/api/labs/rsa/keys/'+k['key_handle']))
+        try:
+            assert context.rsa_key_lock.acquire(False) is False
+            assert not deleting.done()
+        finally:release.set()
+        signed=signing.result(5);assert signed.status_code==200
+        assert deleting.result(5).json()['cleared']
+    assert pss_sign(client,k).status_code==404
+    assert pss_verify(client,k,signed.json()['signature_b64']).json()['valid']
+
+def test_pss_journey_reset_and_session_close(client):
+    a,p=key(client),pss_key(client);s=pss_sign(client,p).json()['signature_b64']
+    client.post('/api/session/reset')
+    assert pss_sign(client,p).status_code==200 and client.get('/api/labs/rsa/keys/'+a['key_handle']).status_code==200
+    context=session_store.current_session();context.close()
+    assert not context.rsa_keys
+    assert pss_verify(client,p,s).json()['valid']
+
+
+@pytest.mark.parametrize('field,value',[('signature_b64',123),('message',123),('public_key_pem','x'*2049),('extra',True)])
+def test_pss_strict_verify_schema(client,field,value):
+    p=pss_key(client)
+    body={'message':'','signature_b64':base64.b64encode(bytes(256)).decode(),'public_key_pem':p['public_key_pem']}
+    body[field]=value;assert client.post('/api/labs/rsa/verify',json=body).status_code==422
+
+def test_pss_private_pem_rejected_before_verify(client):
+    private=rsa.generate_private_key(65537,2048)
+    pem=private.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()).decode()
+    assert pss_verify(client,{'public_key_pem':pem},base64.b64encode(bytes(256)).decode()).status_code==422

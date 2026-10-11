@@ -13,6 +13,7 @@ from fastapi.routing import APIRoute
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 from pydantic import BaseModel, Field, StrictStr, field_validator
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
@@ -68,14 +69,14 @@ def parse_public_key(pem):
         raise ValueError("Cần một public key RSA-2048/e65537 dạng PEM SubjectPublicKeyInfo")
 
 
-def decode_artifact(value):
+def decode_artifact(value, *, artifact="Ciphertext"):
     try:
         data = base64.b64decode(value, validate=True)
         if len(data) != 256 or base64.b64encode(data).decode("ascii") != value:
             raise ValueError()
         return data
     except (ValueError, binascii.Error):
-        raise ValueError("Ciphertext cần Base64 chuẩn có padding, đúng 256 byte, không khoảng trắng")
+        raise ValueError(artifact + " cần Base64 chuẩn có padding, đúng 256 byte, không khoảng trắng")
 
 
 class StrictRequest(BaseModel):
@@ -83,7 +84,7 @@ class StrictRequest(BaseModel):
 
 
 class KeyRequest(StrictRequest):
-    purpose: Literal["oaep"]
+    purpose: Literal["oaep", "pss"]
 
 
 class EncryptRequest(StrictRequest):
@@ -236,3 +237,91 @@ def decrypt(body: DecryptRequest):
             expire_keys(context)
             key_unavailable()
         return {**result, "key_handle": body.key_handle, "public_key_fingerprint": public_metadata(entry["private_key"])["public_key_fingerprint"], "scheme": "RSA-OAEP"}
+
+
+def pss():
+    return padding.PSS(padding.MGF1(hashes.SHA256()), 32)
+
+
+class PssMessageRequest(StrictRequest):
+    message: StrictStr = Field(max_length=4096)
+
+    @field_validator("message")
+    @classmethod
+    def text_bytes(cls, value):
+        if len(value.encode("utf-8")) > 4096:
+            raise ValueError("RSA-PSS t\u1ed1i \u0111a 4096 byte UTF-8")
+        return value
+
+
+class SignRequest(PssMessageRequest):
+    key_handle: Handle
+
+
+class VerifyRequest(PssMessageRequest):
+    public_key_pem: StrictStr = Field(max_length=2048)
+    signature_b64: StrictStr = Field(max_length=344)
+
+    @field_validator("public_key_pem")
+    @classmethod
+    def public_key(cls, value):
+        parse_public_key(value)
+        return value
+
+    @field_validator("signature_b64")
+    @classmethod
+    def signature(cls, value):
+        decode_artifact(value, artifact="Ch\u1eef k\u00fd")
+        return value
+
+
+def pss_metadata(message):
+    raw = message.encode("utf-8")
+    return {"message": message, "message_utf8_bytes": len(raw),
+            "message_sha256": hashlib.sha256(raw).hexdigest(), "scheme": "RSA-PSS",
+            "hash": "SHA-256", "mgf1_hash": "SHA-256", "salt_bytes": 32}
+
+
+def sign_text(message, private_key):
+    signature = private_key.sign(message.encode("utf-8"), pss(), hashes.SHA256())
+    return {**pss_metadata(message), **public_metadata(private_key),
+            "outcome": {"code": "signed", "message": "\u0110\u00e3 k\u00fd b\u1eb1ng private key tr\u00ean backend."},
+            "signature_b64": base64.b64encode(signature).decode("ascii"), "signature_bytes": len(signature)}
+
+
+def verify_text(message, signature, public_key):
+    valid = True
+    try:
+        public_key.verify(signature, message.encode("utf-8"), pss(), hashes.SHA256())
+    except InvalidSignature:
+        valid = False
+    return {**pss_metadata(message), "public_key_fingerprint": public_metadata(public_key)["public_key_fingerprint"],
+            "valid": valid, "outcome": {
+                "code": "signature_valid" if valid else "signature_invalid",
+                "message": "Ch\u1eef k\u00fd kh\u1edbp v\u1edbi n\u1ed9i dung v\u00e0 public key \u0111\u00e3 ch\u1ecdn." if valid else
+                    "Ch\u1eef k\u00fd kh\u00f4ng kh\u1edbp n\u1ed9i dung, public key ho\u1eb7c tham s\u1ed1; kh\u00f4ng x\u00e1c \u0111\u1ecbnh ai \u0111\u00e3 s\u1eeda."}}
+
+
+@router.post("/sign")
+def sign(body: SignRequest):
+    context = current_session()
+    with context.rsa_key_lock:
+        entry = owned_key(context, body.key_handle)
+        if entry["purpose"] != "pss":
+            raise HTTPException(409, detail={"code": "key_purpose_mismatch", "message": "C\u1ea7n kh\u00f3a ri\u00eang d\u00e0nh cho RSA-PSS."})
+        try:
+            result = sign_text(body.message, entry["private_key"])
+        except Exception:
+            raise HTTPException(500, detail={"code": "rsa_operation_failed", "message": "Backend g\u1eb7p l\u1ed7i v\u1eadn h\u00e0nh khi k\u00fd; ch\u01b0a c\u00f3 k\u1ebft qu\u1ea3 \u0111\u00e1ng tin."})
+        if entry["expires"] <= time.monotonic():
+            expire_keys(context)
+            key_unavailable()
+        return {**result, "key_handle": body.key_handle}
+
+
+@router.post("/verify")
+def verify(body: VerifyRequest):
+    try:
+        return verify_text(body.message, decode_artifact(body.signature_b64), parse_public_key(body.public_key_pem))
+    except Exception:
+        raise HTTPException(500, detail={"code": "rsa_operation_failed", "message": "Backend g\u1eb7p l\u1ed7i v\u1eadn h\u00e0nh khi x\u00e1c minh; ch\u01b0a c\u00f3 k\u1ebft qu\u1ea3 \u0111\u00e1ng tin."})
