@@ -54,14 +54,33 @@
 
   const NEBULA_LIGHT = {
     ...NEBULA_DARK,
-    // TrustMeBro Light: Soft celestial azure with warm bronze & amber highlights
-    voidColor: "#f4f7fb",
-    hazeColor: "#e2ebf5",
-    duskColor: "#c8d7e8",
-    wineColor: "#d9c49d",
-    crimsonColor: "#b89047",
-    hotColor: "#876338",
-    starColor: "#594220"
+    pixel: 6,
+    dotMin: 0.06,
+    dotMax: 0.35,
+    levels: 6,
+    scale: 1.7,
+    warp: 1.3,
+    drift: 0.026,
+    density: 0.40,
+    threshold: 0.52,
+    softness: 0.55,
+    band: 0.52,
+    haze: 0.45,
+    stars: 0.7,
+    twinkle: 1.2,
+    starDrift: 1.0,
+    sparkles: 7,
+    planet: false, // Tắt hành tinh tối để nền sáng sạch sẽ, thanh lịch
+    vignette: 0.0, // Triệt tiêu hoàn toàn góc thâm/tối ở chế độ sáng
+    grain: 0.005,  // Giảm hạt để tránh cảm giác lem nhem
+    // Tông màu trời sáng trong trẻo: Nền trắng ngà ánh lam, mây champagne và sao vàng gold nhạt
+    voidColor: "#f8fafd",
+    hazeColor: "#f1f5fa",
+    duskColor: "#f5eedf",
+    wineColor: "#faebd2",
+    crimsonColor: "#f5dfb3",
+    hotColor: "#dfb76c",
+    starColor: "#cba048"
   };
 
   const UNIFORM_SLOTS = [
