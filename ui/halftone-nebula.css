@@ -22,11 +22,11 @@ body:has(.nebula-bg) {
 }
 
 html[data-theme="light"] .nebula-bg {
-  background-color: #f8fafd;
+  background-color: #ffffff;
 }
 
 html[data-theme="light"] .nebula-canvas {
-  opacity: 0.90;
+  opacity: 0.98;
 }
 
 .nebula-canvas {
@@ -48,7 +48,7 @@ html[data-theme="light"] .nebula-canvas {
 }
 
 html[data-theme="light"] .nebula-bg .nebula-vignette {
-  background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.65) 0%, transparent 70%);
+  display: none !important;
 }
 
 .shell {

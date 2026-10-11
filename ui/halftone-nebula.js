@@ -1,6 +1,6 @@
 /* ==========================================================================
    TrustMeBro — Halftone Nebula WebGL2 Background
-   Gold & Indigo Cosmic Halftone with interactive wandering starfield.
+   Gold & Indigo Cosmic Halftone (Dark) / Luminous Lemon Yellow (Light)
    Zero dependencies, hardware-accelerated, theme-reactive, battery-friendly.
    ========================================================================== */
 
@@ -42,6 +42,7 @@
     speed: 1.1,
     vignette: 0.48,
     grain: 0.032,
+    lightMode: 0.0,
     // TrustMeBro Dark: Deep Midnight Indigo base + Warm Amber & Gold highlights
     voidColor: "#060911",
     hazeColor: "#10192a",
@@ -53,34 +54,48 @@
   };
 
   const NEBULA_LIGHT = {
-    ...NEBULA_DARK,
     pixel: 6,
-    dotMin: 0.06,
-    dotMax: 0.35,
+    dotMin: 0.08,
+    dotMax: 0.38,
     levels: 6,
     scale: 1.7,
-    warp: 1.3,
+    warp: 1.4,
     drift: 0.026,
-    density: 0.40,
-    threshold: 0.52,
+    density: 0.38,
+    threshold: 0.50,
     softness: 0.55,
-    band: 0.52,
-    haze: 0.45,
-    stars: 0.7,
-    twinkle: 1.2,
+    band: 0.55,
+    bandAngle: 0.85,
+    bandOffset: 0.38,
+    bandWidth: 0.35,
+    haze: 0.40,
+    stars: 0.8,
+    twinkle: 1.4,
     starDrift: 1.0,
-    sparkles: 7,
-    planet: false, // Tắt hành tinh tối để nền sáng sạch sẽ, thanh lịch
-    vignette: 0.0, // Triệt tiêu hoàn toàn góc thâm/tối ở chế độ sáng
-    grain: 0.005,  // Giảm hạt để tránh cảm giác lem nhem
-    // Tông màu trời sáng trong trẻo: Nền trắng ngà ánh lam, mây champagne và sao vàng gold nhạt
-    voidColor: "#f8fafd",
-    hazeColor: "#f1f5fa",
-    duskColor: "#f5eedf",
-    wineColor: "#faebd2",
-    crimsonColor: "#f5dfb3",
-    hotColor: "#dfb76c",
-    starColor: "#cba048"
+    sparkles: 8,
+    seed: 14,
+    spikeWidth: 1,
+    planet: false, // Tắt quả cầu hành tinh để nền trắng tinh sạch
+    planetX: 0.26,
+    planetY: 0.36,
+    planetRadius: 0.075,
+    parallax: 0.8,
+    lens: 0.45,
+    lensRadius: 160,
+    lensPush: 0.25,
+    rippleSpeed: 420,
+    speed: 0.95,
+    vignette: 0.0, // Triệt tiêu hoàn toàn góc thâm
+    grain: 0.0,   // Triệt tiêu hoàn toàn nhiễu xám
+    lightMode: 1.0,
+    // Tông VÀNG CHANH TƯƠI SÁNG (Lemon Yellow / Citrus Clean) — Tuyệt đối không xám, không nâu:
+    voidColor: "#ffffff",    // Trắng tinh khiết
+    hazeColor: "#fffde7",    // Sương vàng chanh siêu nhạt
+    duskColor: "#fff9c4",    // Kem vàng chanh thanh nhẹ
+    wineColor: "#fff59d",    // Vàng chanh tươi sáng
+    crimsonColor: "#ffee58", // Vàng chanh rực rỡ
+    hotColor: "#fdd835",     // Vàng chanh nổi bật
+    starColor: "#fbc02d"     // Sao vàng chanh lấp lánh
   };
 
   const UNIFORM_SLOTS = [
@@ -90,7 +105,7 @@
     ["band", "f"], ["bandAngle", "f"], ["bandOffset", "f"], ["bandWidth", "f"], ["haze", "f"],
     ["stars", "f"], ["twinkle", "f"], ["starDrift", "f"], ["spikeWidth", "f"],
     ["parallax", "f"], ["lens", "f"], ["lensRadius", "f"], ["lensPush", "f"], ["rippleSpeed", "f"],
-    ["vignette", "f"], ["grain", "f"],
+    ["vignette", "f"], ["grain", "f"], ["lightMode", "f"],
     ["voidColor", "c"], ["hazeColor", "c"], ["duskColor", "c"], ["wineColor", "c"],
     ["crimsonColor", "c"], ["hotColor", "c"], ["starColor", "c"]
   ];
@@ -218,13 +233,27 @@ void main(){
   vec3 hazeCol = mix(uHazeColor, uDuskColor, smoothstep(0.38, 0.62, g.z));
   float dq = clamp(floor(g.x * L + dith) / L, 0.0, 1.0);
   float hq = floor(g.y * 3.0 + dith) / 3.0;
-  vec3 bg = mix(uVoidColor, hazeCol, hq * 0.7);
-  bg = mix(bg, ramp(dq * 0.7, hazeCol) * 0.42, smoothstep(0.0, 0.3, dq));
-  float r = mix(uDotMin, uDotMax, sqrt(dq));
-  float dotMask = step(length(f), r);
-  vec3 dotCol = dq < 0.01 ? mix(uVoidColor, hazeCol, 0.35 + hq * 0.5) : ramp(min(dq + 0.1, 1.0), hazeCol);
-  vec3 col = mix(bg, dotCol, dotMask);
 
+  vec3 col;
+  if (uLightMode > 0.5) {
+    // Light Mode: Nền trắng tinh khiết, mây và chấm vàng chanh rực rỡ, KHÔNG nhân 0.42 làm xám đen
+    vec3 bg = mix(uVoidColor, hazeCol, hq * 0.45);
+    bg = mix(bg, uWineColor, smoothstep(0.15, 0.65, dq) * 0.35);
+    float r = mix(uDotMin, uDotMax, sqrt(dq));
+    float dotMask = step(length(f), r);
+    vec3 dotCol = mix(uCrimsonColor, uHotColor, smoothstep(0.05, 0.85, dq));
+    col = mix(bg, dotCol, dotMask);
+  } else {
+    // Dark Mode: Bầu trời không gian huyền bí đậm đà
+    vec3 bg = mix(uVoidColor, hazeCol, hq * 0.7);
+    bg = mix(bg, ramp(dq * 0.7, hazeCol) * 0.42, smoothstep(0.0, 0.3, dq));
+    float r = mix(uDotMin, uDotMax, sqrt(dq));
+    float dotMask = step(length(f), r);
+    vec3 dotCol = dq < 0.01 ? mix(uVoidColor, hazeCol, 0.35 + hq * 0.5) : ramp(min(dq + 0.1, 1.0), hazeCol);
+    col = mix(bg, dotCol, dotMask);
+  }
+
+  // ---- pixel stars, three parallax depths ------------------------------------
   vec3 starAcc = vec3(0.0);
   float starA = 0.0;
   for (int l = 0; l < 3; l++) {
@@ -246,8 +275,14 @@ void main(){
       starA = max(starA, m * tw);
     }
   }
-  col = mix(col, starAcc / max(starA, 1e-3), starA * (1.0 - g.x * 0.55));
 
+  if (uLightMode > 0.5) {
+    col = mix(col, starAcc, starA * 0.85);
+  } else {
+    col = mix(col, starAcc / max(starA, 1e-3), starA * (1.0 - g.x * 0.55));
+  }
+
+  // ---- the planet, lit from the upper left --------------------
   if (uPlanet.w > 0.5) {
     vec2 pc = uPlanet.xy + shift(0.8);
     float R = uPlanet.z;
@@ -266,6 +301,7 @@ void main(){
     }
   }
 
+  // ---- sparkle stars: chunky core, needle spikes -----------------------------
   vec2 sh = shift(1.2);
   for (int i = 0; i < ${MAX_SPARKS}; i++) {
     if (i >= uSparkCount) break;
@@ -288,22 +324,34 @@ void main(){
     float diag = step(0.5, core / px - 1.5) * 0.45 * max(
       step(abs(rd.y), th) * pow(max(1.0 - abs(rd.x) / max(reach * 0.22, 1.0), 0.0), 2.0),
       step(abs(rd.x), th) * pow(max(1.0 - abs(rd.y) / max(reach * 0.22, 1.0), 0.0), 2.0));
-    col = mix(col, tint, clamp(max(max(hx, vy), diag), 0.0, 1.0));
-    float hp = px * 0.5;
-    vec2 dcell = (floor(css / hp) + 0.5) * hp - (floor(c / hp) + 0.5) * hp;
-    float disc = step(length(dcell), core);
-    float glow = exp(-length(d) / max(core * 1.4, 1.0)) * (1.0 - disc);
-    col += tint * glow * 0.35;
-    col = mix(col, tint, disc);
-    float cross = max(step(abs(d.y), th) * step(abs(d.x), core * 0.85),
-                      step(abs(d.x), th) * step(abs(d.y), core * 0.85));
-    col = mix(col, uStarColor, cross * disc * 0.9);
+    
+    if (uLightMode > 0.5) {
+      col = mix(col, tint, clamp(max(max(hx, vy), diag) * 0.8, 0.0, 1.0));
+      float hp = px * 0.5;
+      vec2 dcell = (floor(css / hp) + 0.5) * hp - (floor(c / hp) + 0.5) * hp;
+      float disc = step(length(dcell), core);
+      col = mix(col, tint, disc * 0.85);
+    } else {
+      col = mix(col, tint, clamp(max(max(hx, vy), diag), 0.0, 1.0));
+      float hp = px * 0.5;
+      vec2 dcell = (floor(css / hp) + 0.5) * hp - (floor(c / hp) + 0.5) * hp;
+      float disc = step(length(dcell), core);
+      float glow = exp(-length(d) / max(core * 1.4, 1.0)) * (1.0 - disc);
+      col += tint * glow * 0.35;
+      col = mix(col, tint, disc);
+      float cross = max(step(abs(d.y), th) * step(abs(d.x), core * 0.85),
+                        step(abs(d.x), th) * step(abs(d.y), core * 0.85));
+      col = mix(col, uStarColor, cross * disc * 0.9);
+    }
   }
 
-  vec2 vu = gl_FragCoord.xy / uRes - 0.5;
-  col *= 1.0 - uVignette * smoothstep(0.35, 0.95, length(vu * vec2(uRes.x / uRes.y, 1.0) * 1.1));
-  col += (hash12(floor(css) + fract(uTime) * 91.0) - 0.5) * uGrain;
-  frag = vec4(max(col, vec3(0.0)), 1.0);
+  // ---- post -----------------------------------------------------------------
+  if (uLightMode <= 0.5) {
+    vec2 vu = gl_FragCoord.xy / uRes - 0.5;
+    col *= 1.0 - uVignette * smoothstep(0.35, 0.95, length(vu * vec2(uRes.x / uRes.y, 1.0) * 1.1));
+    col += (hash12(floor(css) + fract(uTime) * 91.0) - 0.5) * uGrain;
+  }
+  frag = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 
   function mulberry32(seed) {
@@ -639,4 +687,3 @@ void main(){
     start();
   }
 })();
-
