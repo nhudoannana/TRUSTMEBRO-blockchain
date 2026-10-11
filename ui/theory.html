@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('trustmebro-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lý thuyết Nền tảng: Bitcoin & Blockchain — TrustMeBro</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="/ui/theme-toggle.css">
+  <link rel="stylesheet" href="/ui/halftone-nebula.css">
+  <link rel="stylesheet" href="/ui/theory.css">
+  
+  <!-- Halftone Nebula WebGL Background -->
+  <script src="/ui/halftone-nebula.js" defer></script>
+</head>
+<body>
+  <!-- Reading Progress Bar -->
+  <div class="reading-progress-track" aria-hidden="true">
+    <div id="reading-progress" class="reading-progress-bar"></div>
+  </div>
+
+  <!-- Background WebGL Canvas -->
+  <div id="nebula-bg" class="nebula-bg" aria-hidden="true">
+    <canvas id="nebula-canvas" class="nebula-canvas"></canvas>
+    <div class="nebula-vignette"></div>
+  </div>
+
+  <div class="shell">
+    <!-- Masthead Navigation -->
+    <header class="masthead">
+      <a class="brand" href="/landing.html" aria-label="TrustMeBro — Về Trang chủ">
+        <span class="symbol" aria-hidden="true">⌘</span>TrustMe<em>Bro</em>
+      </a>
+      <div class="utilities">
+        <a href="/ui/theory.html" class="active-link" aria-current="page">Lý thuyết</a>
+        <a href="/ui/quiz.html">Quiz</a>
+        <a href="/ui/modes.html#labs">Các lab</a>
+        <a href="/ui/trustmebro.html">Có hướng dẫn</a>
+        <a href="/ui/modes.html">Chọn chế độ</a>
+        <a href="/landing.html">Trang chủ</a>
+        <button id="theme-toggle" class="theme-switch theme-toggle" aria-pressed="false" type="button" aria-label="Chế độ sáng">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero Header -->
+    <section class="theory-hero">
+      <div class="eyebrow">
+        <span>00 / NỀN TẢNG KIẾN THỨC</span>
+      </div>
+      <h1>Bản chất của Bitcoin & Chuỗi khối</h1>
+      <p class="lead">
+        Từ bài toán xây dựng niềm tin không cần ngân hàng trung gian, đến chữ ký số, hàm băm, cây Merkle và giải thuật Proof of Work. Bài đọc dẫn nhập giúp bạn thấu hiểu bản chất toán học trước khi bước vào phòng thí nghiệm mô phỏng.
+      </p>
+      <div class="hero-meta-bar">
+        <span class="meta-item">⏱ Thời gian đọc: ~15 phút</span>
+        <span class="meta-dot"></span>
+        <span class="meta-item">🎬 Kèm video giải thích 3Blue1Brown</span>
+        <span class="meta-dot"></span>
+        <span class="meta-item">🧪 7 cầu nối thực hành trực tiếp</span>
+      </div>
+    </section>
+
+    <!-- Two-Column Editorial Layout -->
+    <div class="theory-layout">
+      <!-- Sticky Sidebar TOC -->
+      <aside class="theory-sidebar" aria-label="Mục lục bài viết">
+        <div class="sidebar-heading">Mục lục bài đọc</div>
+        <nav class="toc-nav" id="toc-nav">
+          <a href="#chuong-1" class="toc-link active" data-target="chuong-1">
+            <span class="toc-num">01</span>
+            <span>Bài toán Niềm tin & Sổ cái</span>
+          </a>
+          <a href="#chuong-2" class="toc-link" data-target="chuong-2">
+            <span class="toc-num">02</span>
+            <span>Chữ ký số & Quyền sở hữu</span>
+          </a>
+          <a href="#chuong-3" class="toc-link" data-target="chuong-3">
+            <span class="toc-num">03</span>
+            <span>Hàm băm SHA-256 & Tính toàn vẹn</span>
+          </a>
+          <a href="#chuong-4" class="toc-link" data-target="chuong-4">
+            <span class="toc-num">04</span>
+            <span>Gom khối & Cây Merkle</span>
+          </a>
+          <a href="#chuong-5" class="toc-link" data-target="chuong-5">
+            <span class="toc-num">05</span>
+            <span>Proof of Work & Video 3Blue1Brown</span>
+          </a>
+          <a href="#chuong-6" class="toc-link" data-target="chuong-6">
+            <span class="toc-num">06</span>
+            <span>Mạng P2P, Fork & Reorg</span>
+          </a>
+          <a href="#chuong-7" class="toc-link" data-target="chuong-7">
+            <span class="toc-num">07</span>
+            <span>An ninh & Giới hạn thực tế</span>
+          </a>
+          <a href="#chuong-8" class="toc-link" data-target="chuong-8">
+            <span class="toc-num">08</span>
+            <span>Bắt đầu thực hành</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-cta">
+          <a href="/ui/modes.html#labs" class="sidebar-cta-btn">
+            <span>Phòng thí nghiệm</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Narrative Article -->
+      <main class="theory-article">
+        <!-- Chương 1 -->
+        <section id="chuong-1" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 01</div>
+          <h2 class="chapter-title">Bài toán Niềm tin & Sự ra đời của Sổ cái phân tán</h2>
+          <div class="prose">
+            <p>
+              Hãy tưởng tượng bạn đưa một tờ tiền giấy 50.000đ cho bạn của mình. Sau khoảnh khắc tờ tiền rời tay bạn và nằm trong túi người kia, cả hai đều biết chắc chắn một điều: bạn không còn tờ tiền đó nữa, và người kia là chủ sở hữu duy nhất. Tiền mặt vật lý có một đặc tính tự nhiên tuyệt vời: <strong>không thể nhân bản</strong>.
+            </p>
+            <p>
+              Nhưng trên thế giới kỹ thuật số, mọi thứ chỉ là những chuỗi byte (bit 0 và 1). Nếu bạn gửi một bức ảnh hay một tập tin PDF qua mạng, bạn không hề "chuyển giao" tập tin đó — bạn chỉ đang tạo ra một <em>bản sao y hệt</em>. Nếu tiền kỹ thuật số hoạt động như vậy, người ta có thể gửi cùng một "tệp tiền" cho mười người khác nhau để mua đồ. Đây chính là bài toán hóc búa nhất của tài chính số: <strong>Bài toán Chi tiêu kép (Double Spending Problem)</strong>.
+            </p>
+            <p>
+              Suốt hàng thập kỷ, giải pháp duy nhất của xã hội là đặt niềm tin vào một <strong>bên thứ ba tập trung</strong> (ngân hàng hoặc tổ chức tín dụng). Ngân hàng nắm giữ một cuốn sổ cái bí mật (Private Ledger). Khi bạn chuyển tiền, ngân hàng trừ số dư của bạn và cộng vào tài khoản người nhận. Mọi người tin tưởng vì luật pháp ràng buộc ngân hàng. Tuy nhiên, hệ thống này có những điểm yếu cố hữu:
+            </p>
+            <ul>
+              <li><strong>Điểm nghẽn đơn độc (Single Point of Failure):</strong> Nếu máy chủ ngân hàng sập hoặc bị tấn công, toàn bộ giao dịch bị tê liệt.</li>
+              <li><strong>Rủi ro can thiệp và kiểm duyệt:</strong> Cơ quan trung ương có quyền đóng băng, tịch thu hoặc tự ý sửa đổi số liệu trong sổ cái của họ.</li>
+              <li><strong>Chi phí trung gian và thời gian chờ:</strong> Các giao dịch xuyên biên giới phải qua nhiều lớp trung gian, tốn kém và mất nhiều ngày làm việc.</li>
+            </ul>
+
+            <div class="takeaway-box">
+              <div class="takeaway-title">Ý tưởng đột phá của Satoshi Nakamoto (2008)</div>
+              <p class="takeaway-text">
+                Thay vì giấu cuốn sổ cái trong két sắt của một ngân hàng, tại sao chúng ta không <strong>công khai cuốn sổ cái cho tất cả mọi người trên thế giới</strong>? Bất kỳ ai tham gia mạng lưới đều giữ một bản sao giống hệt nhau. Khi đó, câu hỏi sống còn chuyển thành: <em>Làm sao hàng triệu người lạ mặt không quen biết, không tin tưởng nhau lại có thể thống nhất chính xác về nội dung của cuốn sổ mà không ai gian lận được?</em>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 2 -->
+        <section id="chuong-2" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 02</div>
+          <h2 class="chapter-title">Quyền sở hữu & Chữ ký số (Digital Signatures)</h2>
+          <div class="prose">
+            <p>
+              Khi cuốn sổ cái được mở cho tất cả mọi người cùng ghi chép, vấn đề đầu tiên xuất hiện: <em>Làm sao đảm bảo chỉ có bạn mới được quyền chuyển tiền từ tài khoản của bạn, chứ không phải một kẻ nặc danh tự ý viết lệnh chuyển tiền?</em>
+            </p>
+            <p>
+              Trong thế giới truyền thống, chúng ta dùng chữ ký tay. Nhưng chữ ký tay rất dễ bị làm giả. Blockchain giải quyết triệt để vấn đề này bằng <strong>Mật mã học khóa công khai (Public-key Cryptography)</strong>:
+            </p>
+            <ul>
+              <li><strong>Khóa riêng tư (Private Key):</strong> Là một con số ngẫu nhiên khổng lồ (256-bit) mà chỉ duy nhất bạn nắm giữ. Nó giống như "chìa khóa két sắt" hay mật mã tối mật dùng để tạo ra chữ ký điện tử cho mỗi lệnh chuyển tiền.</li>
+              <li><strong>Khóa công khai (Public Key):</strong> Được suy ra từ Private Key qua phép nhân đường cong elliptic một chiều (như Secp256k1). Public Key chính là "địa chỉ ví" hoặc "số tài khoản" mà bạn có thể gửi cho bất kỳ ai.</li>
+            </ul>
+
+            <div class="code-figure">
+              <span class="comment">// Nguyên lý tạo và kiểm tra chữ ký số:</span><br>
+              Chữ ký = <span class="highlight">Sign</span>(Nội dung giao dịch, <span class="highlight">Private_Key</span>)<br>
+              Hợp lệ? = <span class="highlight">Verify</span>(Nội dung giao dịch, Chữ ký, <span class="highlight">Public_Key</span>)  &rarr; <span class="highlight">TRUE / FALSE</span>
+            </div>
+
+            <p>
+              Điểm kỳ diệu của toán học mật mã nằm ở chỗ: Bất kỳ ai có Public Key của bạn đều có thể <strong>xác minh 100%</strong> rằng chữ ký đó thực sự được tạo ra bởi chủ nhân của Private Key, nhưng <em>hoàn toàn không thể suy ngược ra Private Key</em> từ chữ ký đó! Thậm chí nếu một ký tự trong giao dịch bị sửa đổi dù chỉ 1 chữ số, chữ ký sẽ lập tức trở nên vô giá trị.
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">Tự tạo khóa và ký thử thông điệp</h3>
+                <p class="lab-bridge-desc">Thử tạo cặp khóa ECDSA/RSA, ký một văn bản và thử sửa thông điệp để xem thuật toán từ chối chữ ký giả mạo như thế nào.</p>
+              </div>
+              <a href="/ui/labs.html#signatures" class="lab-bridge-cta">
+                <span>Vào Lab Chữ ký số</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 3 -->
+        <section id="chuong-3" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 03</div>
+          <h2 class="chapter-title">Tính toàn vẹn & Hàm băm mật mã SHA-256</h2>
+          <div class="prose">
+            <p>
+              Giờ đây mỗi giao dịch đã có chữ ký bảo vệ. Nhưng làm sao bảo vệ toàn bộ lịch sử các giao dịch trong quá khứ không bị ai đó âm thầm chỉnh sửa? Câu trả lời là <strong>Hàm băm mật mã (Cryptographic Hash Function)</strong>, mà tiêu biểu nhất trong Bitcoin là <strong>SHA-256</strong>.
+            </p>
+            <p>
+              Hàm băm là một thuật toán toán học nhận vào bất kỳ dữ liệu nào (từ một chữ cái đơn lẻ cho đến một cuốn bách khoa toàn thư hàng gigabyte) và trả về một chuỗi ký tự có độ dài cố định đúng <strong>256 bit</strong> (thường biểu diễn dưới dạng 64 ký tự thập lục phân hex).
+            </p>
+
+            <div class="callout">
+              <div class="callout-title">3 Đặc tính vàng của hàm băm mật mã:</div>
+              <p>
+                <strong>1. Tính tất định (Deterministic):</strong> Cùng một đầu vào sẽ luôn luôn cho ra chính xác cùng một mã băm.<br>
+                <strong>2. Tính một chiều (One-way):</strong> Cực kỳ dễ để tính từ Văn bản &rarr; Hash, nhưng <em>bất khả thi</em> để đảo ngược từ Hash &rarr; Văn bản gốc (phải thử ngẫu nhiên $2^{256}$ lần).<br>
+                <strong>3. Hiệu ứng thác đổ (Avalanche Effect):</strong> Chỉ cần thay đổi một dấu chấm nhỏ trong văn bản triệu chữ, toàn bộ 64 ký tự hash đầu ra sẽ biến đổi hoàn toàn và không đoán trước được.
+              </p>
+            </div>
+
+            <p>
+              Chính vì tính chất này, mã băm đóng vai trò như một <strong>dấu vân tay số (digital fingerprint)</strong> không thể làm giả. Nếu ai đó tải về cuốn sổ cái và đổi số tiền từ 1 BTC thành 100 BTC, mã băm của dữ liệu đó sẽ biến đổi hoàn toàn, báo động ngay lập tức cho toàn bộ các máy tính khác trong mạng lưới.
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">Quan sát trực tiếp hiệu ứng thác đổ</h3>
+                <p class="lab-bridge-desc">Thử gõ hai đoạn văn bản chỉ khác nhau 1 ký tự và quan sát số lượng bit thực tế bị đảo chiều trong phòng thí nghiệm SHA-256.</p>
+              </div>
+              <a href="/ui/labs.html#sha" class="lab-bridge-cta">
+                <span>Vào Lab SHA-256</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 4 -->
+        <section id="chuong-4" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 04</div>
+          <h2 class="chapter-title">Đóng gói giao dịch & Cây Merkle (Merkle Tree)</h2>
+          <div class="prose">
+            <p>
+              Một mạng lưới blockchain toàn cầu xử lý hàng triệu giao dịch mỗi ngày. Nếu lưu trữ từng giao dịch riêng lẻ, làm sao một chiếc điện thoại di động với dung lượng và băng thông hạn chế có thể kiểm tra xem giao dịch của mình đã thực sự được ghi vào chuỗi chưa mà không cần phải tải toàn bộ hàng trăm gigabyte dữ liệu?
+            </p>
+            <p>
+              Giải pháp là gom các giao dịch thành từng nhóm gọi là <strong>Khối (Block)</strong>, và tóm tắt toàn bộ danh sách giao dịch trong khối đó thành một chuỗi băm duy nhất thông qua cấu trúc <strong>Cây Merkle (Merkle Tree)</strong>:
+            </p>
+
+            <div class="code-figure">
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span class="highlight">ROOT = Hash(H_AB + H_CD)</span> ]<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ H_AB = Hash(H_A + H_B) ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ H_CD = Hash(H_C + H_D) ]<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;[ H_A ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ H_B ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ H_C ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ H_D ]<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;(Tx A)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Tx B)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Tx C)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Tx D)
+            </div>
+
+            <p>
+              Mỗi giao dịch ở dưới đáy được băm lại tạo thành "lá". Cứ hai lá cạnh nhau lại được băm chung để tạo thành nhánh cha, tiếp tục như vậy cho đến khi chỉ còn một mã băm duy nhất ở trên đỉnh gọi là <strong>Merkle Root</strong>.
+            </p>
+            <p>
+              Nếu muốn chứng minh giao dịch $B$ nằm trong khối, người ta chỉ cần cung cấp $H_A$ và $H_{CD}$ (gọi là <em>Merkle Proof</em>). Người nhận chỉ mất $\mathcal{O}(\log N)$ phép tính để đối chiếu xem kết quả băm có khớp với Merkle Root trong tiêu đề khối (Block Header) hay không. Bất kỳ sự thay đổi gian lận nào ở một giao dịch lá sẽ làm sai lệch toàn bộ Merkle Root trên đỉnh!
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">Tương tác trực quan với Cây Merkle</h3>
+                <p class="lab-bridge-desc">Thử chỉnh sửa một giao dịch lá, quan sát các nhánh đổi màu và kiểm tra bằng chứng xác thực Merkle Proof trực tiếp trên giao diện cây.</p>
+              </div>
+              <a href="/ui/labs.html#merkle" class="lab-bridge-cta">
+                <span>Vào Lab Cây Merkle</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 5 (Trọng tâm có Video 3Blue1Brown) -->
+        <section id="chuong-5" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 05 — TRỌNG TÂM</div>
+          <h2 class="chapter-title">Trái tim của Bitcoin: Chuỗi khối & Proof of Work (PoW)</h2>
+          <div class="prose">
+            <p>
+              Bây giờ chúng ta đã có các khối chứa giao dịch đã ký và được tóm tắt bằng Merkle Root. Mỗi khối sẽ đính kèm mã băm của khối đứng liền trước nó (<code>previous_hash</code>). Việc này xâu chuỗi các khối lại thành một <strong>Chuỗi khối (Blockchain)</strong>. Nếu ai muốn sửa một giao dịch ở khối số 10, mã băm của khối 10 sẽ đổi, kéo theo khối 11, 12, 13... đều bị đứt gãy tính liên kết!
+            </p>
+            <p>
+              Tuy nhiên, một câu hỏi sống còn vẫn chưa có lời đáp: <em>Trong một mạng lưới phân tán mà ai cũng có thể đề xuất khối mới, làm sao ngăn cản một kẻ xấu liên tục gửi lên các khối rác hoặc hai người cùng phát hành hai phiên bản khối trái ngược nhau cùng một lúc?</em>
+            </p>
+            <p>
+              Câu trả lời thiên tài của Satoshi Nakamoto chính là <strong>Bằng chứng Công việc (Proof of Work - PoW)</strong>. Để được quyền thêm một khối mới vào chuỗi, bạn phải giải một bài toán đòi hỏi tiêu tốn năng lượng tính toán thật sự:
+            </p>
+
+            <div class="takeaway-box">
+              <div class="takeaway-title">Bài toán tìm Nonce trong Proof of Work</div>
+              <p class="takeaway-text">
+                Tìm một con số ngẫu nhiên gọi là <strong>Nonce</strong> (Number used once) sao cho khi gắn vào tiêu đề khối rồi băm qua SHA-256, kết quả thu được phải <strong>nhỏ hơn một ngưỡng mục tiêu</strong> (nghĩa là mã băm phải bắt đầu bằng một số lượng số 0 nhất định, ví dụ <code>000000...a8f2</code>).
+              </p>
+            </div>
+
+            <!-- Embedded Video Card -->
+            <div class="video-card">
+              <div class="video-header">
+                <div class="video-meta">
+                  <span class="video-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    VIDEO GIẢI THÍCH TRỰC QUAN
+                  </span>
+                  <h3 class="video-title">3Blue1Brown: Cách thức hoạt động thực sự của Bitcoin</h3>
+                </div>
+                <span class="video-timestamp">Bắt đầu từ mốc 4:28 (Proof of Work)</span>
+              </div>
+
+              <!-- Responsive 16:9 Iframe Container -->
+              <div class="video-player-container">
+                <iframe 
+                  src="https://www.youtube-nocookie.com/embed/bBC-nXj3Ng4?start=268" 
+                  title="3Blue1Brown: But how does bitcoin actually work?" 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                  allowfullscreen
+                  loading="lazy">
+                </iframe>
+              </div>
+
+              <div class="video-summary">
+                <p>
+                  <strong>Điểm cốt lõi từ video của Grant Sanderson (3Blue1Brown):</strong><br>
+                  Tại mốc <strong>4:28</strong>, video chuyển từ khái niệm sổ cái điện tử sang bài toán đào tiền (Mining). Vì hàm băm SHA-256 hoàn toàn ngẫu nhiên và một chiều, không có đường tắt nào để giải bài toán này ngoài việc <em>đoán mò từng con số Nonce</em> (thử $1, 2, 3...$ hàng tỷ lần mỗi giây). Người đầu tiên may mắn tìm ra con số Nonce hợp lệ sẽ phát sóng khối đó cho toàn mạng và nhận phần thưởng khối (Block Reward).
+                </p>
+                <p style="margin-top: 8px;">
+                  👉 Xem trực tiếp trên YouTube: <a href="https://www.youtube.com/watch?v=bBC-nXj3Ng4&t=268s" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline;">https://www.youtube.com/watch?v=bBC-nXj3Ng4&t=268s ↗</a>
+                </p>
+              </div>
+            </div>
+
+            <p>
+              Việc tìm ra Nonce cực kỳ tốn công sức, nhưng việc kiểm tra thì lại diễn ra chỉ trong một tích tắc (chỉ cần băm đúng 1 lần là biết hợp lệ hay không). Điều này biến việc gian lận trở nên vô cùng tốn kém và không có lợi về mặt kinh tế!
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">So sánh trực tiếp cơ chế PoW và PoS</h3>
+                <p class="lab-bridge-desc">Tự tay bấm đào một khối thật sự, quan sát số vòng lặp tìm Nonce và đo lường thời gian thực thi so sánh với cơ chế Proof of Stake (PoS).</p>
+              </div>
+              <a href="/ui/labs.html#consensus" class="lab-bridge-cta">
+                <span>Vào Lab So sánh Đồng thuận</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 6 -->
+        <section id="chuong-6" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 06</div>
+          <h2 class="chapter-title">Mạng P2P, Rẽ nhánh (Fork) & Quy tắc Chuỗi dài nhất</h2>
+          <div class="prose">
+            <p>
+              Trong mạng ngang hàng P2P toàn cầu, các máy tính ở Việt Nam, Mỹ, hay Châu Âu có độ trễ đường truyền nhất định. Điều gì sẽ xảy ra nếu ở cùng một giây, có <strong>hai thợ đào ở hai đầu trái đất cùng tìm ra một khối hợp lệ</strong>?
+            </p>
+            <p>
+              Khi đó, mạng lưới tạm thời bị chia tách thành hai nhánh cạnh tranh — hiện tượng này gọi là <strong>Rẽ nhánh tự nhiên (Accidental Fork)</strong>. Một nửa thế giới công nhận nhánh A, một nửa công nhận nhánh B. Làm sao mạng lưới tự hòa giải mà không cần có một ông trọng tài đứng ra phân xử?
+            </p>
+
+            <div class="takeaway-box">
+              <div class="takeaway-title">Quy tắc Chuỗi dài nhất (Longest Chain Rule / Nakamoto Consensus)</div>
+              <p class="takeaway-text">
+                Mỗi nút mạng sẽ tạm thời giữ cả hai nhánh, nhưng luôn đào tiếp trên nhánh mà nó nhận được đầu tiên. Ngay khi một thợ đào tiếp theo tìm ra khối mới trên một trong hai nhánh, nhánh đó sẽ trở nên <strong>dài hơn (chứa nhiều công sức tính toán hơn)</strong>. Theo luật đồng thuận của Nakamoto, toàn bộ các máy tính trên mạng sẽ lập tức chuyển sang nhánh dài nhất và hủy bỏ nhánh ngắn hơn (hiện tượng này gọi là <em>Reorganization - Reorg</em>).
+              </p>
+            </div>
+
+            <p>
+              Các giao dịch nằm trong nhánh ngắn bị hủy bỏ sẽ quay trở lại hàng chờ (Mempool) để được đóng gói vào các khối sau. Đây chính là lý do vì sao khi bạn nạp Bitcoin lên sàn giao dịch, họ luôn yêu cầu bạn chờ từ <strong>3 đến 6 xác nhận khối</strong> (3–6 confirmations) để đảm bảo khối chứa giao dịch của bạn đã cắm sâu vào chuỗi và không thể bị đảo ngược bởi một đợt Reorg!
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">Mô phỏng rẽ nhánh Fork & Tái cấu trúc Reorg</h3>
+                <p class="lab-bridge-desc">Tạo ra hai chuỗi cạnh tranh, kích hoạt cơ chế chọn chuỗi dài nhất và quan sát các khối ở nhánh thua bị thu hồi như thế nào.</p>
+              </div>
+              <a href="/ui/labs.html#fork" class="lab-bridge-cta">
+                <span>Vào Lab Fork & Reorg</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 7 -->
+        <section id="chuong-7" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 07</div>
+          <h2 class="chapter-title">An ninh & Giới hạn thực tế: Tấn công 51% & Giả mạo</h2>
+          <div class="prose">
+            <p>
+              Dù blockchain có thiết kế toán học tinh xảo, nó không phải là bất khả xâm phạm nếu các giả định về kinh tế và sức mạnh tính toán bị phá vỡ. Có hai hiểu lầm rất phổ biến về các cuộc tấn công mạng blockchain:
+            </p>
+            <ul>
+              <li>
+                <strong>Hiểu lầm 1: "Kẻ tấn công nắm 51% sức mạnh có thể ăn cắp tiền từ ví của bạn"</strong><br>
+                <em>Sự thật:</em> Kẻ tấn công <strong>không thể</strong> cướp tiền của bạn, bởi vì mọi giao dịch hợp lệ đều bắt buộc phải có Chữ ký số từ Private Key của bạn. Toán học mã hóa vẫn bảo vệ tài sản của bạn tuyệt đối.
+              </li>
+              <li>
+                <strong>Hiểu lầm 2: "Kẻ tấn công nắm 51% có thể tạo ra tiền từ hư vô"</strong><br>
+                <em>Sự thật:</em> Các nút mạng trung thực (Full Nodes) sẽ tự động từ chối bất kỳ khối nào vi phạm quy tắc phát hành tiền, bất kể khối đó có chứa bao nhiêu Proof of Work đi chăng nữa.
+              </li>
+            </ul>
+
+            <div class="callout">
+              <div class="callout-title">Vậy kẻ tấn công 51% thực sự làm được gì?</div>
+              <p>
+                Kẻ chiếm trên 51% sức mạnh tính toán (Hashrate) có thể <strong>âm thầm đào một chuỗi bí mật dài hơn chuỗi công khai</strong>. Sau khi chi tiêu tiền trên chuỗi công khai để mua hàng hóa (như xe hơi hoặc rút tiền fiat), kẻ đó phát sóng chuỗi bí mật của mình để kích hoạt Reorg, xóa bỏ giao dịch vừa thực hiện. Đây chính là cuộc tấn công <strong>Chi tiêu kép (Double Spending Attack)</strong>.
+              </p>
+            </div>
+
+            <p>
+              Trên thực tế đối với các mạng lưới khổng lồ như Bitcoin, chi phí phần cứng và tiền điện để chiếm 51% sức mạnh tính toán lên tới hàng chục tỷ USD — đắt hơn nhiều so với bất kỳ khoản lợi nhuận nào mà kẻ gian có thể thu được từ việc gian lận!
+            </p>
+
+            <div class="lab-bridge-card">
+              <div class="lab-bridge-info">
+                <span class="lab-bridge-badge">Thực hành mô phỏng</span>
+                <h3 class="lab-bridge-title">Thử nghiệm kịch bản tấn công & phòng vệ</h3>
+                <p class="lab-bridge-desc">Thử chỉnh sửa dữ liệu của một node trong mạng hoặc gửi trùng giao dịch xem hệ thống phòng vệ phát hiện và từ chối ra sao.</p>
+              </div>
+              <a href="/ui/attacks.html" class="lab-bridge-cta">
+                <span>Vào Lab Tấn công & Phòng vệ</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Chương 8 (Next Steps) -->
+        <section id="chuong-8" class="chapter-section">
+          <div class="chapter-badge">CHƯƠNG 08</div>
+          <h2 class="chapter-title">Bạn đã sẵn sàng — Bắt đầu thực hành</h2>
+          <div class="prose">
+            <p>
+              Chúc mừng bạn đã hoàn thành bài đọc dẫn nhập về bản chất của Bitcoin và công nghệ chuỗi khối! Giờ đây, bạn đã nắm rõ bản đồ tư duy:
+            </p>
+            <ul>
+              <li><strong>Chữ ký số:</strong> Khẳng định danh tính và quyền sở hữu.</li>
+              <li><strong>Hàm băm SHA-256:</strong> Đóng dấu vân tay chống sửa đổi lịch sử.</li>
+              <li><strong>Cây Merkle:</strong> Gom cụm và chứng minh giao dịch gọn nhẹ.</li>
+              <li><strong>Proof of Work:</strong> Tạo dựng sự đồng thuận phân tán công bằng.</li>
+              <li><strong>Quy tắc Chuỗi dài nhất:</strong> Tự động hóa giải xung đột và rẽ nhánh.</li>
+            </ul>
+          </div>
+
+          <!-- Call To Action Box -->
+          <div class="theory-next-steps">
+            <h2>Trải nghiệm thực tế ngay bây giờ</h2>
+            <p>
+              Hãy đưa những lý thuyết vừa học vào thực nghiệm với bộ mô phỏng của TrustMeBro. Bạn muốn bắt đầu theo cách nào?
+            </p>
+            <div class="next-steps-buttons">
+              <a href="/ui/trustmebro.html" class="btn-primary-glow">
+                <span>Đi theo Hành trình có hướng dẫn</span>
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+              <a href="/ui/modes.html#labs" class="btn-secondary-outline">
+                <span>Khám phá 11 Phòng thí nghiệm độc lập</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+              <a href="/ui/quiz.html" class="btn-secondary-outline">
+                <span>Kiểm tra kiến thức với Quiz</span>
+                <span aria-hidden="true">✓</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Interactive Scroll-Spy & Theme Controller Script -->
+  <script>
+  (function initTheoryApp() {
+    // 1. Reading Progress Bar
+    const progressBar = document.getElementById('reading-progress');
+    function updateProgress() {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (scrollHeight > 0) {
+        const percent = Math.min(Math.max((scrollY / scrollHeight) * 100, 0), 100);
+        progressBar.style.width = percent + '%';
+      }
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    // 2. Sticky Scroll-Spy for Table of Contents
+    const tocLinks = document.querySelectorAll('.toc-link');
+    const sections = Array.from(document.querySelectorAll('.chapter-section'));
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tocLinks.forEach(link => {
+            if (link.dataset.target === id) {
+              link.classList.add('active');
+            } else {
+              link.classList.remove('active');
+            }
+          });
+        }
+      });
+    }, {
+      rootMargin: '-10% 0px -75% 0px'
+    });
+
+    sections.forEach(sec => observer.observe(sec));
+
+    // 3. Theme Toggle Controller
+    const themeBtn = document.getElementById('theme-toggle');
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeBtn.title = theme === 'light' ? 'Chế độ tối' : 'Chế độ sáng';
+      themeBtn.setAttribute('aria-pressed', String(theme === 'light'));
+      try { localStorage.setItem('trustmebro-theme', theme); } catch (e) {}
+    }
+
+    function restoreTheme() {
+      try {
+        const saved = localStorage.getItem('trustmebro-theme');
+        applyTheme(saved === 'light' ? 'light' : 'dark');
+      } catch (e) {
+        applyTheme(document.documentElement.dataset.theme || 'dark');
+      }
+    }
+
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    window.addEventListener('pageshow', restoreTheme);
+    restoreTheme();
+  })();
+  </script>
+</body>
+</html>
