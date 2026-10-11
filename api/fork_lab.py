@@ -1,5 +1,6 @@
 """Cookie-owned, bounded Fork/Reorg backend; no frontend or HTTP repair."""
 import copy
+import json
 import re
 import threading
 import time
@@ -8,7 +9,7 @@ from contextlib import contextmanager
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, StrictInt, StrictStr, StrictBool, AfterValidator, field_validator
+from pydantic import BaseModel, Field, StrictInt, StrictStr, StrictBool, AfterValidator, field_validator, model_validator
 
 from api.session_store import current_session
 from blockchain.block import Block
@@ -63,6 +64,40 @@ class TransactionRequest(Revision):
         value = value.strip()
         if not value:
             raise ValueError("Nhãn không được trống")
+        value.encode("utf-8")
+        return value
+
+
+class CredentialTransactionRequest(Revision):
+    node_id: NodeId
+    action: Literal["ISSUE", "REVOKE"]
+    credential_id: StrictStr = Field(min_length=1, max_length=64)
+    label: StrictStr | None = Field(default=None, min_length=1, max_length=120)
+    reason: StrictStr | None = Field(default=None, min_length=1, max_length=120)
+
+    @model_validator(mode="before")
+    @classmethod
+    def applicable_fields(cls, values):
+        try:
+            json.dumps(values, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:
+            raise HTTPException(422, detail=[{"loc": ["body"], "type": "value_error",
+                                             "msg": "Data must be valid UTF-8"}])
+        if isinstance(values, dict):
+            required = "label" if values.get("action") == "ISSUE" else "reason"
+            other = "reason" if required == "label" else "label"
+            if other in values or values.get(required) is None:
+                raise ValueError("Action requires its applicable field only")
+        return values
+
+    @field_validator("credential_id", "label", "reason")
+    @classmethod
+    def valid_text(cls, value):
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("Text must not be blank")
         value.encode("utf-8")
         return value
 
@@ -124,6 +159,63 @@ class ForkLab:
             conflict("transaction_rejected", reason)
         self.transactions[tx.tx_id] = tx
         return tx
+
+    def credential_transaction(self, key, action, credential_id, text, *, entry=None):
+        node = self.online(key)
+        if len(self.transactions) >= 32 or len(node.mempool.get_transactions()) >= 32:
+            conflict("transaction_capacity", "Lab supports 32 transactions and 32 pending/node")
+        field = "label" if action == "ISSUE" else "reason"
+        tx = Transaction(action, self.issuer.public_key_hex,
+                         {"credential_id": credential_id, field: text})
+        tx.sign(self.issuer)
+        def admission_guard():
+            if self.network.closed or (entry is not None and time.monotonic() >= entry["expires"]):
+                raise HTTPException(404, detail="Lab expired or reset; transaction not published")
+
+        admission_guard()
+        ok, reason = node.submit_transaction(tx, admission_guard=admission_guard)
+        if not ok:
+            conflict("transaction_rejected", reason)
+        self.transactions[tx.tx_id] = tx
+        return tx
+
+    def credential_projection(self, node):
+        bc = node.blockchain
+        active_hashes = {b.compute_hash() for b in bc.chain}
+        pending = {t.tx_id: t for t in node.mempool.get_transactions()}
+        states = {tx_id: dict(active_blocks=[], stale_blocks=[], pending=tx_id in pending)
+                  for tx_id in self.transactions}
+        confirmed, stale = {}, {}
+
+        def record(block, active):
+            block_hash = block.compute_hash()
+            for index, tx in enumerate(block.transactions):
+                if tx.tx_id not in states:
+                    continue
+                placement = dict(block_hash=block_hash, height=block.height, transaction_index=index)
+                states[tx.tx_id]["active_blocks" if active else "stale_blocks"].append(placement)
+                target = confirmed if active else stale
+                target.setdefault(tx.payload["credential_id"], []).append(
+                    dict(transaction=copy.deepcopy(tx.to_dict()), **placement))
+
+        for block in bc.chain:
+            record(block, True)
+        for block_hash, block in bc.block_pool.items():
+            if block_hash not in active_hashes:
+                record(block, False)
+        credentials = {t.payload["credential_id"] for t in self.transactions.values()}
+        projection = {}
+        for credential in sorted(credentials):
+            status = bc.credential_status(credential)
+            transactions = confirmed.get(credential, [])
+            projection[credential] = dict(
+                status=status, confirmed_status=status, issuer=bc.credential_issuer(credential),
+                confirmed_tx_ids=[t["transaction"]["tx_id"] for t in transactions],
+                confirmed_transactions=transactions,
+                pending_transactions=[copy.deepcopy(t.to_dict()) for t in pending.values()
+                                      if t.payload.get("credential_id") == credential],
+                stale_transactions=stale.get(credential, []))
+        return projection, states
 
     def mine(self, key, parent_hash, difficulty, tx_ids, entry):
         from api.wallet_api import _mine_lab_block_bounded
@@ -187,15 +279,12 @@ class ForkLab:
                         pos_registry=network.pos_registry, authorized_issuers=node.mempool.authorized_issuers)
                     branches.append(dict(tip_hash=h, path_hashes=[b.compute_hash() for b in path],
                                          chain_work=calculate_chain_work(path), valid=ok, selected=h == bc.chain[-1].compute_hash()))
-                credentials = {t.payload["credential_id"] for t in self.transactions.values()}
+                credentials, transaction_states = self.credential_projection(node)
                 rows.append(dict(node_id=key, status=node.status, state_revision=node.state_revision,
                                  height=node.height, tip_hash=bc.chain[-1].compute_hash(), chain_work=bc.total_work(),
                                  chain_valid=valid, validity_reason=reason, blocks=blocks, branches=branches,
                                  mempool=[t.to_dict() for t in node.mempool.get_transactions()],
-                                 credential_states={c: {"status": bc.credential_status(c), "issuer": bc.credential_issuer(c),
-                                                       "confirmed_tx_ids": [t.tx_id for b in bc.chain for t in b.transactions
-                                                                            if t.payload.get("credential_id") == c]}
-                                                    for c in credentials},
+                                 credential_states=credentials, transaction_states=transaction_states,
                                  orphans=[dict(hash=h, parent_hash=item["message"].payload.header.previous_hash,
                                                sequence=item["sequence"], classification="orphan",
                                                expires_in_seconds=max(0, int(network.ORPHAN_TTL - (time.monotonic()-item["received"]))))
@@ -360,6 +449,11 @@ def mutate(handle, body, operation, node_id=None):
         elif operation == "transactions":
             tx = lab.transaction(body.node_id, body.label)
             result = dict(code="accepted_tx", message="Đã ký và Node nhận TX", transaction=tx.to_dict())
+        elif operation == "credential-transactions":
+            text = body.label if body.action == "ISSUE" else body.reason
+            tx = lab.credential_transaction(body.node_id, body.action, body.credential_id, text, entry=entry)
+            result = dict(code="accepted_tx", message="Signed transaction accepted by Node",
+                          transaction=tx.to_dict())
         elif operation == "mine":
             result = lab.mine(body.node_id, body.parent_hash, body.difficulty, body.tx_ids, entry)
         elif operation in ("deliver", "discard"):
@@ -377,7 +471,8 @@ def mutate(handle, body, operation, node_id=None):
                           scheduled_count=scheduled)
         elif operation == "scenario":
             result = load_scenario(lab, body.scenario, entry)
-        if time.monotonic() >= entry["expires"]:
+        # Guarded credential admission is the commit point; later expiry cannot undo it.
+        if operation != "credential-transactions" and time.monotonic() >= entry["expires"]:
             raise HTTPException(404, detail="Lab đã hết hạn")
         lab.revision += 1
         changed = [n for key, n in network.nodes.items() if n.state_revision != before[key]]
@@ -400,6 +495,11 @@ def status(handle: str, node_id: NodeId, body: StatusRequest):
 @router.post("/{handle}/transactions")
 def transaction(handle: str, body: TransactionRequest):
     return mutate(handle, body, "transactions")
+
+
+@router.post("/{handle}/credential-transactions")
+def credential_transaction(handle: str, body: CredentialTransactionRequest):
+    return mutate(handle, body, "credential-transactions")
 
 
 @router.post("/{handle}/mine")

@@ -37,7 +37,7 @@ class Mempool:
         self._pool: dict[str, Transaction] = {}     # tx_id → Transaction
         self.authorized_issuers: set[str] = set(authorized_issuers or [])
 
-    def add_transaction(self, tx: Transaction, ledger_view) -> tuple[bool, str]:
+    def add_transaction(self, tx: Transaction, ledger_view, *, admission_guard=None) -> tuple[bool, str]:
         """Thêm transaction vào Mempool sau 5 bước kiểm tra.
 
         Vì sao tồn tại: mỗi node tự kiểm tra trước khi lan truyền,
@@ -57,6 +57,8 @@ class Mempool:
             return False, "Từ chối — transaction đã tồn tại trong Mempool (trùng tx_id)"
 
         # Tất cả kiểm tra đều qua → thêm vào pool
+        if admission_guard is not None:
+            admission_guard()  # Caller lifecycle check after validation, before publication.
         self._pool[tx.tx_id] = tx
         return True, "Đã thêm vào Mempool"
 

@@ -77,7 +77,7 @@ class Node:
 
     # ── API công khai (gọi từ main thread / UI) ──
 
-    def submit_transaction(self, tx) -> tuple[bool, str]:
+    def submit_transaction(self, tx, *, admission_guard=None) -> tuple[bool, str]:
         """Nhận transaction từ bên ngoài, verify, thêm mempool, broadcast.
 
         Vì sao tồn tại: đây là điểm nhập cho giao dịch mới —
@@ -88,7 +88,10 @@ class Node:
                 return False, f"{self.node_id} đang OFFLINE"
 
             # Dùng blockchain thật làm ledger_view (thay DummyLedger từ Bước 5)
-            ok, reason = self.mempool.add_transaction(tx, self.blockchain)
+            if admission_guard is None:
+                ok, reason = self.mempool.add_transaction(tx, self.blockchain)
+            else:
+                ok, reason = self.mempool.add_transaction(tx, self.blockchain, admission_guard=admission_guard)
             if not ok:
                 self.network.log_event(self.node_id, f"TX REJECT: {reason}")
                 return False, reason
