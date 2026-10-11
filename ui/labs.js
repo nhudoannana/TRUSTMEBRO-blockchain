@@ -401,6 +401,30 @@ function showMerkle(data, previous, count, inputs = [], saved = false) {
   target('merkle-proof-result').textContent = data.proof
     ? `Lá ${data.proof.index + 1} · Backend kiểm tra proof: ${data.proof.valid ? 'hợp lệ' : 'không hợp lệ'}\n` + JSON.stringify(data.proof.siblings, null, 2)
     : count ? 'Không yêu cầu proof cho lần tính này.' : 'Cây rỗng không có lá để chứng minh.';
+  if (!saved && $('merkle-math-metrics')) {
+    const metricsCard = $('merkle-math-metrics');
+    metricsCard.hidden = false;
+    const leafCount = count;
+    const treeHeight = leafCount <= 1 ? 0 : (data.levels ? data.levels.length - 1 : Math.ceil(Math.log2(leafCount)));
+    const proofSiblings = data.proof && Array.isArray(data.proof.siblings) ? data.proof.siblings.length : 0;
+    const verifyHashes = data.proof ? proofSiblings : 0;
+    if ($('metric-leaves-count')) $('metric-leaves-count').textContent = String(leafCount);
+    if ($('metric-tree-height')) $('metric-tree-height').textContent = String(treeHeight);
+    if ($('metric-proof-siblings')) $('metric-proof-siblings').textContent = String(proofSiblings);
+    if ($('metric-verify-hashes')) $('metric-verify-hashes').textContent = String(verifyHashes);
+    const noteEl = $('metric-detail-note');
+    if (noteEl) {
+      if (leafCount === 0) {
+        noteEl.textContent = 'Cây rỗng: không có lá dữ liệu và không có proof bao hàm; root được quy ước là SHA-256 của chuỗi rỗng.';
+      } else if (leafCount === 1) {
+        noteEl.textContent = 'Cây 1 lá: mã băm của lá chính là Merkle Root, proof không cần sibling nào để lên đỉnh.';
+      } else if (data.proof) {
+        noteEl.textContent = `Proof cho lá ${data.proof.index + 1} gồm đúng ${proofSiblings} sibling; xác minh chỉ cần ${verifyHashes} phép ghép băm để đối chiếu với root.`;
+      } else {
+        noteEl.textContent = `Chưa chọn lá để tạo proof. Cây gồm ${leafCount} lá, chiều cao ${treeHeight} tầng; proof cho bất kỳ lá nào có tối đa ${treeHeight} sibling.`;
+      }
+    }
+  }
 }
 
 function merkleInputChanged(leavesChanged = false) {
@@ -602,6 +626,10 @@ function resetMerkle() {
   $('merkle-a-tree').replaceChildren(); $('merkle-a-result').hidden = true;
   ['merkle-verify-text', 'merkle-expected-root', 'merkle-prediction-answer'].forEach(id => { $(id).value = ''; });
   $('merkle-tree').replaceChildren(); $('merkle-result').hidden = true; $('merkle-saved').hidden = true;
+  if ($('merkle-math-metrics')) $('merkle-math-metrics').hidden = true;
+  document.querySelectorAll('input[name="merkle-hypo"]').forEach(r => { r.checked = false; });
+  const hypoFeedback = $('merkle-hypo-feedback');
+  if (hypoFeedback) { hypoFeedback.textContent = ''; hypoFeedback.className = 'hypothesis-feedback'; }
   $('merkle-verify-result').hidden = true; $('merkle-verify-submit').disabled = false;
   $('merkle-verify-form').setAttribute('aria-busy', 'false');
   drawMerkleProofRows(); showMerkleSource(); updateMerkleScrollHint();
@@ -1312,6 +1340,23 @@ async function resetTamperLab() {
   };
   $('merkle-prediction-reveal').onclick = revealMerklePrediction;
   $('merkle-more-theory').onclick = () => { showLabLearning('merkle', 'theory'); $('merkle-tab-theory').focus(); };
+  document.querySelectorAll('input[name="merkle-hypo"]').forEach(radio => {
+    radio.onchange = () => {
+      const feedback = $('merkle-hypo-feedback');
+      if (!feedback) return;
+      if ($('merkle-prediction-answer')) $('merkle-prediction-answer').value = radio.value;
+      if (radio.value === '4') {
+        feedback.className = 'hypothesis-feedback correct';
+        feedback.textContent = '✓ Chính xác! Sửa 1 lá làm thay đổi tổng cộng 4 nút băm: chính nút lá đó cộng với 3 nút tổ tiên dọc đường dẫn lên đỉnh (gồm 2 nút nhánh cha/ông và nút Merkle Root, log₂ 8 = 3). Các nhánh anh em khác hoàn toàn không bị ảnh hưởng.';
+      } else if (radio.value === '1') {
+        feedback.className = 'hypothesis-feedback incorrect';
+        feedback.textContent = '✗ Chưa chính xác. Khi lá bị đổi mã băm, nút cha của nó nhận đầu vào mới nên cũng bị đổi mã băm, kéo theo toàn bộ chuỗi tổ tiên lên đến Merkle Root đều thay đổi.';
+      } else {
+        feedback.className = 'hypothesis-feedback incorrect';
+        feedback.textContent = '✗ Chưa chính xác. Cây Merkle có tính độc lập nhánh: các nhánh anh em không chứa lá bị sửa vẫn giữ nguyên mã băm; chỉ các nút trên đường dẫn trực tiếp từ lá lên Root mới bị đổi (tổng cộng 4 nút).';
+      }
+    };
+  });
   drawMerkleProofRows(); showMerkleSource(); merkleControls(false);
   showLabLearning('merkle', 'practice');
   $('comparison-form').onsubmit = runComparison; $('comparison-reset').onclick = resetComparison;
