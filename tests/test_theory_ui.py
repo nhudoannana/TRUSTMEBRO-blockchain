@@ -20,11 +20,10 @@ def test_theory_html_served_and_structured():
     assert "Lý thuyết Nền tảng: Bitcoin & Blockchain — TrustMeBro" in html
     assert 'charset="utf-8"' in html.lower()
 
-    # Halftone nebula canvas & scripts
-    assert 'id="nebula-bg"' in html
-    assert 'id="nebula-canvas"' in html
-    assert "/ui/halftone-nebula.js" in html
-    assert "/ui/halftone-nebula.css" in html
+    # Bundui stars background & scripts
+    assert 'id="stars-bg"' in html
+    assert "/ui/stars.js" in html
+    assert "/ui/stars.css" in html
 
     # Reading progress bar
     assert 'id="reading-progress"' in html
@@ -127,3 +126,40 @@ def test_labs_page_utilities_includes_theory():
     html = resp.text
 
     assert '<a href="/ui/theory.html">Lý thuyết</a>' in html
+
+
+def test_stars_background_served_and_integrated():
+    """Verify Bundui stars background is served and integrated into all UI pages except landing."""
+    # Assets served
+    resp_js = client.get("/ui/stars.js")
+    assert resp_js.status_code == 200
+    assert "initStarsBackground" in resp_js.text
+    assert "star-layer" in resp_js.text
+
+    resp_css = client.get("/ui/stars.css")
+    assert resp_css.status_code == 200
+    assert ".stars-bg" in resp_css.text
+    assert "star-drift" in resp_css.text
+
+    # All UI pages contain stars background
+    pages = [
+        "/ui/modes.html",
+        "/ui/labs.html",
+        "/ui/theory.html",
+        "/ui/trustmebro.html",
+        "/ui/quiz.html",
+        "/ui/attacks.html",
+        "/ui/explorer.html",
+    ]
+    for p in pages:
+        r = client.get(p)
+        assert r.status_code == 200, f"Failed fetching {p}"
+        assert "/ui/stars.css" in r.text, f"{p} missing /ui/stars.css"
+        assert "/ui/stars.js" in r.text, f"{p} missing /ui/stars.js"
+        assert "stars-bg" in r.text, f"{p} missing stars-bg"
+
+    # landing.html is NOT modified
+    r_landing = client.get("/landing.html")
+    assert r_landing.status_code == 200
+    assert "/ui/stars.js" not in r_landing.text
+

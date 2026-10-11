@@ -1,0 +1,107 @@
+/* ==========================================================================
+   TrustMeBro — Bundui Stars Interactive Background
+   Minimalist animated 3-tier starfield with mouse spring parallax physics.
+   GPU-accelerated, theme-adaptive, seamless vertical looping.
+   ========================================================================== */
+
+body:has(.stars-bg),
+body:has(#nebula-bg) {
+  background: transparent !important;
+}
+
+.stars-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at bottom, #111a2e 0%, #060911 100%);
+  contain: strict;
+  transition: background 0.3s ease;
+}
+
+html[data-theme="light"] .stars-bg {
+  background: radial-gradient(ellipse at bottom, #e9f1fa 0%, #ffffff 100%);
+}
+
+.stars-parallax-container {
+  position: absolute;
+  inset: -100px;
+  width: calc(100vw + 200px);
+  height: calc(100vh + 200px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.star-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2000px;
+  will-change: transform;
+}
+
+.star-tile-1,
+.star-tile-2 {
+  position: absolute;
+  left: 50%;
+  background: transparent;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.star-tile-2 {
+  top: 2000px;
+}
+
+/* Layer 1: 1000 stars (1px), speed 50s */
+.star-layer-1 {
+  animation: star-drift 50s linear infinite;
+}
+
+/* Layer 2: 400 stars (2px), speed 100s */
+.star-layer-2 {
+  animation: star-drift 100s linear infinite;
+}
+
+/* Layer 3: 200 stars (3px), speed 150s */
+.star-layer-3 {
+  animation: star-drift 150s linear infinite;
+}
+
+@keyframes star-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -2000px, 0);
+  }
+}
+
+/* Soft atmospheric vignette for reading legibility */
+.stars-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 20%, rgba(6, 9, 17, 0.25) 0%, rgba(6, 9, 17, 0.75) 100%);
+}
+
+html[data-theme="light"] .stars-vignette {
+  background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.2) 0%, rgba(240, 244, 250, 0.6) 100%);
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-layer-1,
+  .star-layer-2,
+  .star-layer-3 {
+    animation: none !important;
+  }
+}
