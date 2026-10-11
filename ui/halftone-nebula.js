@@ -1,6 +1,6 @@
 /* ==========================================================================
-   TrustMeBro — Halftone Nebula WebGL2 Background (Clean Minimal Starfield)
-   Pure starry sky + Planet + Interactive Cursor/Ripples — Zero blotches.
+   TrustMeBro ΓÇö Halftone Nebula WebGL2 Background
+   Gold & Indigo Cosmic Halftone (Dark) / Luminous Lemon Yellow (Light)
    Zero dependencies, hardware-accelerated, theme-reactive, battery-friendly.
    ========================================================================== */
 
@@ -10,40 +10,40 @@
 
   const NEBULA_DARK = {
     pixel: 6,
-    dotMin: 0.10,
-    dotMax: 0.48,
+    dotMin: 0.12,
+    dotMax: 0.56,
     levels: 7,
     scale: 1.7,
-    warp: 1.0,
+    warp: 1.6,
     drift: 0.038,
-    density: 0.0,
+    density: 0.52,
     threshold: 0.54,
     softness: 0.5,
-    band: 0.0,
+    band: 0.62,
     bandAngle: 0.85,
     bandOffset: 0.38,
     bandWidth: 0.35,
-    haze: 0.0,
-    stars: 1.6,       // Bầu trời sao phong phú, lấp lánh rõ nét
-    twinkle: 1.8,     // Tần số nhấp nháy sống động
-    starDrift: 1.3,   // Vận tốc trôi dạt êm dịu
-    sparkles: 9,      // Các ngôi sao 4 cánh kim sắc nét
+    haze: 0.85,
+    stars: 1.2,
+    twinkle: 1.6,
+    starDrift: 1.3,
+    sparkles: 9,
     seed: 14,
     spikeWidth: 1,
-    planet: true,     // Giữ lại hành tinh
-    planetX: 0.84,    // Đặt hành tinh ở góc trời bên phải để không che khuất chữ
-    planetY: 0.22,
+    planet: false,
+    planetX: 0.26,
+    planetY: 0.36,
     planetRadius: 0.075,
-    parallax: 1.0,
-    lens: 0.55,
+    parallax: 1,
+    lens: 0.6,
     lensRadius: 180,
-    lensPush: 0.28,
+    lensPush: 0.32,
     rippleSpeed: 440,
-    speed: 1.05,
-    vignette: 0.0,    // Không làm tối góc
-    grain: 0.0,       // Không nhiễu lem
+    speed: 1.1,
+    vignette: 0.48,
+    grain: 0.032,
     lightMode: 0.0,
-    // TrustMeBro Dark: Nền đêm Midnight thăm thẳm + Ánh sao Vàng Gold TrustMeBro
+    // TrustMeBro Dark: Deep Midnight Indigo base + Warm Amber & Gold highlights
     voidColor: "#060911",
     hazeColor: "#10192a",
     duskColor: "#1d2c47",
@@ -56,28 +56,28 @@
   const NEBULA_LIGHT = {
     pixel: 6,
     dotMin: 0.08,
-    dotMax: 0.36,
+    dotMax: 0.38,
     levels: 6,
     scale: 1.7,
-    warp: 1.0,
+    warp: 1.4,
     drift: 0.026,
-    density: 0.0,
+    density: 0.38,
     threshold: 0.50,
     softness: 0.55,
-    band: 0.0,
+    band: 0.55,
     bandAngle: 0.85,
     bandOffset: 0.38,
     bandWidth: 0.35,
-    haze: 0.0,
-    stars: 0.9,
+    haze: 0.40,
+    stars: 0.8,
     twinkle: 1.4,
     starDrift: 1.0,
     sparkles: 8,
     seed: 14,
     spikeWidth: 1,
-    planet: false,    // Chế độ sáng tắt hành tinh tối
-    planetX: 0.84,
-    planetY: 0.22,
+    planet: false, // Tat qua cau hanh tinh de nen trang tinh sach
+    planetX: 0.26,
+    planetY: 0.36,
     planetRadius: 0.075,
     parallax: 0.8,
     lens: 0.45,
@@ -85,17 +85,17 @@
     lensPush: 0.25,
     rippleSpeed: 420,
     speed: 0.95,
-    vignette: 0.0,
-    grain: 0.0,
+    vignette: 0.0, // Triet tieu hoan toan goc toi
+    grain: 0.0,   // Triet tieu hoan toan nhieu xam
     lightMode: 1.0,
-    // Tông VÀNG CHANH TƯƠI SÁNG (Lemon Yellow / Citrus Clean) — Tuyệt đối không xám, không nâu:
-    voidColor: "#ffffff",
-    hazeColor: "#fffde7",
-    duskColor: "#fff9c4",
-    wineColor: "#fff59d",
-    crimsonColor: "#ffee58",
-    hotColor: "#fdd835",
-    starColor: "#fbc02d"
+    // Tong VANG CHANH TUOI SANG (Lemon Yellow / Citrus Clean) - Khong xam, khong nau:
+    voidColor: "#ffffff",    // Trang tinh khiet
+    hazeColor: "#fffde7",    // Suong vang chanh sieu nhat
+    duskColor: "#fff9c4",    // Kem vang chanh thanh nhe
+    wineColor: "#fff59d",    // Vang chanh tuoi sang
+    crimsonColor: "#ffee58", // Vang chanh ruc ro
+    hotColor: "#fdd835",     // Vang chanh noi bat
+    starColor: "#fbc02d"     // Sao vang chanh lap lanh
   };
 
   const UNIFORM_SLOTS = [
@@ -170,11 +170,14 @@ vec2 shift(float depth){
   return floor(uLook * uParallax * depth * 28.0);
 }
 
-// Bỏ toàn bộ các vết mây tĩnh trôi nổi (static noisy gas clouds).
-// Nền hoàn toàn sạch sẽ; hiệu ứng chấm halftone chỉ xuất hiện khi rê chuột hoặc click sóng xung kích!
 vec3 field(vec2 pos, vec2 resCss){
+  float minSide = min(resCss.x, resCss.y);
+  vec2 uv = (pos - 0.5 * resCss) / minSide;
+  vec2 p = uv * uScale + uLook * uParallax * 0.05;
+
   vec2 toP = pos - uPointer;
   float lamp = exp(-dot(toP, toP) / (uLensRadius * uLensRadius)) * uPointerOn;
+  p += toP / minSide * lamp * uLensPush * uScale;
 
   float ring = 0.0;
   for (int i = 0; i < ${MAX_RIPPLES}; i++) {
@@ -186,7 +189,21 @@ vec3 field(vec2 pos, vec2 resCss){
     float w = 14.0 + age * 26.0;
     float k = exp(-pow((dist - age * uRippleSpeed) / w, 2.0)) * (1.0 - age / 2.4) * r.w;
     ring += k;
+    p += dv / max(dist, 1.0) * k * 0.12;
   }
+
+  float t = uTime * uDrift;
+  vec2 q = vec2(fbm(p + vec2(0.0, t * 0.7)), fbm(p + vec2(5.2, 1.3) - t * 0.5));
+  float n = fbm(p + uWarp * q + vec2(t * 0.4, -t * 0.25));
+
+  vec2 dir = vec2(cos(uBandAngle), sin(uBandAngle));
+  float along = dot(uv, dir);
+  float across = dot(uv, vec2(-dir.y, dir.x)) - uBandOffset - 0.22 * sin(along * 2.3 + t * 3.0) - (q.x - 0.5) * 0.35;
+  float river = exp(-across * across / (uBandWidth * uBandWidth));
+
+  float raw = n + river * uBand * 0.5 + (uDensity - 0.5) * 0.5;
+  float d = smoothstep(uThreshold, uThreshold + uSoftness, raw);
+  d = clamp(d + lamp * uLens * 0.45 + ring * 0.55, 0.0, 1.0);
 
   for (int i = 0; i < ${MAX_SPARKS}; i++) {
     if (i >= uSparkCount) break;
@@ -194,11 +211,12 @@ vec3 field(vec2 pos, vec2 resCss){
     vec4 b = uSparkB[i];
     float grow = smoothstep(0.0, 0.6, uTime - s.w);
     float dist = length(pos - s.xy - shift(1.2));
-    ring += exp(-dist / max(b.w * 2.2 * (1.0 + b.z * 0.6), 1.0)) * 0.35 * grow;
+    d += exp(-dist / max(b.w * 2.2 * (1.0 + b.z * 0.6), 1.0)) * 0.55 * grow;
   }
 
-  float d = clamp(lamp * uLens * 0.32 + ring * 0.45, 0.0, 1.0);
-  return vec3(d, 0.0, 0.0);
+  float hz = smoothstep(0.25, 0.75, n + river * 0.25) * uHaze;
+  float tone = fbm(p * 0.45 + vec2(11.0, -3.0) + t * 0.2);
+  return vec3(clamp(d, 0.0, 1.0), hz, tone);
 }
 
 void main(){
@@ -212,23 +230,30 @@ void main(){
   float dith = bayer4(cell);
 
   vec3 g = field(cellC, resCss);
+  vec3 hazeCol = mix(uHazeColor, uDuskColor, smoothstep(0.38, 0.62, g.z));
   float dq = clamp(floor(g.x * L + dith) / L, 0.0, 1.0);
-  // Không vẽ chấm halftone bừa bãi khi không có tương tác:
-  float r = dq < 0.02 ? 0.0 : mix(uDotMin, uDotMax, sqrt(dq));
-  float dotMask = step(length(f), r);
+  float hq = floor(g.y * 3.0 + dith) / 3.0;
 
   vec3 col;
   if (uLightMode > 0.5) {
-    vec3 bg = uVoidColor;
+    // Light Mode: Nen trang tinh khiet, may va cham vang chanh tuoi sang
+    vec3 bg = mix(uVoidColor, hazeCol, hq * 0.45);
+    bg = mix(bg, uWineColor, smoothstep(0.15, 0.65, dq) * 0.35);
+    float r = mix(uDotMin, uDotMax, sqrt(dq));
+    float dotMask = step(length(f), r);
     vec3 dotCol = mix(uCrimsonColor, uHotColor, smoothstep(0.05, 0.85, dq));
     col = mix(bg, dotCol, dotMask);
   } else {
-    vec3 bg = uVoidColor;
-    vec3 dotCol = ramp(min(dq + 0.1, 1.0), uHazeColor);
+    // Dark Mode: Bau troi khong gian huyen bi dam da
+    vec3 bg = mix(uVoidColor, hazeCol, hq * 0.7);
+    bg = mix(bg, ramp(dq * 0.7, hazeCol) * 0.42, smoothstep(0.0, 0.3, dq));
+    float r = mix(uDotMin, uDotMax, sqrt(dq));
+    float dotMask = step(length(f), r);
+    vec3 dotCol = dq < 0.01 ? mix(uVoidColor, hazeCol, 0.35 + hq * 0.5) : ramp(min(dq + 0.1, 1.0), hazeCol);
     col = mix(bg, dotCol, dotMask);
   }
 
-  // ---- pixel stars, three parallax depths (Tinh tế, trôi dạt êm đềm) --------------------
+  // ---- pixel stars, three parallax depths ------------------------------------
   vec3 starAcc = vec3(0.0);
   float starA = 0.0;
   for (int l = 0; l < 3; l++) {
@@ -254,10 +279,10 @@ void main(){
   if (uLightMode > 0.5) {
     col = mix(col, starAcc, starA * 0.85);
   } else {
-    col = mix(col, starAcc / max(starA, 1e-3), starA);
+    col = mix(col, starAcc / max(starA, 1e-3), starA * (1.0 - g.x * 0.55));
   }
 
-  // ---- the planet (Hành tinh ở góc trời bên phải) --------------------
+  // ---- the planet, lit from the upper left --------------------
   if (uPlanet.w > 0.5) {
     vec2 pc = uPlanet.xy + shift(0.8);
     float R = uPlanet.z;
@@ -271,7 +296,7 @@ void main(){
       float pq = floor(pd * L + dith) / L;
       vec3 pbg = mix(mix(uVoidColor, uWineColor, 0.35), uWineColor, pq);
       float pr = mix(0.2, 0.62, sqrt(pq));
-      vec3 pdot = ramp(min(pq * 0.85 + 0.25, 1.0), uHazeColor);
+      vec3 pdot = ramp(min(pq * 0.85 + 0.25, 1.0), hazeCol);
       col = mix(pbg, pdot, step(length(f), pr));
     }
   }
@@ -320,6 +345,12 @@ void main(){
     }
   }
 
+  // ---- post -----------------------------------------------------------------
+  if (uLightMode <= 0.5) {
+    vec2 vu = gl_FragCoord.xy / uRes - 0.5;
+    col *= 1.0 - uVignette * smoothstep(0.35, 0.95, length(vu * vec2(uRes.x / uRes.y, 1.0) * 1.1));
+    col += (hash12(floor(css) + fract(uTime) * 91.0) - 0.5) * uGrain;
+  }
   frag = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 
