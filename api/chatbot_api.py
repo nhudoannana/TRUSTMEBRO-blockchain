@@ -2,6 +2,7 @@
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
+import contextvars
 import importlib.util
 import json
 import logging
@@ -10,6 +11,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -18,6 +20,35 @@ from pydantic import BaseModel, StrictStr, Field, ValidationError, model_validat
 from typing import Literal
 
 from api.session_store import current_session
+
+logger = logging.getLogger('trustmebro.chatbot')
+_current_req_id: contextvars.ContextVar[str | None] = contextvars.ContextVar('chatbot_req_id', default=None)
+_current_req_stage: contextvars.ContextVar[str] = contextvars.ContextVar('chatbot_req_stage', default='init')
+_current_req_start: contextvars.ContextVar[float | None] = contextvars.ContextVar('chatbot_req_start', default=None)
+
+
+def _log_diagnostic(req_id, stage, elapsed, *, exc_class=None, status=None, code=None):
+    try:
+        if isinstance(status, (int, float)):
+            status_num = int(status)
+        elif hasattr(status, 'value') and isinstance(status.value, int):
+            status_num = int(status.value)
+        else:
+            status_num = None
+        elapsed_str = f"{elapsed:.3f}s"
+        if exc_class or (code and code not in ('answered', 'blocked')):
+            logger.warning(
+                "chatbot_diagnostic req_id=%s stage=%s elapsed=%s exc=%s upstream_status=%s code=%s",
+                req_id, stage, elapsed_str, exc_class, status_num, code,
+            )
+        else:
+            logger.info(
+                "chatbot_diagnostic req_id=%s stage=%s elapsed=%s exc=%s upstream_status=%s code=%s",
+                req_id, stage, elapsed_str, exc_class, status_num, code,
+            )
+    except Exception:
+        pass
+
 
 router = APIRouter(prefix='/api/chatbot', tags=['chatbot'])
 BODY_BYTES = 32768
@@ -57,8 +88,12 @@ SENSITIVE = re.compile(
 
 
 class ChatError(Exception):
-    def __init__(self, code, retry_after=None):
-        self.code, self.retry_after = code, retry_after
+    def __init__(self, code, retry_after=None, *, stage=None, exc_class=None, upstream_status=None):
+        self.code = code
+        self.retry_after = retry_after
+        self.stage = stage
+        self.exc_class = exc_class
+        self.upstream_status = upstream_status
 
 
 def error_response(error):
@@ -251,33 +286,33 @@ def _sdk_result(response):
         return {'code': 'blocked'}
     candidates = getattr(response, 'candidates', None)
     if not isinstance(candidates, list) or len(candidates) != 1:
-        raise ChatError('provider_invalid_response')
+        raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
     candidate = candidates[0]
     finish = getattr(candidate, 'finish_reason', None)
     finish = getattr(finish, 'value', finish)
     if finish in ('SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'):
         return {'code': 'blocked'}
     if finish not in ('STOP', 'MAX_TOKENS'):
-        raise ChatError('provider_invalid_response')
+        raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
     parts = getattr(getattr(candidate, 'content', None), 'parts', None)
     if not isinstance(parts, list) or not parts:
-        raise ChatError('provider_invalid_response')
+        raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
     texts = []
     for part in parts:
         try:
             data = part.model_dump(exclude_none=True)
         except (AttributeError, TypeError, ValueError):
-            raise ChatError('provider_invalid_response') from None
+            raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError') from None
         if not isinstance(data, dict):
-            raise ChatError('provider_invalid_response')
+            raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
         if data.get('thought') is True:
             continue
         if set(data) - {'text', 'thought', 'thought_signature'} or not isinstance(data.get('text'), str):
-            raise ChatError('provider_invalid_response')
+            raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
         texts.append(data['text'])
     answer = ''.join(texts)
     if not answer.strip():
-        raise ChatError('provider_invalid_response')
+        raise ChatError('provider_invalid_response', stage='parse', exc_class='ValueError')
     return {'code': 'answered', 'answer': answer, 'truncated': finish == 'MAX_TOKENS'}
 
 
@@ -289,18 +324,19 @@ async def _close_sdk(client):
 
 
 async def generate_answer(message, history):
+    _current_req_stage.set('client_init')
     try:
         genai, types, errors, httpx, DebugConfig = _load_sdk()
     except ChatError:
         raise
-    except Exception:
-        raise ChatError('sdk_unavailable') from None
+    except Exception as exc:
+        raise ChatError('sdk_unavailable', stage='client_init', exc_class=exc.__class__.__name__) from None
     context_text = load_context()
     key = os.environ.get('GEMINI_API_KEY', '').strip()
     if not key:
-        raise ChatError('key_unavailable')
+        raise ChatError('key_unavailable', stage='client_init')
     if os.environ.get('GEMINI_MODEL', DEFAULT_MODEL) != DEFAULT_MODEL:
-        raise ChatError('provider_configuration')
+        raise ChatError('provider_configuration', stage='client_init')
     try:
         contents = [types.Content(role='user' if turn['role'] == 'user' else 'model',
                                   parts=[types.Part(text=turn['content'])]) for turn in history]
@@ -319,6 +355,7 @@ async def generate_answer(message, history):
                 client_args={'trust_env': False}, async_client_args={'trust_env': False})))
         try:
             client = await asyncio.shield(creation)
+            _current_req_stage.set('transport')
             deadline = asyncio.timeout(GENERATION_TIMEOUT_SECONDS)
             try:
                 async with deadline:
@@ -326,29 +363,37 @@ async def generate_answer(message, history):
                         model=DEFAULT_MODEL, contents=contents, config=config)
             except Exception:
                 if deadline.expired():
-                    raise ChatError('provider_timeout') from None
+                    raise ChatError('provider_timeout', stage='transport', exc_class='TimeoutError') from None
                 raise
             if deadline.expired():
-                raise ChatError('provider_timeout')
+                raise ChatError('provider_timeout', stage='transport', exc_class='TimeoutError')
         finally:
             try:
                 await _finish_worker(creation)
             finally:
                 if creation.done() and not creation.cancelled() and creation.exception() is None:
                     await _finish_worker(asyncio.create_task(_close_sdk(creation.result())))
+        _current_req_stage.set('parse')
         return _sdk_result(response)
     except ChatError:
         raise
-    except (TimeoutError, httpx.TimeoutException):
-        raise ChatError('provider_timeout') from None
+    except (TimeoutError, httpx.TimeoutException) as error:
+        raise ChatError('provider_timeout', stage='transport', exc_class=error.__class__.__name__) from None
     except errors.APIError as error:
+        status = getattr(error, 'code', None)
         if error.code in (400, 401, 403, 404):
-            raise ChatError('provider_configuration') from None
-        if error.code in (408, 504):
-            raise ChatError('provider_timeout') from None
-        raise ChatError('provider_unavailable', 60 if error.code == 429 else None) from None
-    except Exception:
-        raise ChatError('provider_unavailable') from None
+            code = 'provider_configuration'
+            retry = None
+        elif error.code in (408, 504):
+            code = 'provider_timeout'
+            retry = None
+        else:
+            code = 'provider_unavailable'
+            retry = 60 if error.code == 429 else None
+        raise ChatError(code, retry, stage='transport', exc_class=error.__class__.__name__, upstream_status=status) from None
+    except Exception as error:
+        status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
+        raise ChatError('provider_unavailable', stage=_current_req_stage.get(), exc_class=error.__class__.__name__, upstream_status=status) from None
 
 
 async def _finish_worker(task):
@@ -439,33 +484,39 @@ async def chatbot_status(request: Request):
 
 async def _chatbot_post(request):
     try:
+        _current_req_stage.set('ingest')
         body = await read_request(request)
         context = current_session()
+        _current_req_stage.set('session_check')
         if await asyncio.to_thread(_session_changed, context, body.context_generation):
-            raise ChatError('session_changed')
+            raise ChatError('session_changed', stage='session_check')
         provider = request.app.state.chatbot_provider
+        _current_req_stage.set('availability')
         code = await asyncio.to_thread(availability, provider)
         if code != 'configured':
             raise ChatError({'disabled': 'chat_disabled', 'sdk_missing': 'sdk_unavailable',
                              'key_missing': 'key_unavailable',
-                             'config_invalid': 'provider_configuration'}[code])
+                             'config_invalid': 'provider_configuration'}[code], stage='availability')
         if not callable(provider):
             provider = generate_answer
+        _current_req_stage.set('admit')
         async with request.app.state.chatbot_budget.admit(context, body.context_generation):
             provider_error = None
             try:
                 result = await provider(body.message, [turn.model_dump() for turn in body.history])
             except ChatError as error:
                 provider_error = error
-            except Exception:
+            except Exception as error:
                 # Provider exceptions may contain credentials or request bodies.
-                provider_error = ChatError('provider_unavailable')
+                status = getattr(error, 'status_code', None) or getattr(getattr(error, 'response', None), 'status_code', None)
+                provider_error = ChatError('provider_unavailable', stage=_current_req_stage.get(), exc_class=error.__class__.__name__, upstream_status=status)
             if await asyncio.to_thread(_session_changed, context, body.context_generation):
-                raise ChatError('session_changed')
+                raise ChatError('session_changed', stage='session_check')
             if provider_error is not None:
                 raise provider_error
+            _current_req_stage.set('format')
             if not isinstance(result, dict) or result.get('code') not in ('answered', 'blocked'):
-                raise ChatError('provider_invalid_response')
+                raise ChatError('provider_invalid_response', stage='format', exc_class='ValueError')
             response = {'code': result['code'], 'is_ai': True,
                         'context_generation': body.context_generation,
                         'context_version': CONTEXT_VERSION, 'lab_links': trusted_lab_links(body.message),
@@ -475,41 +526,68 @@ async def _chatbot_post(request):
             else:
                 answer = result.get('answer')
                 if not isinstance(answer, str) or not answer.strip():
-                    raise ChatError('provider_invalid_response')
+                    raise ChatError('provider_invalid_response', stage='format', exc_class='ValueError')
                 try:
                     encoded = answer.encode('utf-8')
                 except UnicodeError:
-                    raise ChatError('provider_invalid_response') from None
+                    raise ChatError('provider_invalid_response', stage='format', exc_class='UnicodeError') from None
                 response['truncated'] = len(encoded) > ANSWER_BYTES or result.get('truncated') is True
                 response['answer'] = encoded[:ANSWER_BYTES].decode('utf-8', errors='ignore')
                 if not response['answer'].strip():
-                    raise ChatError('provider_invalid_response')
+                    raise ChatError('provider_invalid_response', stage='format', exc_class='ValueError')
             # Links are backend-owned; provider text/URLs cannot alter the catalog.
+            req_id = _current_req_id.get() or 'unknown'
+            start = _current_req_start.get() or time.monotonic()
+            elapsed = time.monotonic() - start
+            _log_diagnostic(req_id, 'complete', elapsed, code=result['code'])
             return response
     except ChatError as error:
+        req_id = _current_req_id.get() or 'unknown'
+        start = _current_req_start.get() or time.monotonic()
+        elapsed = time.monotonic() - start
+        stage = error.stage or _current_req_stage.get()
+        exc_class = error.exc_class or error.__class__.__name__
+        _log_diagnostic(req_id, stage, elapsed, exc_class=exc_class, status=error.upstream_status, code=error.code)
         return error_response(error)
 
 
 @router.post('')
 async def chatbot_post(request: Request):
-    context = current_session()
-    generation = context.generation  # Immutable fallback snapshot; locked checks run in workers.
-    expired = False
-
-    def deadline_fired():
-        nonlocal expired
-        expired = True
-
-    timer = asyncio.get_running_loop().call_later(REQUEST_TIMEOUT_SECONDS, deadline_fired)
+    req_id = uuid.uuid4().hex[:8]
+    start_time = time.monotonic()
+    token_id = _current_req_id.set(req_id)
+    token_start = _current_req_start.set(start_time)
+    token_stage = _current_req_stage.set('ingest')
     try:
-        # Covers ingestion too; keep the deadline outcome even if a provider suppresses cancellation.
-        result = await asyncio.wait_for(_chatbot_post(request), timeout=REQUEST_TIMEOUT_SECONDS)
+        context = current_session()
+        generation = context.generation  # Immutable fallback snapshot; locked checks run in workers.
+        expired = False
+
+        def deadline_fired():
+            nonlocal expired
+            expired = True
+
+        timer = asyncio.get_running_loop().call_later(REQUEST_TIMEOUT_SECONDS, deadline_fired)
+        try:
+            # Covers ingestion too; keep the deadline outcome even if a provider suppresses cancellation.
+            result = await asyncio.wait_for(_chatbot_post(request), timeout=REQUEST_TIMEOUT_SECONDS)
+            changed = await asyncio.to_thread(_session_changed, context, generation)
+            if not expired:
+                if changed:
+                    elapsed = time.monotonic() - start_time
+                    _log_diagnostic(req_id, 'session_check', elapsed, exc_class='ChatError', code='session_changed')
+                    return error_response(ChatError('session_changed'))
+                return result
+        except TimeoutError:
+            pass
+        finally:
+            timer.cancel()
         changed = await asyncio.to_thread(_session_changed, context, generation)
-        if not expired:
-            return error_response(ChatError('session_changed')) if changed else result
-    except TimeoutError:
-        pass
+        final_code = 'session_changed' if changed else 'provider_timeout'
+        elapsed = time.monotonic() - start_time
+        _log_diagnostic(req_id, 'deadline', elapsed, exc_class='TimeoutError', code=final_code)
+        return error_response(ChatError(final_code))
     finally:
-        timer.cancel()
-    changed = await asyncio.to_thread(_session_changed, context, generation)
-    return error_response(ChatError('session_changed' if changed else 'provider_timeout'))
+        _current_req_id.reset(token_id)
+        _current_req_start.reset(token_start)
+        _current_req_stage.reset(token_stage)
