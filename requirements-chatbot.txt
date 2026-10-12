@@ -1,0 +1,4 @@
+# Optional chatbot dependency; base requirements.txt remains unchanged.
+# Inspect upgrades before installing: 2.29.0 requires Pydantic >=2.12.5.
+# Do not install into the current audited Pydantic 2.9.2 environment without review.
+google-genai==2.29.0

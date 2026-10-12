@@ -1,14 +1,16 @@
-"""Bounded, session-owned chat contract. C1 has no live provider or project context."""
+"""Bounded, session-owned chat contract. Optional SDK stays lazy and disabled by default."""
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 import importlib.util
 import json
+import logging
 import math
 import os
 import re
 import threading
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -23,7 +25,7 @@ MESSAGE_BYTES = 2048
 HISTORY_BYTES = 12288
 ANSWER_BYTES = 4096
 REQUEST_TIMEOUT_SECONDS = 20
-CONTEXT_VERSION = 'chatbot-context-v1'  # Reserved contract version; C2 supplies the context.
+CONTEXT_VERSION = 'chatbot-context-v1'
 DEFAULT_MODEL = 'gemini-3.5-flash-lite'
 
 ERRORS = {
@@ -178,7 +180,175 @@ def availability(provider):
         return 'key_missing'
     if os.environ.get('GEMINI_MODEL', DEFAULT_MODEL) != DEFAULT_MODEL:
         return 'config_invalid'
-    return 'disabled'  # C1 deliberately has no Gemini adapter, even with SDK/key present.
+    try:
+        _load_sdk()
+        load_context()
+    except ChatError:
+        return 'config_invalid'
+    except Exception:
+        return 'sdk_missing'
+    return 'configured'
+
+
+# Optional SDK and context are loaded only for an explicitly enabled chatbot.
+CONTEXT_PATH = Path(__file__).resolve().parents[1] / 'docs' / 'CHATBOT_CONTEXT_V1.md'
+SDK_VERSION = '2.29.0'
+GENERATION_TIMEOUT_SECONDS = 15
+LAB_TOPICS = (
+    ('rsa-oaep', 'RSA · Mã hóa', '/ui/labs.html#rsa-oaep', r'oaep|mã hóa|mã hoá|giải mã|encrypt'),
+    ('rsa-pss', 'RSA · Chữ ký', '/ui/labs.html#rsa-pss', r'pss'),
+    ('sha', 'SHA-256', '/ui/labs.html#sha', r'sha|hash|băm'),
+    ('signatures', 'Chữ ký số', '/ui/labs.html#signatures', r'ecdsa|chữ ký|signature'),
+    ('merkle', 'Cây Merkle', '/ui/labs.html#merkle', r'merkle|inclusion|proof'),
+    ('fork', 'Fork & Reorg', '/ui/labs.html#fork', r'fork|reorg|credential|nhánh|\bc[123]\b'),
+    ('blocks', 'Khối & Chuỗi khối', '/ui/labs.html#blocks', r'block|khối|chuỗi khối'),
+    ('consensus', 'PoW–PoS', '/ui/labs.html#consensus', r'\bpow\b|\bpos\b|đồng thuận|consensus'),
+    ('network', 'Đồng bộ mạng', '/ui/labs.html#network', r'network|\bhttp\b|mạng|đồng bộ'),
+    ('tamper', 'Sửa dữ liệu', '/ui/labs.html#tamper', r'tamper|sửa dữ liệu'),
+    ('attacks', 'Tấn công & Phòng vệ', '/ui/attacks.html', r'attack|tấn công|51%|sybil|eclipse|timejack'),
+    ('theory', 'Lý thuyết', '/ui/theory.html', r'lý thuyết|theory'),
+    ('quiz', 'Quiz', '/ui/quiz.html', r'quiz|trắc nghiệm|ôn tập'),
+)
+
+
+def load_context():
+    try:
+        with CONTEXT_PATH.open('rb') as source:
+            raw = source.read(8193)
+        text = raw.decode('utf-8')
+    except (OSError, UnicodeError):
+        raise ChatError('provider_configuration') from None
+    if (not raw or len(raw) > 8192 or '[XM]' in text
+            or f'context_version: {CONTEXT_VERSION}' not in text):
+        raise ChatError('provider_configuration')
+    return text
+
+
+def trusted_lab_links(message):
+    query = message.lower()
+    selected = [{'id': key, 'label': label, 'href': href}
+                for key, label, href, pattern in LAB_TOPICS if re.search(pattern, query)]
+    return selected[:3] or [{'id': 'labs', 'label': 'Các lab', 'href': '/ui/labs.html'}]
+
+
+def _load_sdk():
+    # No SDK body/debug logging, record/replay files, credentials or tools in context.
+    logging.getLogger('google_genai').setLevel(logging.CRITICAL)
+    logging.getLogger('google_genai._api_client').setLevel(logging.CRITICAL)
+    genai = importlib.import_module('google.genai')
+    if genai.__version__ != SDK_VERSION:
+        raise ChatError('provider_configuration')
+    return (genai, importlib.import_module('google.genai.types'),
+            importlib.import_module('google.genai.errors'), importlib.import_module('httpx'),
+            importlib.import_module('google.genai.client').DebugConfig)
+
+
+def _sdk_result(response):
+    feedback = getattr(response, 'prompt_feedback', None)
+    block = getattr(feedback, 'block_reason', None)
+    block = getattr(block, 'value', block)
+    if block not in (None, '', 'BLOCKED_REASON_UNSPECIFIED'):
+        return {'code': 'blocked'}
+    candidates = getattr(response, 'candidates', None)
+    if not isinstance(candidates, list) or len(candidates) != 1:
+        raise ChatError('provider_invalid_response')
+    candidate = candidates[0]
+    finish = getattr(candidate, 'finish_reason', None)
+    finish = getattr(finish, 'value', finish)
+    if finish in ('SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'):
+        return {'code': 'blocked'}
+    if finish not in ('STOP', 'MAX_TOKENS'):
+        raise ChatError('provider_invalid_response')
+    parts = getattr(getattr(candidate, 'content', None), 'parts', None)
+    if not isinstance(parts, list) or not parts:
+        raise ChatError('provider_invalid_response')
+    texts = []
+    for part in parts:
+        try:
+            data = part.model_dump(exclude_none=True)
+        except (AttributeError, TypeError, ValueError):
+            raise ChatError('provider_invalid_response') from None
+        if not isinstance(data, dict):
+            raise ChatError('provider_invalid_response')
+        if data.get('thought') is True:
+            continue
+        if set(data) - {'text', 'thought', 'thought_signature'} or not isinstance(data.get('text'), str):
+            raise ChatError('provider_invalid_response')
+        texts.append(data['text'])
+    answer = ''.join(texts)
+    if not answer.strip():
+        raise ChatError('provider_invalid_response')
+    return {'code': 'answered', 'answer': answer, 'truncated': finish == 'MAX_TOKENS'}
+
+
+async def _close_sdk(client):
+    try:
+        await client.aio.aclose()
+    finally:
+        await asyncio.to_thread(client.close)
+
+
+async def generate_answer(message, history):
+    try:
+        genai, types, errors, httpx, DebugConfig = _load_sdk()
+    except ChatError:
+        raise
+    except Exception:
+        raise ChatError('sdk_unavailable') from None
+    context_text = load_context()
+    key = os.environ.get('GEMINI_API_KEY', '').strip()
+    if not key:
+        raise ChatError('key_unavailable')
+    if os.environ.get('GEMINI_MODEL', DEFAULT_MODEL) != DEFAULT_MODEL:
+        raise ChatError('provider_configuration')
+    try:
+        contents = [types.Content(role='user' if turn['role'] == 'user' else 'model',
+                                  parts=[types.Part(text=turn['content'])]) for turn in history]
+        contents.append(types.Content(role='user', parts=[types.Part(text=message)]))
+        config = types.GenerateContentConfig(
+            system_instruction=context_text, candidate_count=1, max_output_tokens=768,
+            response_modalities=['TEXT'],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            thinking_config=types.ThinkingConfig(thinking_level='MINIMAL', include_thoughts=False))
+        creation = asyncio.create_task(asyncio.to_thread(
+            genai.Client, api_key=key, enterprise=False,
+            debug_config=DebugConfig(client_mode=None, replays_directory=None, replay_id=None),
+            http_options=types.HttpOptions(
+                base_url='https://generativelanguage.googleapis.com', api_version='v1beta',
+                timeout=15000, retry_options=types.HttpRetryOptions(attempts=1),
+                client_args={'trust_env': False}, async_client_args={'trust_env': False})))
+        try:
+            client = await asyncio.shield(creation)
+            deadline = asyncio.timeout(GENERATION_TIMEOUT_SECONDS)
+            try:
+                async with deadline:
+                    response = await client.aio.models.generate_content(
+                        model=DEFAULT_MODEL, contents=contents, config=config)
+            except Exception:
+                if deadline.expired():
+                    raise ChatError('provider_timeout') from None
+                raise
+            if deadline.expired():
+                raise ChatError('provider_timeout')
+        finally:
+            try:
+                await _finish_worker(creation)
+            finally:
+                if creation.done() and not creation.cancelled() and creation.exception() is None:
+                    await _finish_worker(asyncio.create_task(_close_sdk(creation.result())))
+        return _sdk_result(response)
+    except ChatError:
+        raise
+    except (TimeoutError, httpx.TimeoutException):
+        raise ChatError('provider_timeout') from None
+    except errors.APIError as error:
+        if error.code in (400, 401, 403, 404):
+            raise ChatError('provider_configuration') from None
+        if error.code in (408, 504):
+            raise ChatError('provider_timeout') from None
+        raise ChatError('provider_unavailable', 60 if error.code == 429 else None) from None
+    except Exception:
+        raise ChatError('provider_unavailable') from None
 
 
 async def _finish_worker(task):
@@ -260,7 +430,7 @@ class ChatbotBudget:
 async def chatbot_status(request: Request):
     context = current_session()
     generation = await asyncio.to_thread(_generation, context)
-    code = availability(request.app.state.chatbot_provider)
+    code = await asyncio.to_thread(availability, request.app.state.chatbot_provider)
     return {'code': code, 'configured': code == 'configured', 'provider_verified': False,
             'context_generation': generation, 'context_version': CONTEXT_VERSION,
             'limits': {'message_bytes': MESSAGE_BYTES, 'history_messages': 6,
@@ -274,15 +444,19 @@ async def _chatbot_post(request):
         if await asyncio.to_thread(_session_changed, context, body.context_generation):
             raise ChatError('session_changed')
         provider = request.app.state.chatbot_provider
-        code = availability(provider)
+        code = await asyncio.to_thread(availability, provider)
         if code != 'configured':
             raise ChatError({'disabled': 'chat_disabled', 'sdk_missing': 'sdk_unavailable',
                              'key_missing': 'key_unavailable',
                              'config_invalid': 'provider_configuration'}[code])
+        if not callable(provider):
+            provider = generate_answer
         async with request.app.state.chatbot_budget.admit(context, body.context_generation):
             provider_error = None
             try:
                 result = await provider(body.message, [turn.model_dump() for turn in body.history])
+            except ChatError as error:
+                provider_error = error
             except Exception:
                 # Provider exceptions may contain credentials or request bodies.
                 provider_error = ChatError('provider_unavailable')
@@ -294,7 +468,7 @@ async def _chatbot_post(request):
                 raise ChatError('provider_invalid_response')
             response = {'code': result['code'], 'is_ai': True,
                         'context_generation': body.context_generation,
-                        'context_version': CONTEXT_VERSION, 'lab_links': [],
+                        'context_version': CONTEXT_VERSION, 'lab_links': trusted_lab_links(body.message),
                         'truncated': False}
             if result['code'] == 'blocked':
                 response.update(answer=None, message='AI chưa trả lời nội dung này; hãy hỏi về khái niệm.')
@@ -306,11 +480,11 @@ async def _chatbot_post(request):
                     encoded = answer.encode('utf-8')
                 except UnicodeError:
                     raise ChatError('provider_invalid_response') from None
-                response['truncated'] = len(encoded) > ANSWER_BYTES
+                response['truncated'] = len(encoded) > ANSWER_BYTES or result.get('truncated') is True
                 response['answer'] = encoded[:ANSWER_BYTES].decode('utf-8', errors='ignore')
                 if not response['answer'].strip():
                     raise ChatError('provider_invalid_response')
-            # C2 supplies curated, server-owned links. Provider URLs are never trusted.
+            # Links are backend-owned; provider text/URLs cannot alter the catalog.
             return response
     except ChatError as error:
         return error_response(error)

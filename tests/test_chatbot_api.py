@@ -201,7 +201,7 @@ def test_production_disabled_and_missing_dependency_keep_existing_routes(chat):
     assert not chat.calls
 
 
-def test_missing_key_bad_config_and_no_c2_adapter_are_truthful(chat):
+def test_missing_key_and_bad_config_are_truthful(chat):
     chat.monkeypatch.setattr(app.state, 'chatbot_provider', None)
     chat.monkeypatch.setenv('CHATBOT_ENABLED', '1')
     chat.monkeypatch.setattr(chat.api, '_sdk_available', lambda: True)
@@ -369,7 +369,7 @@ def test_full_output_is_utf8_bounded_and_provider_urls_never_trusted(chat):
     assert response.status_code == 200
     data = response.json()
     assert data['truncated'] and len(data['answer'].encode()) == 4096
-    assert data['lab_links'] == []
+    assert data['lab_links'] == [{'id': 'merkle', 'label': 'Cây Merkle', 'href': '/ui/labs.html#merkle'}]
 
 
 @contextmanager
@@ -451,7 +451,7 @@ def test_provider_failure_after_reset_is_generation_rejection(chat):
     assert not chat.ctx.chat_inflight
 
 
-def test_missing_or_broken_sdk_and_unimplemented_adapter_never_claim_live(chat):
+def test_broken_sdk_inspection_and_missing_import_never_claim_live(chat):
     chat.monkeypatch.setattr(app.state, 'chatbot_provider', None)
     chat.monkeypatch.setenv('CHATBOT_ENABLED', '1')
 
@@ -463,8 +463,9 @@ def test_missing_or_broken_sdk_and_unimplemented_adapter_never_claim_live(chat):
     assert 'SECRET_SENTINEL' not in response.text
     chat.monkeypatch.setattr(chat.api, '_sdk_available', lambda: True)
     chat.monkeypatch.setattr(chat.api, '_key_available', lambda: True)
-    assert chat.client.get('/api/chatbot/status').json()['code'] == 'disabled'
-    assert_error(post(chat), 503, 'chat_disabled')
+    # A spec alone cannot make the absent real SDK usable in C2.
+    assert chat.client.get('/api/chatbot/status').json()['code'] == 'sdk_missing'
+    assert_error(post(chat), 503, 'sdk_unavailable')
     assert not chat.calls
 
 @pytest.mark.parametrize('fails,reset', [(False, False), (True, False), (False, True), (True, True)])
