@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
   
   <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="/ui/navbar.css">
   <link rel="stylesheet" href="/ui/theme-toggle.css">
   <link rel="stylesheet" href="/ui/stars.css">
   <link rel="stylesheet" href="/ui/theory.css">
@@ -19,6 +20,7 @@
   
   <!-- Bundui Stars Background -->
   <script src="/ui/stars.js" defer></script>
+  <script src="/ui/i18n.js" defer></script>
 </head>
 <body>
   <!-- Reading Progress Bar -->
@@ -31,21 +33,25 @@
 
   <div class="shell">
     <!-- Masthead Navigation -->
-    <header class="masthead">
-      <a class="brand" href="/landing.html" aria-label="TrustMeBro — Về Trang chủ">
-        <span class="symbol" aria-hidden="true">⌘</span>TrustMe<em>Bro</em>
+    <header class="new-nav masthead">
+      <a class="wordmark brand" href="/landing.html" aria-label="TrustMeBro — Về Trang chủ">
+        <span class="brand-symbol symbol" aria-hidden="true">⌘</span>TrustMe<em>Bro</em>
       </a>
-      <div class="utilities">
-        <a href="/ui/theory.html" class="active-link" aria-current="page">Lý thuyết</a>
-        <a href="/ui/quiz.html">Quiz</a>
-        <a href="/ui/modes.html#labs">Các lab</a>
-        <a href="/ui/trustmebro.html">Có hướng dẫn</a>
-        <a href="/ui/modes.html">Chọn chế độ</a>
+      <nav id="main-nav" aria-label="Điều hướng chính" class="pill-nav-items">
         <a href="/landing.html">Trang chủ</a>
+        <a href="/ui/theory.html" class="is-active" aria-current="page">Lý thuyết</a>
+        <a href="/ui/modes.html">Chọn chế độ</a>
+        <a href="/ui/modes.html#labs">Phòng lab</a>
+        <a href="/ui/quiz.html">Trắc nghiệm</a>
+      </nav>
+      <div class="nav-utilities utilities">
+        <a class="nav-source" href="https://github.com/nhudoannana/TRUSTMEBRO-blockchain" target="_blank" rel="noopener noreferrer">GitHub <span class="external-label" aria-hidden="true">↗</span></a>
         <button id="theme-toggle" class="theme-switch theme-toggle" aria-pressed="false" type="button" aria-label="Chế độ sáng">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg>
         </button>
+        <button class="theme-switch lang-btn" id="lang-toggle" type="button" aria-label="Switch to English" title="Switch to English">EN</button>
+        <button class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="main-nav" aria-label="Mở menu">☰</button>
       </div>
     </header>
 
@@ -511,6 +517,7 @@
     restoreTheme();
   })();
   </script>
+  <script src="/ui/navbar.js" defer></script>
   <script src="/ui/session.js" defer></script>
   <script src="/ui/chatbot.js" defer></script>
 </body>

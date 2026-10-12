@@ -1,0 +1,283 @@
+/* ========================================================
+   TrustMeBro — Unified Floating Pill Navbar (Option 1)
+   ======================================================== */
+
+.new-nav,
+header.masthead.new-nav {
+  position: fixed !important;
+  top: calc(16px + env(safe-area-inset-top, 0px)) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: min(1160px, calc(100% - 48px)) !important;
+  margin: 0 auto !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 8px 18px !important;
+  background: #101827e6 !important;
+  border: 1px solid #ccd9ee33 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  box-sizing: border-box !important;
+}
+
+/* Light mode keeps sleek dark glassmorphic container for high-end aesthetic */
+html[data-theme="light"] .new-nav,
+html[data-theme="light"] header.masthead.new-nav {
+  background: #101827e6 !important;
+  border-color: #ccd9ee33 !important;
+}
+
+/* Page content clearance */
+.shell {
+  padding-top: 96px !important;
+}
+
+/* Logo */
+.new-nav .wordmark,
+.new-nav .brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-decoration: none !important;
+  font-family: 'DM Serif Display', Georgia, serif !important;
+  font-size: 21px !important;
+  font-weight: 400 !important;
+  color: #fff !important;
+  white-space: nowrap !important;
+}
+.new-nav .wordmark span:last-child,
+.new-nav .brand em {
+  font-style: italic !important;
+  color: #ead9b5 !important;
+}
+.new-nav .brand-symbol,
+.new-nav .symbol {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  background: #607995 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+/* Center Pill Navigation */
+.new-nav nav.pill-nav-items {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 3px !important;
+  height: 40px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(204, 217, 238, 0.14) !important;
+  border-radius: 999px !important;
+  box-sizing: border-box !important;
+}
+.new-nav nav.pill-nav-items a {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
+  padding: 0 16px !important;
+  border-radius: 999px !important;
+  color: #d3deee !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+  transition: all 180ms cubic-bezier(.23, 1, .32, 1) !important;
+}
+.new-nav nav.pill-nav-items a:hover {
+  background: rgba(234, 217, 181, 0.16) !important;
+  color: #fff !important;
+}
+.new-nav nav.pill-nav-items a.is-active,
+.new-nav nav.pill-nav-items a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+.new-nav nav.pill-nav-items a.is-active::after,
+.new-nav nav.pill-nav-items a[aria-current="page"]::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 4px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 5px !important;
+  height: 5px !important;
+  background: #ead9b5 !important;
+  border-radius: 50% !important;
+}
+
+/* Right Utilities */
+.new-nav .nav-utilities,
+.new-nav .utilities {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+.new-nav .nav-source {
+  color: #d3deee !important;
+  text-decoration: none !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  transition: color 160ms ease !important;
+}
+.new-nav .nav-source:hover {
+  color: #fff !important;
+}
+.new-nav .nav-source .external-label {
+  font-size: 11px !important;
+}
+
+/* Theme Toggle inside new-nav */
+.new-nav .theme-toggle {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex: 0 0 auto !important;
+  width: 76px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 8px !important;
+  border: 1px solid #ccd9ee33 !important;
+  border-radius: 20px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #d0dcee !important;
+  cursor: pointer !important;
+  transition: background-color 160ms ease, border-color 160ms ease !important;
+}
+.new-nav .theme-toggle::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 4px auto 4px 4px !important;
+  width: 28px !important;
+  border-radius: 50% !important;
+  background: #294463 !important;
+  transform: translateX(34px) !important;
+  transition: transform 180ms ease !important;
+}
+html[data-theme="light"] .new-nav .theme-toggle::before {
+  background: #e3eaf3 !important;
+  transform: translateX(0) !important;
+}
+.new-nav .theme-toggle svg {
+  position: relative !important;
+  width: 18px !important;
+  height: 18px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.6 !important;
+}
+
+/* EN Language Button */
+.new-nav .lang-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  padding: 0 10px !important;
+  border: 1px solid #ccd9ee33 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  color: #d0dcee !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: .04em !important;
+  cursor: pointer !important;
+  transition: all 160ms ease !important;
+}
+.new-nav .lang-btn:hover {
+  background: rgba(212, 168, 85, 0.12) !important;
+  color: #fff !important;
+}
+
+/* Mobile Menu Button */
+.new-nav .menu-btn {
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 38px !important;
+  min-width: 38px !important;
+  border: 1px solid #ccd9ee33 !important;
+  background: transparent !important;
+  color: #d0dcee !important;
+  border-radius: 8px !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 900px) {
+  .shell {
+    padding-top: 86px !important;
+  }
+  .new-nav,
+  header.masthead.new-nav {
+    width: calc(100% - 32px) !important;
+    border-radius: 16px !important;
+  }
+  .new-nav .menu-btn {
+    display: inline-flex !important;
+  }
+  .new-nav nav.pill-nav-items {
+    display: none !important;
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    flex-direction: column !important;
+    height: auto !important;
+    background: #101827f7 !important;
+    border: 1px solid #ccd9ee33 !important;
+    border-radius: 16px !important;
+    padding: 8px 16px !important;
+    z-index: 20 !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+  .new-nav nav.pill-nav-items.open {
+    display: flex !important;
+  }
+  .new-nav nav.pill-nav-items a {
+    height: 40px !important;
+    padding: 0 10px !important;
+    border-bottom: 1px solid #ccd9ee1a !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    justify-content: flex-start !important;
+  }
+  .new-nav nav.pill-nav-items a:last-child {
+    border-bottom: 0 !important;
+  }
+  .new-nav .nav-source {
+    display: none !important;
+  }
+}
+@media (max-width: 600px) {
+  .new-nav,
+  header.masthead.new-nav {
+    width: calc(100% - 24px) !important;
+  }
+}
