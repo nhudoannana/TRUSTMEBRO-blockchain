@@ -1,5 +1,7 @@
 # TRUSTMEBRO — Mô phỏng Blockchain & Hồ sơ số
 
+**Ngôn ngữ: Tiếng Việt | [English](README.en.md)**
+
 TRUSTMEBRO là website học tập giúp người dùng phát hành, ký, ghi nhận, xác minh và thu hồi hồ sơ mẫu trên blockchain. Người học có thể đi theo hành trình có hướng dẫn, thực hiện các lab độc lập, đọc lý thuyết và tự kiểm tra kiến thức.
 
 **Công nghệ chính:** Python · FastAPI · HTML/CSS/JavaScript · SHA-256 · ECDSA · RSA · PoW/PoS mô phỏng.
