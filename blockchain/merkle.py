@@ -82,7 +82,8 @@ def generate_merkle_proof(leaf_hashes: list[str], index: int) -> list[tuple[str,
     return proof
 
 
-def verify_merkle_proof(leaf_hash: str, proof: list[tuple[str, str]], root: str) -> bool:
+def verify_merkle_proof(leaf_hash: str, proof: list[tuple[str, str]], root: str,
+                        *, trace: list[dict] | None = None) -> bool:
     """Xác minh Merkle Proof: lá có thực sự thuộc cây với root đã cho không.
 
     Vì sao tồn tại: light node không lưu toàn bộ block,
@@ -90,10 +91,15 @@ def verify_merkle_proof(leaf_hash: str, proof: list[tuple[str, str]], root: str)
     là đủ kiểm chứng một giao dịch có trong block hay không.
     """
     current = leaf_hash
-    for sibling_hash, position in proof:
+    for step, (sibling_hash, position) in enumerate(proof, 1):
+        before = current
         if position == "left":
             current = sha256_hex(sibling_hash + current)
         else:  # "right"
             current = sha256_hex(current + sibling_hash)
+        if trace is not None:
+            trace.append({"step": step, "current_hash": before,
+                          "sibling_hash": sibling_hash, "direction": position,
+                          "parent_hash": current})
 
     return current == root

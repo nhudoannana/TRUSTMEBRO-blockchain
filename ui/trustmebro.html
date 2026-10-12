@@ -235,9 +235,12 @@ html[data-theme="light"] {
 .result-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin:18px 0}.result-metric{min-width:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-raised)}.metric-label{display:block;color:var(--muted);font-size:13px}.metric-number{display:inline-block;font-size:clamp(24px,3vw,34px);line-height:1.3;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metric-unit{margin-left:6px;font-size:13px;color:var(--muted)}mark{background:var(--surface-raised);color:var(--success);font-weight:700}.result-context{color:var(--focus);overflow-wrap:anywhere}.network-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px}.network-card{min-width:0;border:1px solid var(--line-strong);border-radius:16px;padding:16px;background:var(--surface)}.node-badge{font-size:13px;border-left:3px solid var(--accent);padding-left:10px}.result-summary.warning{border-color:var(--focus)}.result-summary.warning h3{color:var(--text)}
 </style>
 <link rel="stylesheet" href="/ui/theme-toggle.css">
+<link rel="stylesheet" href="/ui/stars.css">
+<link rel="stylesheet" href="/ui/chatbot.css">
+<script src="/ui/stars.js" defer></script>
 </head>
 <body>
-
+<div id="stars-bg" class="stars-bg" aria-hidden="true"></div>
 <a class="skip" href="#stage">Đến bước hiện tại</a>
 
 <div class="shell">
@@ -247,6 +250,9 @@ html[data-theme="light"] {
     </a>
     <span style="font-size:13px;color:var(--muted);">Mô phỏng blockchain theo từng bước</span>
     <div class="nav-utilities">
+      <a href="/ui/theory.html" style="font-size:13px;color:var(--muted);text-decoration:none;">Lý thuyết</a>
+      <a href="/ui/quiz.html" style="font-size:13px;color:var(--muted);text-decoration:none;">Quiz</a>
+      <a href="/ui/modes.html" style="font-size:13px;color:var(--muted);text-decoration:none;">Chọn chế độ</a>
       <button class="theme-switch theme-toggle" id="theme-toggle" aria-pressed="false" type="button" aria-label="Chế độ sáng"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg></button>
     </div>
   </header>
@@ -318,6 +324,7 @@ html[data-theme="light"] {
 
 <script src="/ui/session.js"></script>
 <script src="/ui/result-counters.js"></script>
+<script src="/ui/chatbot.js" defer></script>
 <script>
 'use strict';
 

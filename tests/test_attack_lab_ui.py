@@ -4,7 +4,7 @@ import subprocess
 import pytest
 
 
-@pytest.mark.parametrize('case', ['results', 'error', 'reset_pending', 'selection', 'accepted', 'changed_input'])
+@pytest.mark.parametrize('case', ['results', 'error', 'reset_pending', 'selection', 'accepted', 'changed_input', 'signature_invalid', 'prediction_reset'])
 def test_attack_handlers(case):
     script = r"""
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
@@ -19,7 +19,7 @@ const $=id=>document.getElementById(id);$('attack-scenario').value='tamper';$('a
 const tx={sender_public_key:'issuer-key'.repeat(10),tx_id:'a'.repeat(64),signature:'signed',payload:{title:'Original',issuer_name:'Trusted issuer'}};
 const result=scenario=>({scenario,context_generation:'opaque',authorized_issuer:{address:'issuer-address',public_key_hex:tx.sender_public_key},attacker:scenario==='impersonation'?{address:'attacker-address',public_key_hex:'attacker-key'}:null,
  baseline:{transaction:tx,verification:{valid:true,reason:'Actual baseline OK',computed_hash:tx.tx_id,signature_checked:true},submission:{accepted:true,reason:'Actual accepted'}},
- attack:{transaction:{...tx,payload:{...tx.payload,title:'<img src=x onerror=alert(1)>'}},verification:{valid:scenario!=='tamper',reason:'Actual verifier reason',computed_hash:'b'.repeat(64),signature_checked:scenario!=='tamper'},submission:{accepted:testCase==='accepted',reason:'Exact backend rejection <unsafe>'}},failure_layer:scenario==='tamper'?'transaction_hash':scenario==='impersonation'?'issuer_authorization':'duplicate_submission'});
+ attack:{transaction:{...tx,payload:{...tx.payload,title:'<img src=x onerror=alert(1)>'}},verification:{valid:testCase==='signature_invalid'?false:scenario!=='tamper',reason:'Actual verifier reason',computed_hash:'b'.repeat(64),signature_checked:testCase==='signature_invalid'||scenario!=='tamper'},submission:{accepted:testCase==='accepted',reason:'Exact backend rejection <unsafe>'}},failure_layer:testCase==='signature_invalid'?'signature':scenario==='tamper'?'transaction_hash':scenario==='impersonation'?'issuer_authorization':'duplicate_submission'});
 const context=vm.createContext({document,window:{addEventListener:(k,f)=>events[k]=f},localStorage:{getItem:()=> 'dark',setItem(){}},console,
 fetch:async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});assert.equal($('attack-run').disabled,true);
  if(testCase==='reset_pending')await new Promise(r=>release=r);
@@ -35,6 +35,7 @@ context.event={preventDefault(){}};
   $('attack-scenario').value='replay';$('attack-scenario').onchange();assert.equal($('attack-run').disabled,false);
   assert.equal($('attack-title-field').hidden,true);assert.equal($('attack-title').required,false);assert.equal(calls.length,0);return;
  }
+ $('attack-prediction-input').value='My local prediction';
  const pending=run('runAttack(event)');await Promise.resolve();
  if(testCase==='reset_pending'){
   await run('runAttack(event)');assert.equal(calls.length,1);
@@ -56,6 +57,14 @@ context.event={preventDefault(){}};
   return;
  }
  assert.ok($('attack-outcome').className.includes('invalid'));
+ if(testCase==='signature_invalid'){
+  assert.ok(text($('attack-data')).includes('ECDSA: đã kiểm tra'));
+  assert.ok(!text($('attack-data')).includes('chữ ký hợp lệ'));
+  assert.ok(text($('attack-outcome')).includes('Chữ ký số ECDSA'));return;
+ }
+ if(testCase==='prediction_reset'){
+  $('attack-reset').onclick();assert.equal($('attack-prediction-input').value,'');return;
+ }
  const first=text($('attack-outcome'));
  assert.ok(first.includes('Đối chiếu hash giao dịch'));
  assert.ok(!first.includes('Chữ ký số ECDSA'));

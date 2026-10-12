@@ -10,7 +10,9 @@ from tests.test_session_isolation import clocked, context
 
 PUBLIC_PATHS = ['/', '/landing.html', '/ui/modes.html', '/ui/trustmebro.html',
                 '/ui/explorer.html', '/ui/labs.html', '/ui/attacks.html',
-                '/ui/labs.js', '/ui/tokens.css', '/api/docs', '/docs/oauth2-redirect',
+                '/ui/quiz.html', '/ui/quiz.js', '/ui/quiz.css', '/ui/quiz_questions.json',
+                '/ui/labs.js', '/ui/tokens.css', '/ui/chatbot.js', '/ui/chatbot.css',
+                '/ui/chatbot-avatar.png', '/api/docs', '/docs/oauth2-redirect',
                 '/openapi.json', '/api/health']
 
 

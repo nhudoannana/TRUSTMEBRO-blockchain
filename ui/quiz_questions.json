@@ -1,0 +1,1536 @@
+{
+  "schemaVersion": 1,
+  "bankVersion": "core-2026-10-11-v1",
+  "reviewedAgainst": "1226846e7a60a18d40f48cff764c8173cb4fc367",
+  "topics": [
+    {
+      "id": "sha",
+      "title": "SHA-256",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "ecdsa",
+      "title": "Chữ ký ECDSA",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "blocks",
+      "title": "Khối và chuỗi",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "merkle",
+      "title": "Cây Merkle",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "fork",
+      "title": "Fork/Reorg Node/queue",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "oaep",
+      "title": "RSA-OAEP",
+      "scope": "implemented-labs"
+    },
+    {
+      "id": "pss",
+      "title": "RSA-PSS",
+      "scope": "implemented-labs"
+    }
+  ],
+  "questions": [
+    {
+      "id": "src-023",
+      "sourceId": 23,
+      "topicId": "blocks",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Blockchain là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Một loại tiền điện tử duy nhất"
+        },
+        {
+          "id": "b",
+          "text": "Một sàn giao dịch"
+        },
+        {
+          "id": "c",
+          "text": "Chuỗi các khối dữ liệu (danh sách các bản ghi) liên kết với nhau bằng mật mã"
+        },
+        {
+          "id": "d",
+          "text": "Sổ cái tập trung do ngân hàng quản lý"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Blockchain là cấu trúc chuỗi các khối liên kết mật mã; không đồng nghĩa một đồng tiền/sàn giao dịch.",
+      "labLinks": [
+        {
+          "label": "Khối và chuỗi",
+          "href": "/ui/labs.html#blocks"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/block.py",
+          "functionOrSection": "Block/BlockHeader"
+        }
+      ]
+    },
+    {
+      "id": "src-025",
+      "sourceId": 25,
+      "topicId": "blocks",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Một khối trong blockchain chứa một tiêu đề (header) và … ?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Các giao dịch (transactions)"
+        },
+        {
+          "id": "b",
+          "text": "Các token"
+        },
+        {
+          "id": "c",
+          "text": "Hợp đồng ngân hàng"
+        },
+        {
+          "id": "d",
+          "text": "Mật khẩu của miner"
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Ngoài header, khối giao dịch mang danh sách giao dịch; header chứa cam kết/liên kết, không mật khẩu miner.",
+      "labLinks": [
+        {
+          "label": "Khối và chuỗi",
+          "href": "/ui/labs.html#blocks"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/block.py",
+          "functionOrSection": "Block/BlockHeader"
+        }
+      ]
+    },
+    {
+      "id": "src-061",
+      "sourceId": 61,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Mã hóa bất đối xứng sử dụng hai loại khóa nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Hai khóa công khai"
+        },
+        {
+          "id": "b",
+          "text": "Hai khóa bí mật giống nhau"
+        },
+        {
+          "id": "c",
+          "text": "Khóa công khai và khóa bí mật"
+        },
+        {
+          "id": "d",
+          "text": "Một khóa duy nhất"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Cặp khóa gồm public/private; vai trò mã hóa và ký cần phân biệt, không tráo thành cùng một thao tác.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "src-062",
+      "sourceId": 62,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Thuật toán nào sau đây thuộc dạng mã hóa bất đối xứng?",
+      "options": [
+        {
+          "id": "a",
+          "text": "RSA"
+        },
+        {
+          "id": "b",
+          "text": "SHA-256"
+        },
+        {
+          "id": "c",
+          "text": "CRC32"
+        },
+        {
+          "id": "d",
+          "text": "MD5"
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "RSA hỗ trợ cơ chế bất đối xứng; SHA/MD5/CRC không phải RSA encryption. Lab dùng OAEP, không textbook RSA.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "src-067",
+      "sourceId": 67,
+      "topicId": "ecdsa",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Chức năng chính của khóa công khai trong chữ ký số là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Lưu số dư"
+        },
+        {
+          "id": "b",
+          "text": "Sinh khóa riêng"
+        },
+        {
+          "id": "c",
+          "text": "Xác minh chữ ký"
+        },
+        {
+          "id": "d",
+          "text": "Tạo chữ ký"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Public key dùng xác minh chữ ký; xác minh vẫn cần đúng message/signature/parameters và nguồn key đáng tin.",
+      "labLinks": [
+        {
+          "label": "Chữ ký ECDSA",
+          "href": "/ui/labs.html#signatures"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/wallet.py",
+          "functionOrSection": "sign_message/generate_wallet"
+        }
+      ]
+    },
+    {
+      "id": "src-098",
+      "sourceId": 98,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "‘Hàm băm một chiều’ nghĩa là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Băm xong có thể giải ngược dễ dàng"
+        },
+        {
+          "id": "b",
+          "text": "Chỉ một người được phép băm"
+        },
+        {
+          "id": "c",
+          "text": "Chỉ băm được một lần duy nhất"
+        },
+        {
+          "id": "d",
+          "text": "Dễ tính ra giá trị băm nhưng rất khó tìm ngược đầu vào từ giá trị băm"
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Tính hash dễ, tìm preimage trong miền lớn được kỳ vọng khó; không phải “chỉ băm được một lần”.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-100",
+      "sourceId": 100,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Hiệu ứng tuyết lở (avalanche effect) của hàm băm mô tả điều gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Đổi 1 bit đầu vào → đầu ra chỉ đổi rất ít"
+        },
+        {
+          "id": "b",
+          "text": "Đổi 1 bit đầu vào → đầu ra thay đổi lớn và khó dự đoán"
+        },
+        {
+          "id": "c",
+          "text": "Đầu ra luôn giống nhau với mọi đầu vào"
+        },
+        {
+          "id": "d",
+          "text": "Đầu ra có độ dài tăng theo đầu vào"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Một thay đổi nhỏ có thể đổi nhiều bit digest; không cam kết đúng128bit thay đổi trong mỗi lần thử.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-101",
+      "sourceId": 101,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Khó",
+      "prompt": "Thuộc tính preimage resistance nghĩa là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Băm có thể đảo ngược"
+        },
+        {
+          "id": "b",
+          "text": "Khó tìm đầu vào tương ứng với một giá trị băm cho trước"
+        },
+        {
+          "id": "c",
+          "text": "Băm luôn cho đầu ra giống nhau"
+        },
+        {
+          "id": "d",
+          "text": "Khó tìm hai đầu vào khác nhau cho cùng đầu ra"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Preimage là tìm input cho một digest cho trước; khác collision tìm hai input cùng digest.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-102",
+      "sourceId": 102,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Collision resistance giúp điều gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Cho phép giải mã giá trị băm"
+        },
+        {
+          "id": "b",
+          "text": "Làm hàm băm chạy chậm hơn"
+        },
+        {
+          "id": "c",
+          "text": "Ngăn việc tìm được hai đầu vào cho cùng một giá trị băm trong thực tế"
+        },
+        {
+          "id": "d",
+          "text": "Ngăn mọi va chạm tuyệt đối về mặt toán học"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Collision resistance nói khó tìm collision trong thực tế, không cấm mọi collision toán học.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-104",
+      "sourceId": 104,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Một hàm băm mật mã được dùng rộng rãi trong blockchain là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "CRC32"
+        },
+        {
+          "id": "b",
+          "text": "MD5"
+        },
+        {
+          "id": "c",
+          "text": "SHA-256"
+        },
+        {
+          "id": "d",
+          "text": "Base64"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "SHA-256 là hash mật mã được dùng ở site; Base64 là encoding, không hash.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-109",
+      "sourceId": 109,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Giá trị băm SHA-256 có độ dài bao nhiêu?",
+      "options": [
+        {
+          "id": "a",
+          "text": "160 bit"
+        },
+        {
+          "id": "b",
+          "text": "256 bit (32 byte)"
+        },
+        {
+          "id": "c",
+          "text": "512 bit"
+        },
+        {
+          "id": "d",
+          "text": "128 bit"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Digest SHA256256bit=32byte, không phải độ dài input.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-110",
+      "sourceId": 110,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Một giá trị băm SHA-256 biểu diễn dạng hexa có bao nhiêu ký tự?",
+      "options": [
+        {
+          "id": "a",
+          "text": "32"
+        },
+        {
+          "id": "b",
+          "text": "128"
+        },
+        {
+          "id": "c",
+          "text": "64"
+        },
+        {
+          "id": "d",
+          "text": "256"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "32byte biểu diễn hex cần64ký tự; hex không phải một thuật toán hash mới.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-125",
+      "sourceId": 125,
+      "topicId": "sha",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Giá trị SHA-256 của chuỗi rỗng bắt đầu bằng dãy hexa nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "da39a3ee…"
+        },
+        {
+          "id": "b",
+          "text": "e3b0c442…"
+        },
+        {
+          "id": "c",
+          "text": "00000000…"
+        },
+        {
+          "id": "d",
+          "text": "ffffffff…"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "SHA256 exact empty UTF8 có prefix e3b0c442; hash empty khác không có kết quả.",
+      "labLinks": [
+        {
+          "label": "SHA-256",
+          "href": "/ui/labs.html#sha"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/hash.py",
+          "functionOrSection": "sha256_hex"
+        }
+      ]
+    },
+    {
+      "id": "src-158",
+      "sourceId": 158,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Nút trên cùng của cây Merkle được gọi là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Merkle root (gốc Merkle)"
+        },
+        {
+          "id": "b",
+          "text": "Genesis node"
+        },
+        {
+          "id": "c",
+          "text": "Coinbase node"
+        },
+        {
+          "id": "d",
+          "text": "Nonce root"
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Nút trên cùng là Merkle root; root không phải genesis hay miner nonce.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "src-159",
+      "sourceId": 159,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Trong cây Merkle của lab, nếu số hash ở một tầng cần ghép cặp là lẻ, quy tắc nào được dùng?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Loại bỏ giao dịch cuối khỏi khối"
+        },
+        {
+          "id": "b",
+          "text": "Thêm một giao dịch ngẫu nhiên có giá trị 0"
+        },
+        {
+          "id": "c",
+          "text": "Hủy toàn bộ khối và đào lại"
+        },
+        {
+          "id": "d",
+          "text": "Nhân đôi (lặp lại) băm cuối cùng để ghép cặp"
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Lab lặp lại hash cuối để ghép cặp; không tự thêm hay xóa lá. Encoding của lab không giống Bitcoin.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "src-160",
+      "sourceId": 160,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Khó",
+      "prompt": "Khối có 8 giao dịch. Cần thực hiện bao nhiêu phép băm để tính các nút nội (không tính băm các lá) cho tới Merkle root?",
+      "options": [
+        {
+          "id": "a",
+          "text": "8"
+        },
+        {
+          "id": "b",
+          "text": "6"
+        },
+        {
+          "id": "c",
+          "text": "7"
+        },
+        {
+          "id": "d",
+          "text": "15"
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "8lá cây cân bằng cần4+2+1=7parent hashes, **không gồm8leaf hashes**; khác4hash bị ảnh hưởng khi sửa một lá.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "lab-ecdsa-01",
+      "sourceId": null,
+      "topicId": "ecdsa",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Bạn ký một thông điệp, sau đó thêm một dấu cách. Khi xác minh bằng chữ ký cũ và đúng khóa công khai, nên chờ kết quả nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Chữ ký vẫn khớp vì dấu cách luôn bị bỏ qua."
+        },
+        {
+          "id": "b",
+          "text": "Chữ ký không còn khớp với nội dung đã đổi."
+        },
+        {
+          "id": "c",
+          "text": "Khóa công khai tự biến thành khóa bí mật."
+        },
+        {
+          "id": "d",
+          "text": "Thông điệp tự được mã hóa."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Chữ ký gắn với nội dung chính xác. Lab không cắt dấu cách; thư viện ECDSA dùng SHA-256 trên bytes UTF-8.",
+      "labLinks": [
+        {
+          "label": "Chữ ký ECDSA",
+          "href": "/ui/labs.html#signatures"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/wallet.py",
+          "functionOrSection": "sign_message/generate_wallet"
+        }
+      ]
+    },
+    {
+      "id": "lab-ecdsa-02",
+      "sourceId": null,
+      "topicId": "ecdsa",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Địa chỉ ví hiển thị trong mô phỏng nên được hiểu thế nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Là địa chỉ Bitcoin có thể nhận tiền thật."
+        },
+        {
+          "id": "b",
+          "text": "Là địa chỉ Ethereum có thể nhận tiền thật."
+        },
+        {
+          "id": "c",
+          "text": "Là khóa bí mật dùng để ký."
+        },
+        {
+          "id": "d",
+          "text": "Là định danh trong mô phỏng, không phải địa chỉ để gửi tiền thật."
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Ví dùng định danh mô phỏng: 40 ký tự hex đầu của SHA-256 trên chuỗi public_key_hex. Không áp dụng cách tạo địa chỉ Bitcoin/Ethereum.",
+      "labLinks": [
+        {
+          "label": "Chữ ký ECDSA",
+          "href": "/ui/labs.html#signatures"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/wallet.py",
+          "functionOrSection": "sign_message/generate_wallet"
+        }
+      ]
+    },
+    {
+      "id": "lab-merkle-01",
+      "sourceId": null,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Trong cây Merkle của lab, nút cha được tạo từ hai nút con theo cách nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Băm hai hash con theo thứ tự trái rồi phải."
+        },
+        {
+          "id": "b",
+          "text": "Cộng hai số thứ tự của lá."
+        },
+        {
+          "id": "c",
+          "text": "Chỉ sao chép hash của nút bên trái."
+        },
+        {
+          "id": "d",
+          "text": "Sắp xếp lại các lá ngẫu nhiên."
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Lab băm văn bản UTF-8 ở lá; nút cha băm chuỗi hex trái nối chuỗi hex phải, cũng dưới dạng UTF-8. Đây không phải encoding raw hash của Bitcoin.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "lab-merkle-02",
+      "sourceId": null,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Sửa một lá trong mẫu 8 lá khác nhau rồi tính lại toàn cây. Điều gì đúng?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Chỉ root đổi và chỉ cần tính một hash."
+        },
+        {
+          "id": "b",
+          "text": "Cả tám hash lá đều đổi."
+        },
+        {
+          "id": "c",
+          "text": "Có 4 hash trên đường bị ảnh hưởng; dựng lại toàn cây cần 15 phép băm."
+        },
+        {
+          "id": "d",
+          "text": "Số hash đổi luôn bằng số phép băm thực hiện."
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Lá và 3 tổ tiên tạo đường 4 hash. Dựng cây mới cần 8 phép băm lá + 7 phép băm cha = 15; không gồm phép băm tạo proof hoặc tự kiểm tra của API.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "lab-merkle-03",
+      "sourceId": null,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Đã giữ cây A và bằng chứng A. Bạn sửa văn bản để tạo cây B nhưng vẫn kiểm tra với gốc A. Bước tiếp theo hợp lý là gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Tự thay gốc A mà không hỏi người học."
+        },
+        {
+          "id": "b",
+          "text": "Đọc kết quả không khớp với A, rồi chọn bằng chứng và gốc B để kiểm tra B."
+        },
+        {
+          "id": "c",
+          "text": "Kết luận mọi cây Merkle đều hỏng."
+        },
+        {
+          "id": "d",
+          "text": "Đổi giao diện sang chế độ sáng."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Hai gốc là hai cam kết riêng. Tính cây B không âm thầm đổi gốc kỳ vọng A; văn bản đã đổi và bằng chứng A không còn khớp trong thí nghiệm này.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "lab-merkle-04",
+      "sourceId": null,
+      "topicId": "merkle",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Một bằng chứng Merkle khớp với gốc kỳ vọng đã chọn cho phép kết luận gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Hồ sơ chắc chắn đúng ngoài đời."
+        },
+        {
+          "id": "b",
+          "text": "Toàn bộ chuỗi và mọi chữ ký đều hợp lệ."
+        },
+        {
+          "id": "c",
+          "text": "Đã hoàn thành đầy đủ xác minh SPV của Bitcoin."
+        },
+        {
+          "id": "d",
+          "text": "Lá và đường bằng chứng tính ra đúng gốc kỳ vọng theo quy tắc của lab."
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Đây là kiểm tra inclusion tương đối với một gốc. Gốc cần nguồn đáng tin; proof không chứng minh sự thật, danh tính hay toàn bộ SPV.",
+      "labLinks": [
+        {
+          "label": "Cây Merkle",
+          "href": "/ui/labs.html#merkle"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/merkle.py",
+          "functionOrSection": "build_merkle_tree/verify_merkle_proof"
+        }
+      ]
+    },
+    {
+      "id": "lab-fork-01",
+      "sourceId": null,
+      "topicId": "fork",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Khi có nhiều nhánh, lab Fork/Reorg ưu tiên nhánh nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Nhánh hợp lệ có tổng work lớn nhất."
+        },
+        {
+          "id": "b",
+          "text": "Nhánh dài nhất kể cả khi không hợp lệ."
+        },
+        {
+          "id": "c",
+          "text": "Nhánh có nhiều giao dịch chờ nhất."
+        },
+        {
+          "id": "d",
+          "text": "Nhánh nằm đầu danh sách trên màn hình."
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Nhánh hợp lệ có tổng work lớn nhất; khi độ khó không đổi, thường tương ứng với chuỗi dài nhất. Nhánh ngắn hơn nhưng work cao hơn có thể thắng sau xác thực.",
+      "labLinks": [
+        {
+          "label": "Fork/Reorg Node/queue",
+          "href": "/ui/labs.html#fork"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/blockchain.py",
+          "functionOrSection": "plan_reorg/calculate_chain_work"
+        },
+        {
+          "file": "blockchain/node.py",
+          "functionOrSection": "Node"
+        }
+      ]
+    },
+    {
+      "id": "lab-fork-02",
+      "sourceId": null,
+      "topicId": "fork",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Hai nhánh hợp lệ hòa tổng work. Mô phỏng xử lý thế nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Chọn nhánh có tên đứng trước."
+        },
+        {
+          "id": "b",
+          "text": "Luôn chọn ngẫu nhiên."
+        },
+        {
+          "id": "c",
+          "text": "Giữ nhánh hợp lệ hiện tại."
+        },
+        {
+          "id": "d",
+          "text": "Luôn đổi sang nhánh vừa nhận."
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Đây là chính sách giữ nhánh hợp lệ hiện tại khi hòa work trong mô phỏng. Không tuyên bố tương đương toàn bộ chính sách Bitcoin Core.",
+      "labLinks": [
+        {
+          "label": "Fork/Reorg Node/queue",
+          "href": "/ui/labs.html#fork"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/blockchain.py",
+          "functionOrSection": "plan_reorg/calculate_chain_work"
+        },
+        {
+          "file": "blockchain/node.py",
+          "functionOrSection": "Node"
+        }
+      ]
+    },
+    {
+      "id": "lab-fork-03",
+      "sourceId": null,
+      "topicId": "fork",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Một block đến trước block cha và được giữ ở nhóm orphan. Nên làm gì tiếp?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Coi ngay đó là nhánh thắng."
+        },
+        {
+          "id": "b",
+          "text": "Nhận và kiểm tra block cha, rồi thử xử lý lại block con."
+        },
+        {
+          "id": "c",
+          "text": "Coi block con đã nằm trong chuỗi hoạt động."
+        },
+        {
+          "id": "d",
+          "text": "Bỏ qua mọi kiểm tra vì block đã được lưu."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Chưa có cha nên chưa kết luận được nhánh hợp lệ hay tổng work của orphan. Lab giữ block riêng và thử lại khi cha hợp lệ tới.",
+      "labLinks": [
+        {
+          "label": "Fork/Reorg Node/queue",
+          "href": "/ui/labs.html#fork"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/blockchain.py",
+          "functionOrSection": "plan_reorg/calculate_chain_work"
+        },
+        {
+          "file": "blockchain/node.py",
+          "functionOrSection": "Node"
+        }
+      ]
+    },
+    {
+      "id": "lab-fork-04",
+      "sourceId": null,
+      "topicId": "fork",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Sau reorg, một giao dịch từ nhánh cũ muốn trở lại mempool cần điều gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Mọi giao dịch cũ đều tự động được nhận lại."
+        },
+        {
+          "id": "b",
+          "text": "Xóa mempool của tất cả node."
+        },
+        {
+          "id": "c",
+          "text": "Đếm mọi giao dịch cũ là đã phục hồi."
+        },
+        {
+          "id": "d",
+          "text": "Kiểm tra lại theo trạng thái chuỗi mới; chỉ phục hồi giao dịch đạt kiểm tra."
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Node/queue đối soát cả mempool và giao dịch tách ra, báo lý do xác nhận/từ chối và số restored thực. Trạng thái credential theo chuỗi hoạt động. NetNode/HTTP reconciliation còn deferred.",
+      "labLinks": [
+        {
+          "label": "Fork/Reorg Node/queue",
+          "href": "/ui/labs.html#fork"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "blockchain/blockchain.py",
+          "functionOrSection": "plan_reorg/calculate_chain_work"
+        },
+        {
+          "file": "blockchain/node.py",
+          "functionOrSection": "Node"
+        }
+      ]
+    },
+    {
+      "id": "lab-oaep-01",
+      "sourceId": null,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Trong thí nghiệm RSA-OAEP, bạn dùng khóa nào để mã hóa và giải mã?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Khóa bí mật mã hóa, khóa công khai giải mã như chữ ký."
+        },
+        {
+          "id": "b",
+          "text": "Khóa công khai mã hóa, khóa bí mật tương ứng giải mã."
+        },
+        {
+          "id": "c",
+          "text": "Không cần khóa vì đây là phép băm."
+        },
+        {
+          "id": "d",
+          "text": "Một khóa công khai bất kỳ đều giải mã được."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Lab dùng RSA-2048, e=65537, OAEP SHA-256/MGF1 SHA-256 và label=None. Mã hóa khác với ký; không dùng textbook RSA không padding.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-oaep-02",
+      "sourceId": null,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Lab RSA-OAEP báo văn bản vượt giới hạn dù có ít hơn 190 ký tự. Giải thích nào đúng?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Lab chỉ cho phép đúng 190 ký tự."
+        },
+        {
+          "id": "b",
+          "text": "Giới hạn là 4096 byte cho mã hóa."
+        },
+        {
+          "id": "c",
+          "text": "Giới hạn là 190 byte UTF-8; một ký tự có thể chiếm nhiều byte."
+        },
+        {
+          "id": "d",
+          "text": "Có thể bỏ mọi giới hạn bằng khóa công khai."
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Với RSA-2048 và OAEP SHA-256, lab nhận tối đa 190 byte UTF-8. Ký tự tiếng Việt và emoji có thể chiếm nhiều byte.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-oaep-03",
+      "sourceId": null,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Bạn mã hóa văn bản rỗng và giải mã bằng đúng khóa. Lab báo thành công, 0 byte. Đọc kết quả thế nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Đây là kết quả hợp lệ: văn bản đã giải mã là rỗng."
+        },
+        {
+          "id": "b",
+          "text": "Mọi văn bản rỗng đều là lỗi."
+        },
+        {
+          "id": "c",
+          "text": "Có 190 byte bí mật bị ẩn."
+        },
+        {
+          "id": "d",
+          "text": "Phải thêm một dấu cách mới được thành công."
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Empty UTF-8 là dữ liệu hợp lệ. Thành công với plaintext=\"\" khác giải mã thất bại; không suy ra thành công từ truthiness của chuỗi.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-oaep-04",
+      "sourceId": null,
+      "topicId": "oaep",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Lab RSA-OAEP có bảo đảm backend không biết văn bản rõ của bạn không?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Có, backend không bao giờ thấy dữ liệu."
+        },
+        {
+          "id": "b",
+          "text": "Có, chỉ cần trang dùng HTTPS."
+        },
+        {
+          "id": "c",
+          "text": "Có, OAEP biến toàn bộ website thành mã hóa đầu cuối."
+        },
+        {
+          "id": "d",
+          "text": "Không; backend tạo/giữ khóa và xử lý văn bản rõ trong lab."
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Đây là lab giáo dục, không cung cấp end-to-end encryption. Không nhập bí mật thật; khóa và plaintext được backend xử lý, không cam kết xóa sạch RAM.",
+      "labLinks": [
+        {
+          "label": "RSA-OAEP",
+          "href": "/ui/labs.html#rsa-oaep"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "encrypt_text/decrypt_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-01",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Vừa",
+      "prompt": "Ký cùng một nội dung hai lần bằng cùng khóa RSA-PSS. Vì sao hai chữ ký có thể khác nhau nhưng đều xác minh được?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Mỗi lần ký tự đổi nội dung."
+        },
+        {
+          "id": "b",
+          "text": "PSS dùng salt ngẫu nhiên; xác minh kiểm tra cùng nội dung và khóa."
+        },
+        {
+          "id": "c",
+          "text": "PSS thực chất chỉ mã hóa bằng OAEP."
+        },
+        {
+          "id": "d",
+          "text": "Chữ ký khác nhau luôn có nghĩa ít nhất một chữ ký sai."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Lab dùng RSA-2048/e=65537, PSS SHA-256/MGF1 SHA-256 và salt_length=32 byte. Độ dài salt cố định nhưng giá trị salt ngẫu nhiên.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-02",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Đã ký nội dung A. Thao tác nào có thể làm chữ ký cũ không còn khớp?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Đổi chế độ sáng/tối."
+        },
+        {
+          "id": "b",
+          "text": "Chỉ mở phần giải thích."
+        },
+        {
+          "id": "c",
+          "text": "Thêm một dấu cách vào nội dung rồi xác minh với chữ ký A."
+        },
+        {
+          "id": "d",
+          "text": "Đọc lại khóa công khai mà không thay dữ liệu."
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Lab ký chính xác UTF-8 từ 0 đến 4096 byte; không trim/normalize nội dung. Văn bản rỗng hợp lệ; 4097 byte vượt giới hạn.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-03",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Muốn ký trong lab RSA-PSS, lựa chọn khóa nào phù hợp?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Khóa bí mật riêng cho ký PSS trong phiên của bạn."
+        },
+        {
+          "id": "b",
+          "text": "Khóa dùng cho mã hóa OAEP vì đều là RSA."
+        },
+        {
+          "id": "c",
+          "text": "Khóa bí mật của một phiên người khác."
+        },
+        {
+          "id": "d",
+          "text": "Chỉ khóa công khai, không cần khóa bí mật."
+        }
+      ],
+      "correctOptionId": "a",
+      "explanation": "Backend dùng private handle purpose=pss thuộc session hiện tại, kiểm tra ownership và purpose. Khóa OAEP không được dùng để ký; public PEM chỉ dùng xác minh.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-04",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Bạn đã giữ nội dung, chữ ký và khóa công khai A rồi xóa khóa bí mật trong lab. Kết luận nào đúng?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Chữ ký A tự động bị thu hồi."
+        },
+        {
+          "id": "b",
+          "text": "Không còn cách xác minh A."
+        },
+        {
+          "id": "c",
+          "text": "Khóa công khai trở thành khóa bí mật."
+        },
+        {
+          "id": "d",
+          "text": "Vẫn có thể xác minh A; xóa khóa bí mật không tự thu hồi chữ ký."
+        }
+      ],
+      "correctOptionId": "d",
+      "explanation": "Xác minh dùng public PEM và dữ liệu công khai, không cần private handle còn sống. Xóa khóa làm mất khả năng ký qua handle đó, không tạo cơ chế thu hồi chữ ký.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-05",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Giữ chữ ký và khóa công khai A nhưng đổi nội dung khi xác minh. Lab báo chữ ký không hợp lệ. Nên hiểu thế nào?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Mọi phản hồi thành công từ server đều là chữ ký hợp lệ."
+        },
+        {
+          "id": "b",
+          "text": "Chữ ký không khớp với bộ dữ liệu đang kiểm tra; chưa biết ai đã sửa."
+        },
+        {
+          "id": "c",
+          "text": "Đã xác định chính xác người sửa nội dung."
+        },
+        {
+          "id": "d",
+          "text": "Tự ký lại để coi chữ ký A vẫn đúng."
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Well-formed mismatch trả valid:false. Base64/PEM sai định dạng là format error; lỗi vận hành/transport chưa có kết luận mật mã. Không equate HTTP 200 với chữ ký hợp lệ.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    },
+    {
+      "id": "lab-pss-06",
+      "sourceId": null,
+      "topicId": "pss",
+      "scope": "implemented-labs",
+      "reviewStatus": "reviewed",
+      "level": "Dễ",
+      "prompt": "Chữ ký RSA-PSS xác minh thành công với khóa công khai bạn chọn chứng minh gì?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Nội dung đúng ngoài đời và danh tính người ký đã được xác định."
+        },
+        {
+          "id": "b",
+          "text": "Nội dung đã được mã hóa đầu cuối."
+        },
+        {
+          "id": "c",
+          "text": "Chữ ký khớp nội dung, khóa và tham số; chưa chứng minh sự thật hay danh tính ngoài đời."
+        },
+        {
+          "id": "d",
+          "text": "Người có khóa công khai chắc chắn giữ khóa bí mật."
+        }
+      ],
+      "correctOptionId": "c",
+      "explanation": "Nguồn đáng tin cho khóa và ràng buộc danh tính là việc riêng. Chữ ký hợp lệ không xác nhận hồ sơ đúng ngoài đời.",
+      "labLinks": [
+        {
+          "label": "RSA-PSS",
+          "href": "/ui/labs.html#rsa-pss"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "api/rsa_lab.py",
+          "functionOrSection": "sign_text/verify_text"
+        }
+      ]
+    }
+  ]
+}

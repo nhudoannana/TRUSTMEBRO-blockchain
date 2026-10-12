@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('trustmebro-theme')==='light'?'light':'dark'}catch{document.documentElement.dataset.theme='dark'}</script>
+<title>Quiz • Trắc nghiệm Blockchain — TrustMeBro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/ui/quiz.css">
+<link rel="stylesheet" href="/ui/theme-toggle.css">
+<link rel="stylesheet" href="/ui/stars.css">
+<link rel="stylesheet" href="/ui/chatbot.css">
+<script defer src="/ui/stars.js"></script>
+<script defer src="/ui/quiz.js"></script>
+</head>
+<body>
+<div id="stars-bg" class="stars-bg" aria-hidden="true"></div>
+<a class="skip-link" href="#app" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Bỏ qua tới nội dung chính</a>
+<div class="shell">
+  <header class="masthead">
+    <a class="brand" href="/landing.html" aria-label="TrustMeBro — Trang chủ"><span class="symbol" aria-hidden="true">⌘</span>TrustMe<em>Bro</em></a>
+    <nav class="utilities" aria-label="Điều hướng">
+      <a href="/ui/theory.html">Lý thuyết</a>
+      <a href="/ui/modes.html">Chọn chế độ</a>
+      <a href="/ui/modes.html#labs">Các lab</a>
+      <a class="back" href="/landing.html">← Trang chủ</a>
+      <button class="theme-switch theme-toggle" id="theme-toggle" aria-pressed="false" type="button" aria-label="Chế độ sáng">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.4A8.6 8.6 0 0 1 8.6 3.7a8.6 8.6 0 1 0 11.7 11.7Z"/></svg>
+      </button>
+    </nav>
+  </header>
+
+  <main class="quiz-main">
+    <div id="app"></div>
+
+    <section id="practice" aria-label="Tự thực hành trắc nghiệm" hidden>
+      <h2 id="practice-title" tabindex="-1">Tự thực hành</h2>
+      <p id="quiz-notice" class="notice" role="status" aria-live="polite"></p>
+      <p id="filter-notice" class="notice" role="status"></p>
+      <div id="question-feedback" class="feedback" tabindex="-1" hidden></div>
+      <fieldset hidden><legend id="question" tabindex="-1"></legend><div id="options"></div></fieldset>
+    </section>
+
+    <details id="limits" class="quiz-info-drawer">
+      <summary><strong>Đi sâu và giới hạn mô phỏng học tập</strong></summary>
+      <div class="drawer-content">
+        <section id="objectives"><h3>Mục tiêu kiểm tra</h3><p>Đánh giá sự hiểu biết toàn diện về bản chất sổ cái phân tán, hàm băm SHA-256, chữ ký số ECDSA/RSA, cấu trúc cây Merkle, cơ chế đồng thuận PoW/PoS, rẽ nhánh mạng và các khái niệm nâng cao của Blockchain.</p></section>
+        <section id="knowledge"><h3>Ngân hàng 400 câu hỏi</h3><p>Gồm 400 câu hỏi trắc nghiệm chia theo 13 chủ đề môn học và 3 mức độ (Dễ, Vừa, Khó). Bài test tổng hợp chọn ngẫu nhiên 40 câu chia đều tỷ lệ theo các chủ đề trong 60 phút, yêu cầu đạt từ 70%.</p></section>
+        <section id="prediction"><h3>Ghi nhận tiến độ</h3><p>Tiến độ làm bài và kết quả được lưu cục bộ trong bộ nhớ trình duyệt (localStorage). Điểm số chỉ nhằm mục đích tự ôn luyện học tập, không dùng để cấp chứng chỉ pháp lý ngoài đời thực.</p></section>
+        <section id="results"><h3>Xem lại kết quả &amp; bài làm</h3><p>Sau khi hoàn thành lượt làm bài, bạn có thể xem thống kê tỷ lệ đúng theo từng chủ đề, tỷ lệ theo mức độ khó và xem lại chi tiết đáp án đúng của các câu làm sai hoặc chưa làm.</p></section>
+      </div>
+    </details>
+  </main>
+</div>
+<script src="/ui/session.js" defer></script>
+<script src="/ui/chatbot.js" defer></script>
+</body>
+</html>

@@ -95,7 +95,8 @@ const mutations=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix
  }else if(testCase==='corruption'){
   $('tamper-input').value=edited;$('tamper-input').oninput();const before=reads;await run('tamperLabAction("edit")');
   assert.equal(reads,before);assert.equal(mutations('/sync').length,0); // no automatic repair or ready-poll after edit
-  assert.equal(run('tamperLab.snapshot.tampered'),true);assert.equal($('tamper-local').textContent,edited);
+  assert.equal(run('tamperLab.snapshot.tampered'),true);
+  assert.ok(text($('tamper-checks')).includes('Transaction invalid <safe>'));assert.equal($('tamper-local').textContent,edited);
   assert.ok(text($('tamper-nodes')).includes(edited));assert.ok(text($('tamper-nodes')).includes('INVALID'));
   assert.ok($('tamper-summary').className.includes('invalid'));assert.equal($('tamper-edit').disabled,true);
   assert.equal($('tamper-sync').disabled,false);assert.equal($('tamper-reason').textContent,'Transaction invalid <safe>');
@@ -122,7 +123,8 @@ const mutations=suffix=>calls.filter(c=>c.method==='POST'&&c.url.endsWith(suffix
  }else if(testCase==='read_timeout'){
   await run('tamperLabAction("refresh")');assert.equal($('tamper-error').hidden,false);assert.equal(run('tamperLab.busy'),false);return;
  }
- await run('resetTamperLab()');assert.equal(run('tamperLab.handle'),null);assert.equal($('tamper-nodes').children.length,0);
+ $('tamper-prediction-input').value='My prediction';
+ await run('resetTamperLab()');assert.equal($('tamper-prediction-input').value,'');assert.equal(run('tamperLab.handle'),null);assert.equal($('tamper-nodes').children.length,0);
  assert.equal($('tamper-create').disabled,false);assert.equal($('tamper-sync').disabled,true);
  await run('tamperLabAction("create")');events.pagehide();await tick();
  assert.ok(calls.some(c=>c.method==='DELETE'&&c.url.endsWith('handle-2')));assert.equal(run('tamperLab.handle'),null);
