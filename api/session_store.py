@@ -3,6 +3,7 @@
 Registry locking covers membership/leases only. A leased request pins its
 context; domain operations use that context's locks, never the registry lock.
 """
+from collections import deque
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -60,6 +61,10 @@ class SimulationSession:
     rsa_keys: dict = field(default_factory=dict, repr=False)
     rsa_key_lock: object = field(default_factory=threading.RLock, repr=False)
     rsa_generation_lock: object = field(default_factory=threading.Lock, repr=False)
+
+    chat_lock: object = field(default_factory=threading.Lock, repr=False)
+    chat_attempts: object = field(default_factory=deque, repr=False)
+    chat_inflight: bool = False
 
     def close(self):
         # No registry/node lock while joining workers. Timers use this lab lock.

@@ -86,6 +86,10 @@ from api.fork_lab import router as fork_router
 app.include_router(fork_router)
 from api.rsa_lab import router as rsa_router
 app.include_router(rsa_router)
+from api.chatbot_api import router as chatbot_router, ChatbotBudget
+app.state.chatbot_budget = ChatbotBudget()
+app.state.chatbot_provider = None
+app.include_router(chatbot_router)
 
 # Allow localhost origins during development only.
 # In production, tighten allowed_origins to the actual serving domain.
