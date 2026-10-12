@@ -414,13 +414,13 @@ Node-3 offline: chuỗi cũ → có thể NOT_FOUND</pre></div><p class="sha-tak
 <h2>Chọn nhánh và tái tổ chức</h2><p>Nhánh hợp lệ có tổng work lớn nhất; khi độ khó không đổi, thường tương ứng với chuỗi dài nhất. Work là điểm theo target trong mô phỏng, không phải số hash đo được hay điện năng.</p>
 <p>Khi hòa work, mô phỏng giữ nhánh hợp lệ hiện tại. Đây không phải mô tả toàn bộ chính sách Bitcoin Core. Block stale đã có cha và được lưu ngoài nhánh chọn; orphan thiếu cha, cần validate lại khi cha đến, chưa được tính cumulative work.</p>
 <p>Reorg dựng lại trạng thái credential từ nhánh chọn, đối soát toàn mempool cùng TX tách khỏi chuỗi. Chỉ TX còn hợp lệ được giữ/khôi phục; TX đã xác nhận hoặc bị từ chối có mã lý do. restored là số TX thực được khôi phục, không phải số block tách.</p>
-<p>Sync chỉ xếp request/response. Ngắt link hoặc OFFLINE chặn giao tin; nối lại không tự giao. ISSUE có chữ ký từ ví riêng của lab, khóa riêng không trả cho trình duyệt.</p>
+<p>Sync chỉ xếp request/response. Ngắt link hoặc OFFLINE chặn giao tin; nối lại không tự giao. ISSUE/REVOKE có chữ ký từ ví riêng của lab, khóa riêng không trả cho trình duyệt. REVOKE đang chờ chưa thu hồi hồ sơ; sau reorg validator xét lại trên nhánh mới. Nếu ISSUE cũng rời nhánh, ISSUE pending chưa đủ để nhận REVOKE.</p>
 </div>
 <div id="fork-practice-panel" role="tabpanel" aria-labelledby="fork-tab-practice">
 <div class="panel">
-<h2 id="fork-objectives">1. Mục tiêu học</h2><p>Giải thích chọn nhánh bằng work, giữ nhánh khi hòa; quan sát orphan, reorg, mempool và xác nhận ISSUE trên từng node.</p>
-<h2 id="fork-basics">2. Kiến thức cơ bản</h2><p>Nhánh hợp lệ có tổng work lớn nhất; khi độ khó không đổi, thường tương ứng với chuỗi dài nhất. Khi hòa work, mô phỏng giữ nhánh hợp lệ hiện tại. Height và work là hai đại lượng khác nhau.</p>
-<details id="fork-prediction"><summary>3. Dự đoán (tùy chọn)</summary><label for="fork-predict">Node sẽ giữ tip nào? TX A sẽ ở đâu sau reorg?</label><textarea id="fork-predict" rows="2" placeholder="Ghi dự đoán rồi so sánh với kết quả thật"></textarea></details>
+<h2 id="fork-objectives">1. Mục tiêu học</h2><p>Giải thích chọn nhánh bằng work, giữ nhánh khi hòa; quan sát orphan, reorg và lịch sử ISSUE/REVOKE trên từng node. Phân biệt confirmed, pending và stale; giải thích giao dịch nào được nhận lại sau kiểm tra.</p>
+<h2 id="fork-basics">2. Kiến thức cơ bản</h2><p>Nhánh hợp lệ có tổng work lớn nhất; khi độ khó không đổi, thường tương ứng với chuỗi dài nhất. Khi hòa work, mô phỏng giữ nhánh hợp lệ hiện tại. Height và work là hai đại lượng khác nhau. ACTIVE/REVOKED chỉ tính từ nhánh chọn; pending chưa thay đổi xác nhận. Một REVOKE rời nhánh có thể khiến hồ sơ ACTIVE trở lại.</p>
+<details id="fork-prediction"><summary>3. Dự đoán (tùy chọn)</summary><label for="fork-predict">Node sẽ giữ tip nào? Hồ sơ ACTIVE, REVOKED hay chưa có? ISSUE/REVOKE sẽ ở đâu sau reorg?</label><textarea id="fork-predict" rows="2" placeholder="Ghi dự đoán rồi so sánh với kết quả thật"></textarea></details>
 </div>
 <div class="workspace fork-workspace">
 <div class="panel">
@@ -428,14 +428,24 @@ Node-3 offline: chuỗi cũ → có thể NOT_FOUND</pre></div><p class="sha-tak
 <div class="actions"><button id="fork-create" class="primary">Tạo lab riêng</button><button id="fork-refresh" class="secondary">Refresh state</button><button id="fork-reset" class="secondary">Reset &amp; dọn lab</button></div>
 <p id="fork-meta" class="hint"></p><p id="fork-status" role="status" class="result"></p>
 <div id="fork-controls">
-<label for="fork-scenario">Nạp kịch bản · chỉ trên lab mới, chưa có thao tác</label><select id="fork-scenario"><option value="E1">E1 · Hòa rồi nhánh mạnh hơn</option><option value="E2">E2 · Ngắn hơn, work cao hơn</option><option value="E4">E4 · Hoàn tác xác nhận ISSUE</option><option value="E5">E5 · Con đến trước cha</option></select>
+<label for="fork-scenario">Nạp kịch bản · chỉ trên lab mới, chưa có thao tác</label><select id="fork-scenario"><option value="E1">E1 · Hòa rồi nhánh mạnh hơn</option><option value="E2">E2 · Ngắn hơn, work cao hơn</option><option value="E4">E4 · Hoàn tác xác nhận ISSUE</option><option value="E5">E5 · Con đến trước cha</option><option value="C1">C1 · REVOKE rời nhánh chọn</option><option value="C2">C2 · ISSUE và REVOKE cùng bị tách</option><option value="C3">C3 · Cùng REVOKE vẫn được xác nhận</option></select>
 <p id="fork-goal" class="hint"></p><button id="fork-load" class="primary">Nạp bằng miner / validator / delivery thật</button>
+<div class="actions" role="group" aria-label="Kịch bản lịch sử hồ sơ"><button id="fork-load-C1" class="secondary" type="button">Nạp C1 · REVOKE bị tách</button><button id="fork-load-C2" class="secondary" type="button">Nạp C2 · Cả hai bị tách</button><button id="fork-load-C3" class="secondary" type="button">Nạp C3 · Cùng TxID</button></div>
 <div id="fork-continuation" class="fork-continuation"></div>
 <h3>Thao tác thủ công · luôn có sẵn</h3>
 <label for="fork-node">Node thao tác</label><select id="fork-node"><option>Node-1</option><option>Node-2</option><option>Node-3</option></select>
 <div class="actions"><button id="fork-online" class="secondary">Đặt OFFLINE</button><button id="fork-sync" class="secondary">Xếp yêu cầu sync</button></div>
 <h3>Topology · nối/ngắt từng link</h3><div id="fork-links" class="actions"></div>
 <form id="fork-issue-form"><label for="fork-label">Tiêu đề ISSUE được ký thật (1–120 ký tự)</label><input id="fork-label" required maxlength="120" value="Chứng nhận thực hành"><button class="primary" type="submit">Ký &amp; gửi ISSUE</button></form>
+<h3>Lịch sử hồ sơ · ISSUE / REVOKE</h3>
+<p class="hint">Khóa của issuer riêng trong lab ký tại backend. ISSUE vào pending chưa cấp hồ sơ đã xác nhận; REVOKE chỉ được nhận khi node đã xác nhận ISSUE còn ACTIVE và đúng issuer. Raw admission và đối soát sau reorg là hai bước riêng.</p>
+<form id="fork-credential-form">
+<label for="fork-credential-id">Mã hồ sơ (1–64 ký tự)</label><input id="fork-credential-id" required maxlength="64" value="ho-so-A">
+<label for="fork-credential-action">Hành động</label><select id="fork-credential-action"><option value="ISSUE">ISSUE · cấp hồ sơ</option><option value="REVOKE">REVOKE · thu hồi</option></select>
+<label id="fork-credential-text-label" for="fork-credential-text">Tiêu đề ISSUE (1–120 ký tự)</label><input id="fork-credential-text" required maxlength="120" value="Hồ sơ thực hành">
+<button class="primary" type="submit">Ký &amp; gửi giao dịch hồ sơ</button>
+</form>
+<p class="hint">Để xác nhận: chọn giao dịch đang chờ bên dưới rồi đào block. Node khác chỉ cập nhật khi bạn giao tin.</p>
 <form id="fork-mine-form"><label for="fork-parent">Block cha đã biết trên node</label><select id="fork-parent" required></select>
 <label for="fork-difficulty">Độ khó PoW (1–3)</label><select id="fork-difficulty"><option>1</option><option selected>2</option><option>3</option></select>
 <fieldset><legend>TX trong mempool · bỏ chọn hết để đào block rỗng</legend><div id="fork-txs"></div></fieldset>
@@ -447,10 +457,11 @@ Node-3 offline: chuỗi cũ → có thể NOT_FOUND</pre></div><p class="sha-tak
 <div id="fork-nodes" class="fork-nodes"></div>
 <div class="panel"><h2 id="fork-results">5. Kết quả &amp; nguyên nhân</h2><div id="fork-report" aria-live="polite"></div><p id="fork-event-note" class="hint"></p><details><summary>Events thực của backend</summary><ol id="fork-events"></ol></details></div>
 <details id="fork-limits" class="panel"><summary>6. Đào sâu &amp; giới hạn mô phỏng</summary>
+<p>C1–C3 quan sát lịch sử hồ sơ sau reorg, không phải currency double-spending: mô hình này không có tiền hay UTXO. Pending không phải confirmed; cùng TxID có thể nằm trong block active và stale nhưng không được đếm restored nếu vẫn xác nhận trên nhánh mới. Chữ ký hợp lệ không chứng minh hồ sơ đúng sự thật hoặc danh tính ngoài đời.</p>
 <p>E4 chỉ là hoàn tác xác nhận ISSUE và khôi phục TX hợp lệ; không phải thí nghiệm thu hồi hoàn chỉnh hay tấn công. E3 (nhánh không hợp lệ) là regression lõi, không có loader UI.</p>
 <p>Ba node / 12 block ngoài genesis / 32 TX riêng / 64 tin tổng (32 mỗi node) / 8 orphan mỗi node. Orphan hết hạn sau 120 giây; lab hết hạn sau 15 phút. Chỉ giữ 200 events, cắt bớt được báo rõ. Refresh đọc TTL/state hiện tại; trang không tự poll hoặc retry mutation.</p>
 <p>HTTP 200 chỉ là phản hồi vận chuyển: đọc outcome và mining.completed. Partial setup giữ state thực đã làm được. Revision cũ hoặc lỗi vận chuyển yêu cầu kiểm tra snapshot mới trước khi tự thử lại. Cleanup lúc rời trang là best effort; Reset hiển thị xác nhận riêng.</p>
-<p>Lab queue này độc lập với journey, Merkle và các lab khác. NetNode/HTTP reconciliation và F3/F4 còn hoãn, không được coi là đã sửa. Không mô phỏng Bitcoin production, mini-UTXO hay attack ở đây.</p>
+<p>Lab queue này độc lập với journey, Merkle và các lab khác. NetNode/HTTP reconciliation và F3/F4 còn hoãn, không được coi là đã sửa. Xác nhận trong mô hình có thể bị đảo bởi reorg; không mô phỏng Bitcoin production, mini-UTXO hay cuộc đua hashrate tấn công ở đây.</p>
 <details><summary>Snapshot thật · toàn bộ hash và state</summary><pre id="fork-raw"></pre></details>
 </details>
 </div>

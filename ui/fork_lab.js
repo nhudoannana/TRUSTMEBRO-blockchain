@@ -8,7 +8,10 @@
     E1:'Dự đoán nhánh nào được giữ khi hòa; sau đó đào trên Node-3 và giao block mới để so sánh.',
     E2:'So sánh height và work trước/sau giao nhánh ngắn, có work cao.',
     E4:'Quan sát ISSUE A mất xác nhận và được khôi phục vào mempool; đào lại A trên tip mới.',
-    E5:'Giao con trước cha: orphan chưa đóng góp work; giao cha để thử lại con.'
+    E5:'Giao con trước cha: orphan chưa đóng góp work; giao cha để thử lại con.',
+    C1:'REVOKE rời nhánh chọn: trạng thái đã xác nhận và giao dịch đang chờ khác nhau thế nào?',
+    C2:'Cả ISSUE và REVOKE rời nhánh chọn: ISSUE đang chờ có cho phép REVOKE không?',
+    C3:'Cùng REVOKE vẫn trên nhánh mới: có giao dịch nào thực sự được khôi phục?'
   };
   async function request(url, method='GET', body) {
     const controller = new AbortController();
@@ -69,7 +72,10 @@
       o.snapshot=path==='create' ? result : result.snapshot;
       o.uncertain=false; o.report=path==='create' ? null : result;
       o.notice=path==='create' ? 'Đã tạo ba node riêng; chưa tự giao tin.' : result.outcome.code+' — '+result.outcome.message;
-      if(path==='scenario'){o.continuation=result.continuation || null;o.scenario=body.scenario;}
+      if(path==='scenario'){
+        o.continuation=result.outcome.code==='scenario_ready' ? result.continuation || null : null;
+        o.scenario=body.scenario;
+      }
     } catch(error) { await recover(o,error,token); }
     finally { if(owner===o && o.token===token){o.busy=false;o.pendingMutation=false;render();} }
   }
@@ -120,7 +126,7 @@
     owner.draftNode=n?.node_id;
     $('fork-txs').replaceChildren(...(n?.mempool||[]).map(tx=>{
       const label=el('label',undefined,'fork-tx');const input=el('input');input.type='checkbox';input.value=tx.tx_id;input.checked=checked.has(tx.tx_id);
-      label.append(input,el('span',(tx.payload?.label||'ISSUE')+' · '+tx.tx_id,'digest'));return label;
+      label.append(input,el('span',(tx.tx_type||'ISSUE')+' · '+(tx.payload?.label||tx.payload?.reason||'')+' · '+tx.tx_id,'digest'));return label;
     }));
   }
   function renderNode(n) {
@@ -148,14 +154,35 @@
     n.orphans.forEach(o=>orphans.append(details('Orphan '+o.hash.slice(0,12)+' · còn '+Math.ceil(o.expires_in_seconds)+'s',o)));
     card.append(orphans);
     card.append(details('Mempool ('+n.mempool.length+' TX) · chữ ký / payload / ID',n.mempool));
-    const credentials=el('div');credentials.append(el('h4','Trạng thái credential trên nhánh chọn'));
+    const credentials=el('div');credentials.append(el('h4','Hồ sơ theo node · chỉ active chain quyết định xác nhận'));
     Object.entries(n.credential_states).forEach(([id,c])=>{
-      credentials.append(el('p',id+' · '+(c.status||'Chưa xác nhận'),'digest'),details('Issuer và TX đã xác nhận',c));
+      const section=el('section');section.append(el('h5',id,'digest'));
+      section.append(el('p',c.confirmed_status == null ? 'Chưa có trên active chain' : 'Đã xác nhận: '+c.confirmed_status));
+      section.append(el('p','Pending chỉ là giao dịch đang chờ; stale là lịch sử ngoài nhánh chọn, không đổi trạng thái đã xác nhận.','hint'));
+      const pending=el('div');pending.append(el('h6','Pending · chưa xác nhận'));
+      (c.pending_transactions||[]).forEach(tx=>pending.append(el('p',tx.tx_type+' · '+tx.tx_id,'digest'),details('Payload / chữ ký đang chờ',tx)));
+      if(!c.pending_transactions?.length)pending.append(el('p','Không có giao dịch đang chờ cho hồ sơ này.'));
+      section.append(pending);
+      [['confirmed_transactions','Active · đã xác nhận'],['stale_transactions','Stale · không quyết định trạng thái hiện tại']].forEach(([key,title])=>{
+        const list=el('div');list.append(el('h6',title));
+        (c[key]||[]).forEach(record=>list.append(el('p',record.transaction.tx_type+' · '+record.transaction.tx_id+' · block #'+record.height+' · '+record.block_hash,'digest'),details('Vị trí / nội dung giao dịch đầy đủ',record)));
+        if(!c[key]?.length)list.append(el('p','Không có vị trí giao dịch thuộc nhóm này.'));
+        section.append(list);
+      });
+      section.append(details('Issuer và projection đầy đủ từ backend',c));credentials.append(section);
     });
     if(!Object.keys(n.credential_states).length)credentials.append(el('p','Chưa có credential.'));
     card.append(credentials);
-    if(n.last_transition)card.append(details('Reorg gần nhất của node',n.last_transition));
+    if(n.last_transition){const report=el('div');renderTransition(report,n.last_transition);card.append(report);}
     return card;
+  }
+  function renderTransition(target,t) {
+    target.append(el('p','Work '+t.old_work+' → '+t.new_work+' · '+t.selection_reason));
+    target.append(el('p','Tách '+t.detached_hashes.length+' block · gắn '+t.attached_hashes.length+' block · Restored thực: '+t.counts.restored+' TX'));
+    target.append(el('p','Restored là giao dịch được nhận lại vào pending sau kiểm tra; chưa phải xác nhận lại.','hint'));
+    target.append(el('p','Counts thực: '+Object.entries(t.counts).map(([k,v])=>k+'='+v).join(' · ')));
+    t.transactions.forEach(tx=>target.append(el('p',tx.tx_id+' · '+tx.disposition+' · '+tx.reason_code+' — '+tx.message,'digest')));
+    target.append(details('Ancestor / detached / attached / lý do đầy đủ',t));
   }
   function render() {
     const o=owner,s=o.snapshot;
@@ -183,12 +210,23 @@
     if(s && !s.pending_messages.length)$('fork-pending').append(el('p','Không có tin đang chờ.'));
     const c=o.continuation,continuation=$('fork-continuation');continuation.replaceChildren();
     if(c){
-      continuation.append(el('h3','Hành động tiếp theo của người học'),el('p',goals[o.scenario]));
+      continuation.append(el('h3','Hành động tiếp theo của người học'),el('p',c.learning_goal||goals[o.scenario]));
+      (c.next_steps||[]).forEach(step=>continuation.append(el('p',step)));
       continuation.append(details('Chỉ dẫn trả về từ backend',c));
       if(c.reconnect)continuation.append(button('Nối lại các link theo kịch bản',()=>action('links',{changes:c.reconnect}),locked()));
       [['message_id','Giao tin quyết định'],['child_message_id','Giao con trước'],['parent_message_id','Giao cha sau']].forEach(([key,label])=>{
         if(c[key])continuation.append(button(label,()=>action('deliver',{message_id:c[key]}),locked() || !s?.pending_messages.some(m=>m.id===c[key])));
       });
+      if(c.remine_tx_ids?.length){
+        const n=s?.nodes.find(n=>n.node_id===c.node_id);
+        const pending=new Set((n?.mempool||[]).map(tx=>tx.tx_id));
+        const canMine=n && c.remine_tx_ids.every(id=>pending.has(id)) && !s.pending_messages.some(m=>m.id===c.message_id);
+        continuation.append(button('Đào lại REVOKE đang chờ',()=>{
+          const current=owner.snapshot?.nodes.find(n=>n.node_id===c.node_id);
+          if(current)action('mine',{node_id:c.node_id,parent_hash:current.tip_hash,difficulty:1,tx_ids:c.remine_tx_ids});
+        },locked() || !canMine));
+        continuation.append(el('p','Chỉ đào lại khi TxID trả về còn trong mempool của node sau giao tin; dùng tip và revision hiện tại.','hint'));
+      }
       if(c.detached_tx_id)continuation.append(el('p','TX A: '+c.detached_tx_id+' · credential A: '+c.credential_id,'digest'));
     }
     const report=$('fork-report');report.replaceChildren();
@@ -196,12 +234,13 @@
       const r=o.report;report.append(el('p',r.outcome.code+' — '+r.outcome.message));
       if(r.mining)report.append(details('Kết quả mining thực (không suy ra năng lượng)',r.mining));
       if(r.setup_completed_steps)report.append(details('Các bước setup thực đã hoàn tất',r.setup_completed_steps));
-      if(r.transition){
-        const t=r.transition;report.append(el('p','Work '+t.old_work+' → '+t.new_work+' · '+t.selection_reason));
-        report.append(el('p','Counts thực: '+Object.entries(t.counts).map(([k,v])=>k+'='+v).join(' · ')));
-        t.transactions.forEach(tx=>report.append(el('p',tx.tx_id+' · '+tx.disposition+' · '+tx.reason_code+' — '+tx.message,'digest')));
-        report.append(details('Đường tách/gắn, nguồn TX, mã lý do đầy đủ',t));
-      }else report.append(el('p','Thao tác này không trả transition reorg mới.'));
+      if(r.outcome.code==='scenario_incomplete'){
+        report.append(el('p','Setup chưa hoàn tất; chỉ hiển thị phần backend đã thực hiện. Không có hành động quyết định sẵn. Reset & tạo lab mới để nạp lại.'));
+        if(r.setup_failure)report.append(details('Lỗi setup thực · mã lý do và giới hạn',r.setup_failure));
+      }
+      if(r.transaction)report.append(details('Giao dịch đã ký và được nhận vào pending · chưa xác nhận',r.transaction));
+      if(r.transition)renderTransition(report,r.transition);
+      else report.append(el('p','Thao tác này không trả transition reorg mới.'));
     }else report.append(el('p','Thực hiện thao tác để đọc kết quả và nguyên nhân.'));
     $('fork-event-note').textContent=s?.events_truncated ? 'Nhật ký đã cắt bớt; chỉ giữ tối đa 200 events, cursor '+s.event_cursor+'. Không phải lịch sử đầy đủ.' : 'Nhật ký backend · cursor '+(s?.event_cursor||0);
     $('fork-events').replaceChildren(...(s?.events||[]).map(e=>el('li','#'+e.sequence+' · '+e.node_id+' · '+e.code+' — '+e.message)));
@@ -222,6 +261,19 @@
   $('fork-online').onclick=()=>action('nodes/'+$('fork-node').value+'/status',{status:selected()?.status==='ONLINE'?'OFFLINE':'ONLINE'});
   $('fork-sync').onclick=()=>action('sync',{node_id:$('fork-node').value});
   $('fork-issue-form').onsubmit=e=>{e.preventDefault();action('transactions',{node_id:$('fork-node').value,label:$('fork-label').value.trim()});};
+  $('fork-credential-action').onchange=()=>{
+    $('fork-credential-text-label').textContent=$('fork-credential-action').value==='ISSUE' ? 'Tiêu đề ISSUE (1–120 ký tự)' : 'Lý do REVOKE (1–120 ký tự)';
+  };
+  $('fork-credential-form').onsubmit=e=>{
+    e.preventDefault();
+    const type=$('fork-credential-action').value;
+    action('credential-transactions',{node_id:$('fork-node').value,action:type,
+      credential_id:$('fork-credential-id').value,
+      [type==='ISSUE'?'label':'reason']:$('fork-credential-text').value});
+  };
+  ['C1','C2','C3'].forEach(scenario=>{
+    $('fork-load-'+scenario).onclick=()=>action('scenario',{scenario});
+  });
   $('fork-mine-form').onsubmit=e=>{
     e.preventDefault();action('mine',{node_id:$('fork-node').value,parent_hash:$('fork-parent').value,
       difficulty:Number($('fork-difficulty').value),tx_ids:[...$('fork-txs').querySelectorAll('input:checked')].map(i=>i.value)});
